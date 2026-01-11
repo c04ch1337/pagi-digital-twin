@@ -1,0 +1,8 @@
+{
+  "name": "Ferrellgas AGI: Multi Digital Twin Desktop",
+  "description": "A high-performance agentic platform featuring multiple synchronized Digital Twins with integrated system telemetry, policy oversight, and Gemini-powered orchestration.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}

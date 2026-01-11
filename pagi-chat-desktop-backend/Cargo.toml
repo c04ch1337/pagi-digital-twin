@@ -1,0 +1,32 @@
+[package]
+name = "pagi-chat-desktop-backend"
+version = "0.1.0"
+edition = "2021"
+
+[features]
+# Build against the real *Digital Twin* core crate.
+# In this workspace the core package currently lives at:
+#   ../pagi-companion-core
+#
+# We alias it locally as `pagi-digital-twin-core` to keep PAGI Chat Desktop
+# nomenclature consistent without forcing a repo-wide rename.
+with-core = ["dep:pagi-digital-twin-core"]
+
+[dependencies]
+# CORE AGENT LOGIC (The AGI Digital Twin)
+# NOTE: optional so this crate can still build without the sibling directory.
+pagi-digital-twin-core = { package = "pagi-companion-core", path = "../pagi-companion-core", optional = true }
+
+# API & CONCURRENCY
+tokio = { version = "1.35", features = ["full"] }
+axum = { version = "0.7", features = ["ws", "macros"] }
+tracing = "0.1"
+tracing-subscriber = "0.3"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+anyhow = "1.0"
+futures = "0.3"
+chrono = { version = "0.4", features = ["serde"] }
+
+# Utilities
+uuid = { version = "1.6", features = ["v4", "serde"] }

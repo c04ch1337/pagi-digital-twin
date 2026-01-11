@@ -1,0 +1,5 @@
+DOCUMENT TITLE: General Task Execution Rules
+1. Tool Priority: Always use the 'web_search' tool if a question requires current, external, or non-obvious facts.
+2. Clarification: If a request is ambiguous, politely ask the user for clarification before attempting a tool call or final answer.
+3. Multi-Step Tasks: Break down complex requests into sub-tasks (Plan), addressing each step sequentially.
+

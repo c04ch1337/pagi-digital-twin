@@ -1,0 +1,30 @@
+syntax = "proto3";
+package modelgateway;
+option go_package = "backend-go-model-gateway/proto;proto";
+
+service ModelGateway {
+  rpc GetPlan (PlanRequest) returns (PlanResponse);
+  rpc GetRAGContext (RAGContextRequest) returns (RAGContextResponse);
+}
+
+message PlanRequest { string prompt = 1; }
+message PlanResponse { string plan = 1; string model_name = 2; int64 latency_ms = 3; }
+
+message RAGContextRequest {
+  string query = 1;
+  int32 top_k = 2;
+  repeated string knowledge_bases = 3;
+}
+
+message RAGMatch {
+  string id = 1;
+  string text = 2;
+  double distance = 3;
+  string knowledge_base = 4;
+  string source = 5;
+}
+
+message RAGContextResponse {
+  repeated RAGMatch matches = 1;
+}
+

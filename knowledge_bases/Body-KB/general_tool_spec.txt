@@ -1,0 +1,3 @@
+AVAILABLE TOOLS:
+1. web_search: Detailed specifications and usage instructions for the web_search tool are available in the Body-KB (body_kb/web_search_api.json). This tool is essential for accessing external knowledge.
+

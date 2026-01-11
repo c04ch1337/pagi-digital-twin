@@ -1,0 +1,140 @@
+services:
+  redis:
+    image: redis:latest
+    container_name: redis
+    ports:
+      - "6379:6379"
+
+  jaeger:
+    image: jaegertracing/all-in-one:1.58
+    container_name: jaeger
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+    ports:
+      - "16686:16686" # Jaeger UI
+      - "4317:4317"   # OTLP gRPC
+      - "4318:4318"   # OTLP HTTP
+
+  prometheus:
+    image: prom/prometheus:v2.54.1
+    container_name: prometheus
+    volumes:
+      - ./observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "9090:9090"
+
+  chroma-db:
+    image: ghcr.io/chroma-core/chroma:latest
+    container_name: chroma-db
+    environment:
+      - IS_PERSISTENT=TRUE
+      - PERSIST_DIRECTORY=/chroma/chroma
+    volumes:
+      - chroma_data:/chroma/chroma
+    ports:
+      - "8000:8000"
+
+  memory-service:
+    container_name: memory-service
+    build:
+      context: .
+      dockerfile: backend-python-memory/Dockerfile
+    environment:
+      - MEMORY_PORT=8003
+      - MEMORY_GRPC_PORT=50052
+      - CHROMA_HOST=chroma-db
+      - CHROMA_PORT=8000
+    ports:
+      - "8003:8003"
+    depends_on:
+      - chroma-db
+
+  rust-sandbox:
+    container_name: rust-sandbox
+    build:
+      context: .
+      dockerfile: backend-rust-sandbox/Dockerfile
+    environment:
+      - RUST_SANDBOX_PORT=8001
+      - RUST_SANDBOX_GRPC_PORT=50053
+      - LOG_LEVEL=info
+    ports:
+      - "50053:50053"
+
+  model-gateway:
+    container_name: model-gateway
+    build:
+      context: .
+      dockerfile: backend-go-model-gateway/Dockerfile
+    environment:
+      - MODEL_GATEWAY_GRPC_PORT=50051
+      - RAG_GRPC_ADDR=memory-service:50052
+
+      # LLM provider switching
+      # Default is "mock" so the stack boots without any API keys.
+      - LLM_PROVIDER=${LLM_PROVIDER:-mock}
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+      - OPENROUTER_MODEL_NAME=${OPENROUTER_MODEL_NAME:-mistralai/mistral-7b-instruct:free}
+      - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://ollama:11434}
+      - OLLAMA_MODEL_NAME=${OLLAMA_MODEL_NAME:-llama3}
+      - REQUEST_TIMEOUT_SECONDS=${REQUEST_TIMEOUT_SECONDS:-5}
+    ports:
+      - "50051:50051"
+    depends_on:
+      - memory-service
+
+  agent-planner:
+    container_name: agent-planner
+    build:
+      context: .
+      dockerfile: backend-go-agent-planner/Dockerfile
+    environment:
+      - AGENT_PLANNER_PORT=8080
+      - MODEL_GATEWAY_ADDR=model-gateway:50051
+      - MEMORY_GRPC_ADDR=memory-service:50052
+      - MEMORY_URL=http://memory-service:8003
+      - RUST_SANDBOX_GRPC_ADDR=rust-sandbox:50053
+      - AGENT_MAX_TURNS=${AGENT_MAX_TURNS:-3}
+      - AGENT_RAG_TOP_K=${AGENT_RAG_TOP_K:-3}
+      - REDIS_ADDR=redis:6379
+      - PAGI_AUDIT_DB_PATH=/audit/pagi_audit.db
+      # SECURITY: API Key authentication (REQUIRED for production)
+      # Generate with: openssl rand -hex 32
+      - PAGI_API_KEY=${PAGI_API_KEY:-}
+
+      # OpenTelemetry
+      - OTEL_SERVICE_NAME=agent-planner
+      - OTEL_EXPORTER_OTLP_ENDPOINT=jaeger:4317
+    volumes:
+      - agent_planner_audit:/audit
+    ports:
+      - "8585:8080"
+    depends_on:
+      - redis
+      - memory-service
+      - rust-sandbox
+      - model-gateway
+      - jaeger
+
+  notification-service:
+    container_name: notification-service
+    build:
+      context: .
+      dockerfile: backend-go-notification-service/Dockerfile
+    environment:
+      - REDIS_ADDR=redis:6379
+    depends_on:
+      - redis
+
+  audit-inspector:
+    image: keinos/sqlite3:latest
+    container_name: audit-inspector
+    volumes:
+      - agent_planner_audit:/audit
+    entrypoint: ["sh", "-c", "tail -f /dev/null"]
+    depends_on:
+      - agent-planner
+
+volumes:
+  chroma_data:
+  agent_planner_audit:

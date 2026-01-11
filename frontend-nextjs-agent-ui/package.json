@@ -1,0 +1,14 @@
+{
+  "name": "frontend-nextjs-agent-ui",
+  "private": true,
+  "version": "0.0.1",
+  "scripts": {
+    "dev": "next dev"
+  },
+  "dependencies": {
+    "next": "^14.0.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  }
+}
+
