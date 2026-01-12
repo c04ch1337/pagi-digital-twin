@@ -163,36 +163,36 @@ const SettingsView: React.FC<SettingsViewProps> = ({ twin, onSave, onCancel }) =
   const currentProvider = providers.find(p => p.id === formData.settings.llmProvider) || providers[0];
 
   return (
-    <div className="flex-1 bg-[#09090b] overflow-y-auto font-display selection:bg-indigo-500/30">
-      <div className="max-w-[1100px] mx-auto py-8 px-6 text-zinc-300">
+    <div className="flex-1 bg-[#9EC9D9] overflow-y-auto font-display selection:bg-[#5381A5]/30">
+      <div className="max-w-[1100px] mx-auto py-8 px-6 text-[#0b1b2b] text-[14px]">
         <div className="flex items-center gap-2 mb-6">
           <button 
             onClick={onCancel}
-            className="text-zinc-500 hover:text-indigo-400 text-sm font-medium transition-colors flex items-center gap-1"
+            className="text-[#163247] hover:text-[#5381A5] text-sm font-medium transition-colors flex items-center gap-1"
           >
             <span className="material-symbols-outlined text-sm">smart_toy</span> Agents
           </button>
-          <span className="text-zinc-700 text-sm">/</span>
-          <span className="text-white text-sm font-medium">{formData.name}</span>
+          <span className="text-[#163247]/60 text-sm">/</span>
+          <span className="text-[#0b1b2b] text-sm font-medium">{formData.name}</span>
         </div>
 
         <div className="flex flex-wrap justify-between items-end gap-4 mb-8">
           <div className="flex flex-col gap-1">
-            <h1 className="text-white text-4xl font-black leading-tight tracking-tight">Tactical Config</h1>
-            <p className="text-zinc-500 text-sm font-mono uppercase tracking-[0.2em]">
-              [NODE_ID: <span className="text-indigo-400">{formData.id}</span>]
+            <h1 className="text-[#0b1b2b] text-4xl font-black leading-tight tracking-tight">Tactical Config</h1>
+            <p className="text-[#163247] text-sm font-mono uppercase tracking-[0.2em]">
+              [NODE_ID: <span className="text-[#5381A5]">{formData.id}</span>]
             </p>
           </div>
           <div className="flex gap-3">
             <button 
               onClick={onCancel}
-              className="flex items-center gap-2 rounded-lg h-10 px-6 bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white transition-all text-xs font-bold"
+              className="flex items-center gap-2 rounded-lg h-10 px-6 bg-white/35 border border-[#5381A5]/35 text-[#0b1b2b] hover:bg-[#78A2C2] hover:text-[#0b1b2b] transition-all text-[13px] font-bold"
             >
               Discard Changes
             </button>
             <button 
               onClick={() => onSave(formData)}
-              className="flex items-center gap-2 rounded-lg h-10 px-8 bg-indigo-600 text-white hover:bg-indigo-500 transition-all text-xs font-bold shadow-lg shadow-indigo-600/20"
+              className="flex items-center gap-2 rounded-lg h-10 px-8 bg-[#5381A5] text-white hover:bg-[#437091] transition-all text-[13px] font-bold shadow-lg shadow-[#5381A5]/20"
             >
               Commit Manifest
             </button>
@@ -202,19 +202,19 @@ const SettingsView: React.FC<SettingsViewProps> = ({ twin, onSave, onCancel }) =
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           <div className="lg:col-span-8 space-y-8">
             {/* Directive Logic Section with High-Precision Prism Syntax Highlighting */}
-            <section className="bg-zinc-950 border border-zinc-800 rounded-2xl overflow-hidden flex flex-col shadow-2xl">
-              <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-900 bg-zinc-950/50 backdrop-blur-sm">
+            <section className="bg-white/50 border border-[#5381A5]/35 rounded-2xl overflow-hidden flex flex-col shadow-2xl">
+              <div className="flex items-center justify-between px-6 py-4 border-b border-[#5381A5]/20 bg-white/30 backdrop-blur-sm">
                 <div className="flex items-center gap-3">
-                  <div className="p-2 bg-indigo-500/10 rounded-lg">
-                    <span className="material-symbols-outlined text-indigo-500 text-xl">terminal</span>
+                  <div className="p-2 bg-white/40 rounded-lg border border-[#5381A5]/20">
+                    <span className="material-symbols-outlined text-[#5381A5] text-xl">terminal</span>
                   </div>
-                  <h2 className="text-white text-lg font-bold">Directive Logic</h2>
+                  <h2 className="text-[#0b1b2b] text-lg font-bold">Directive Logic</h2>
                 </div>
                 
                 <div className="flex items-center gap-3">
                   <button
                     onClick={handleResetPrompt}
-                    className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-zinc-800 bg-zinc-900 text-zinc-500 text-[10px] font-black uppercase tracking-widest hover:text-rose-400 hover:border-rose-900/50 transition-all"
+                    className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-[#5381A5]/35 bg-white/35 text-[#0b1b2b] text-[11px] font-black uppercase tracking-widest hover:text-rose-700 hover:border-rose-500/40 transition-all"
                     title="Restore default directive"
                   >
                     <span className="material-symbols-outlined text-sm">restart_alt</span>
@@ -224,34 +224,34 @@ const SettingsView: React.FC<SettingsViewProps> = ({ twin, onSave, onCancel }) =
                   <div className="relative" ref={exampleMenuRef}>
                     <button
                       onClick={() => setIsExampleMenuOpen(!isExampleMenuOpen)}
-                      className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-zinc-800 bg-zinc-900 text-zinc-400 text-[10px] font-black uppercase tracking-widest hover:text-white transition-all"
+                      className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-[#5381A5]/35 bg-white/35 text-[#0b1b2b] text-[11px] font-black uppercase tracking-widest hover:bg-[#78A2C2] transition-all"
                     >
                       <span className="material-symbols-outlined text-sm">lightbulb</span>
                       Blueprints
                     </button>
                     {isExampleMenuOpen && (
-                      <div className="absolute top-full right-0 mt-2 w-64 bg-zinc-900 border border-zinc-800 rounded-xl shadow-2xl z-50 p-2 animate-in fade-in slide-in-from-top-2">
+                      <div className="absolute top-full right-0 mt-2 w-64 bg-[#90C3EA] border border-[#5381A5]/35 rounded-xl shadow-2xl z-50 p-2 animate-in fade-in slide-in-from-top-2">
                         {TACTICAL_BLUEPRINTS.map(bp => (
                           <button
                             key={bp.id}
                             onClick={() => handleLoadBlueprint(bp)}
-                            className="w-full text-left p-3 rounded-lg hover:bg-zinc-800 transition-colors group"
+                            className="w-full text-left p-3 rounded-lg hover:bg-[#78A2C2] transition-colors group"
                           >
-                            <div className="text-[11px] font-bold text-white group-hover:text-indigo-400 transition-colors uppercase tracking-tight">{bp.name}</div>
-                            <div className="text-[9px] text-zinc-600 line-clamp-1 mt-1 font-mono">{bp.content.split('\n')[0]}</div>
+                            <div className="text-[11px] font-bold text-[#0b1b2b] group-hover:text-[#5381A5] transition-colors uppercase tracking-tight">{bp.name}</div>
+                            <div className="text-[10px] text-[#163247] line-clamp-1 mt-1 font-mono">{bp.content.split('\n')[0]}</div>
                           </button>
                         ))}
                       </div>
                     )}
                   </div>
 
-                  <div className="flex items-center gap-1.5 p-1 bg-zinc-900 rounded-lg border border-zinc-800 shadow-inner">
+                  <div className="flex items-center gap-1.5 p-1 bg-white/35 rounded-lg border border-[#5381A5]/35 shadow-inner">
                     {(['markdown', 'yaml', 'json'] as const).map((lang) => (
                       <button
                         key={lang}
                         onClick={() => setEditorLanguage(lang)}
-                        className={`px-3 py-1 text-[10px] font-black uppercase tracking-widest rounded-md transition-all ${
-                          editorLanguage === lang ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20' : 'text-zinc-500 hover:text-zinc-300'
+                        className={`px-3 py-1 text-[11px] font-black uppercase tracking-widest rounded-md transition-all ${
+                          editorLanguage === lang ? 'bg-[#5381A5] text-white shadow-lg shadow-[#5381A5]/20' : 'text-[#163247] hover:text-[#0b1b2b]'
                         }`}
                       >
                         {lang}
@@ -263,7 +263,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({ twin, onSave, onCancel }) =
               
               <div className="relative code-editor-bg flex h-[550px] font-mono">
                 {/* Line numbers gutter */}
-                <div className="w-12 shrink-0 flex flex-col items-center py-5 text-zinc-700 text-[11px] select-none bg-zinc-950/80 border-r border-zinc-800/50">
+                <div className="w-12 shrink-0 flex flex-col items-center py-5 text-[#0b1b2b]/70 text-[12px] font-semibold select-none bg-white/35 border-r border-[#5381A5]/25">
                   {(formData.systemPrompt || '').split('\n').map((_, i) => (
                     <span key={i} className="h-[20.8px] flex items-center justify-center w-full leading-[1.6]">
                       {String(i + 1).padStart(2, '0')}
@@ -313,37 +313,37 @@ const SettingsView: React.FC<SettingsViewProps> = ({ twin, onSave, onCancel }) =
                 </div>
               </div>
               
-              <div className="bg-zinc-950 border-t border-zinc-900 px-6 py-3 flex items-center justify-between text-zinc-600">
+              <div className="bg-white/35 border-t border-[#5381A5]/25 px-6 py-3 flex items-center justify-between text-[#163247]">
                 <div className="flex items-center gap-8">
-                  <span className="text-[9px] font-black uppercase tracking-[0.2em] flex items-center gap-2">
-                    <span className="material-symbols-outlined text-[14px] text-zinc-700">file_download_done</span>
+                    <span className="text-[10px] font-black uppercase tracking-[0.2em] flex items-center gap-2">
+                    <span className="material-symbols-outlined text-[14px] text-[#5381A5]">file_download_done</span>
                     {new Blob([formData.systemPrompt]).size} BYTES
                   </span>
-                  <span className="text-[9px] font-black uppercase tracking-[0.2em] flex items-center gap-2">
-                    <span className="material-symbols-outlined text-[14px] text-zinc-700">format_list_numbered</span>
+                  <span className="text-[10px] font-black uppercase tracking-[0.2em] flex items-center gap-2">
+                    <span className="material-symbols-outlined text-[14px] text-[#5381A5]">format_list_numbered</span>
                     {(formData.systemPrompt || '').split('\n').length} LINES
                   </span>
                 </div>
                 <div className="flex items-center gap-3">
-                   <span className="text-[9px] font-black uppercase tracking-[0.2em] text-zinc-500">Syntax Layer: {editorLanguage.toUpperCase()}</span>
-                   <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
+                   <span className="text-[10px] font-black uppercase tracking-[0.2em] text-[#163247]">Syntax Layer: {editorLanguage.toUpperCase()}</span>
+                   <div className="w-1.5 h-1.5 rounded-full bg-[#5381A5] animate-pulse shadow-[0_0_8px_rgba(83,129,165,0.45)]" />
                 </div>
               </div>
             </section>
 
             {/* Tactical Identity */}
-            <section className="bg-zinc-950 border border-zinc-800 rounded-2xl p-6 shadow-2xl relative overflow-hidden group/card">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-600/5 blur-[60px] rounded-full -mr-16 -mt-16 group-hover/card:bg-indigo-600/10 transition-colors duration-500" />
+            <section className="bg-white/40 border border-[#5381A5]/30 rounded-2xl p-6 shadow-2xl relative overflow-hidden group/card">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-[#5381A5]/10 blur-[60px] rounded-full -mr-16 -mt-16 group-hover/card:bg-[#5381A5]/20 transition-colors duration-500" />
               <div className="flex items-center gap-3 mb-6 relative">
-                <div className="p-2 bg-indigo-500/10 rounded-lg">
-                  <span className="material-symbols-outlined text-indigo-500 text-xl">fingerprint</span>
+                <div className="p-2 bg-white/40 rounded-lg border border-[#5381A5]/20">
+                  <span className="material-symbols-outlined text-[#5381A5] text-xl">fingerprint</span>
                 </div>
-                <h2 className="text-white text-lg font-bold">Tactical Identity</h2>
+                <h2 className="text-[#0b1b2b] text-lg font-bold">Tactical Identity</h2>
               </div>
               <div className="flex flex-col md:flex-row gap-8 items-start relative">
                 <div className="flex flex-col items-center gap-4">
                   <div 
-                    className="relative group cursor-pointer transition-all duration-300 rounded-2xl overflow-hidden border-2 border-zinc-800 bg-zinc-900 h-28 w-28 flex items-center justify-center shadow-2xl shadow-black/50"
+                    className="relative group cursor-pointer transition-all duration-300 rounded-2xl overflow-hidden border-2 border-[#5381A5]/30 bg-white/30 h-28 w-28 flex items-center justify-center shadow-2xl shadow-black/20"
                     onClick={() => fileInputRef.current?.click()}
                   >
                     {isProcessingImage ? (
@@ -367,25 +367,25 @@ const SettingsView: React.FC<SettingsViewProps> = ({ twin, onSave, onCancel }) =
 
                 <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-6 w-full">
                   <label className="flex flex-col gap-2">
-                    <span className="text-zinc-500 text-[10px] font-black uppercase tracking-widest">Codename</span>
+                    <span className="text-[#163247] text-[10px] font-black uppercase tracking-widest">Codename</span>
                     <input 
-                      className="w-full rounded-xl text-zinc-100 border border-zinc-800 bg-zinc-900/50 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/20 h-11 px-4 transition-all outline-none text-sm font-medium"
+                      className="w-full rounded-xl text-[#0b1b2b] border border-[#5381A5]/30 bg-white/30 focus:border-[#5381A5] focus:ring-1 focus:ring-[#5381A5]/20 h-11 px-4 transition-all outline-none text-sm font-medium"
                       value={formData.name}
                       onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                     />
                   </label>
                   <label className="flex flex-col gap-2">
-                    <span className="text-zinc-500 text-[10px] font-black uppercase tracking-widest">Designation</span>
+                    <span className="text-[#163247] text-[10px] font-black uppercase tracking-widest">Designation</span>
                     <input 
-                      className="w-full rounded-xl text-zinc-100 border border-zinc-800 bg-zinc-900/50 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/20 h-11 px-4 transition-all outline-none text-sm font-medium"
+                      className="w-full rounded-xl text-[#0b1b2b] border border-[#5381A5]/30 bg-white/30 focus:border-[#5381A5] focus:ring-1 focus:ring-[#5381A5]/20 h-11 px-4 transition-all outline-none text-sm font-medium"
                       value={formData.role}
                       onChange={(e) => setFormData({ ...formData, role: e.target.value })}
                     />
                   </label>
                   <label className="flex flex-col gap-2 md:col-span-2">
-                    <span className="text-zinc-500 text-[10px] font-black uppercase tracking-widest">Mission Summary</span>
+                    <span className="text-[#163247] text-[10px] font-black uppercase tracking-widest">Mission Summary</span>
                     <input 
-                      className="w-full rounded-xl text-zinc-100 border border-zinc-800 bg-zinc-900/50 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/20 h-11 px-4 transition-all outline-none text-sm font-medium"
+                      className="w-full rounded-xl text-[#0b1b2b] border border-[#5381A5]/30 bg-white/30 focus:border-[#5381A5] focus:ring-1 focus:ring-[#5381A5]/20 h-11 px-4 transition-all outline-none text-sm font-medium"
                       value={formData.description}
                       onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                     />
@@ -397,36 +397,36 @@ const SettingsView: React.FC<SettingsViewProps> = ({ twin, onSave, onCancel }) =
 
           <div className="lg:col-span-4 space-y-6">
             {/* Neural Core Selection */}
-            <section className="bg-zinc-950 border border-zinc-800 rounded-2xl p-6 shadow-2xl">
+            <section className="bg-white/40 border border-[#5381A5]/30 rounded-2xl p-6 shadow-2xl">
               <div className="flex items-center gap-3 mb-6">
-                <div className="p-2 bg-indigo-500/10 rounded-lg">
-                  <span className="material-symbols-outlined text-indigo-500 text-xl">memory</span>
+                <div className="p-2 bg-white/40 rounded-lg border border-[#5381A5]/20">
+                  <span className="material-symbols-outlined text-[#5381A5] text-xl">memory</span>
                 </div>
-                <h2 className="text-white text-lg font-bold">Neural Core</h2>
+                <h2 className="text-[#0b1b2b] text-lg font-bold">Neural Core</h2>
               </div>
               <div className="space-y-6">
                 <div className="relative" ref={providerMenuRef}>
-                   <span className="text-zinc-500 text-[10px] font-black uppercase tracking-widest mb-3 block">LLM Provider Selection</span>
+                   <span className="text-[#163247] text-[10px] font-black uppercase tracking-widest mb-3 block">LLM Provider Selection</span>
                    <button
-                    onClick={() => setIsProviderDropdownOpen(!isProviderDropdownOpen)}
-                    className="w-full flex items-center justify-between p-3 rounded-xl border border-zinc-800 bg-zinc-900/50 hover:border-indigo-500/50 transition-all text-left group"
+                     onClick={() => setIsProviderDropdownOpen(!isProviderDropdownOpen)}
+                     className="w-full flex items-center justify-between p-3 rounded-xl border border-[#5381A5]/30 bg-white/30 hover:border-[#5381A5]/60 transition-all text-left group"
                    >
                      <div className="flex items-center gap-3">
-                        <span className="material-symbols-outlined text-indigo-400">
+                        <span className="material-symbols-outlined text-[#5381A5]">
                           {currentProvider.icon}
                         </span>
                         <div className="flex flex-col">
-                           <span className="text-[11px] font-bold text-white uppercase tracking-tight">{currentProvider.name}</span>
-                           <span className="text-[9px] text-zinc-600 font-bold uppercase tracking-widest">Active Link</span>
+                           <span className="text-[11px] font-bold text-[#0b1b2b] uppercase tracking-tight">{currentProvider.name}</span>
+                           <span className="text-[9px] text-[#163247] font-bold uppercase tracking-widest">Active Link</span>
                         </div>
                      </div>
-                     <span className={`material-symbols-outlined text-zinc-500 transition-transform duration-300 ${isProviderDropdownOpen ? 'rotate-180' : ''}`}>
+                     <span className={`material-symbols-outlined text-[#163247] transition-transform duration-300 ${isProviderDropdownOpen ? 'rotate-180' : ''}`}>
                        expand_more
                      </span>
                    </button>
 
                    {isProviderDropdownOpen && (
-                     <div className="absolute top-full left-0 right-0 mt-2 bg-zinc-900 border border-zinc-800 rounded-xl shadow-2xl z-[60] p-1.5 animate-in fade-in slide-in-from-top-2">
+                     <div className="absolute top-full left-0 right-0 mt-2 bg-[#90C3EA] border border-[#5381A5]/30 rounded-xl shadow-2xl z-[60] p-1.5 animate-in fade-in slide-in-from-top-2">
                         {providers.map(p => (
                           <button
                             key={p.id}
@@ -435,20 +435,20 @@ const SettingsView: React.FC<SettingsViewProps> = ({ twin, onSave, onCancel }) =
                               setIsProviderDropdownOpen(false);
                             }}
                             className={`w-full flex items-center gap-3 p-2.5 rounded-lg transition-all text-left group ${
-                              formData.settings.llmProvider === p.id ? 'bg-indigo-600/10' : 'hover:bg-zinc-800'
+                              formData.settings.llmProvider === p.id ? 'bg-white/40 border border-[#5381A5]/30' : 'hover:bg-[#78A2C2]'
                             }`}
                           >
-                            <span className={`material-symbols-outlined text-lg ${formData.settings.llmProvider === p.id ? 'text-indigo-400' : 'text-zinc-600 group-hover:text-zinc-400'}`}>
+                            <span className={`material-symbols-outlined text-lg ${formData.settings.llmProvider === p.id ? 'text-[#5381A5]' : 'text-[#163247] group-hover:text-[#0b1b2b]'}`}>
                               {p.icon}
                             </span>
                             <div className="flex flex-col">
-                              <span className={`text-[10px] font-bold uppercase tracking-tight ${formData.settings.llmProvider === p.id ? 'text-indigo-400' : 'text-zinc-300'}`}>
+                              <span className={`text-[10px] font-bold uppercase tracking-tight ${formData.settings.llmProvider === p.id ? 'text-[#5381A5]' : 'text-[#0b1b2b]'}`}>
                                 {p.name}
                               </span>
-                              <span className="text-[8px] text-zinc-600 group-hover:text-zinc-500 uppercase tracking-widest font-black">{p.desc}</span>
+                              <span className="text-[8px] text-[#163247] group-hover:text-[#0b1b2b] uppercase tracking-widest font-black">{p.desc}</span>
                             </div>
                             {formData.settings.llmProvider === p.id && (
-                              <span className="material-symbols-outlined text-indigo-400 text-sm ml-auto">check</span>
+                              <span className="material-symbols-outlined text-[#5381A5] text-sm ml-auto">check</span>
                             )}
                           </button>
                         ))}
@@ -459,47 +459,47 @@ const SettingsView: React.FC<SettingsViewProps> = ({ twin, onSave, onCancel }) =
                 {/* API Key Input - Secure View */}
                 {formData.settings.llmProvider !== 'gemini' && (
                   <div className="space-y-2 animate-in fade-in slide-in-from-top-1 duration-300">
-                    <span className="text-zinc-500 text-[10px] font-black uppercase tracking-widest">Infrastructure Key</span>
+                    <span className="text-[#163247] text-[10px] font-black uppercase tracking-widest">Infrastructure Key</span>
                     <div className="relative">
                       <input 
                         type="password"
                         placeholder="sk-..."
-                        className="w-full rounded-xl text-zinc-100 border border-zinc-800 bg-zinc-900/50 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/20 h-11 pl-10 pr-4 transition-all outline-none text-xs font-mono"
+                        className="w-full rounded-xl text-[#0b1b2b] border border-[#5381A5]/30 bg-white/30 focus:border-[#5381A5] focus:ring-1 focus:ring-[#5381A5]/20 h-11 pl-10 pr-4 transition-all outline-none text-xs font-mono"
                         value={formData.settings.apiKey || ''}
                         onChange={(e) => setFormData({ 
                           ...formData, 
                           settings: { ...formData.settings, apiKey: e.target.value } 
                         })}
                       />
-                      <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-zinc-600 text-sm">key</span>
+                      <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[#5381A5] text-sm">key</span>
                     </div>
                   </div>
                 )}
 
-                <div className="space-y-5 pt-4 border-t border-zinc-800/50">
+                <div className="space-y-5 pt-4 border-t border-[#5381A5]/20">
                    <div className="space-y-3">
                       <div className="flex justify-between items-center">
-                        <span className="text-zinc-500 text-[10px] font-black uppercase tracking-widest">Logic Variance</span>
-                        <span className="text-xs font-mono text-indigo-400 font-bold">{formData.settings.temperature.toFixed(2)}</span>
+                        <span className="text-[#163247] text-[10px] font-black uppercase tracking-widest">Logic Variance</span>
+                        <span className="text-xs font-mono text-[#5381A5] font-bold">{formData.settings.temperature.toFixed(2)}</span>
                       </div>
                       <input 
                         type="range" min="0" max="1.5" step="0.05"
                         value={formData.settings.temperature}
                         onChange={(e) => setFormData({ ...formData, settings: { ...formData.settings, temperature: parseFloat(e.target.value) } })}
-                        className="w-full h-1.5 bg-zinc-900 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+                        className="w-full h-1.5 bg-white/40 rounded-lg appearance-none cursor-pointer accent-[#5381A5]"
                       />
                    </div>
 
                    <div className="space-y-3">
                       <div className="flex justify-between items-center">
-                        <span className="text-zinc-500 text-[10px] font-black uppercase tracking-widest">Context Shards</span>
-                        <span className="text-xs font-mono text-indigo-400 font-bold">{formData.settings.tokenLimit}K</span>
+                        <span className="text-[#163247] text-[10px] font-black uppercase tracking-widest">Context Shards</span>
+                        <span className="text-xs font-mono text-[#5381A5] font-bold">{formData.settings.tokenLimit}K</span>
                       </div>
                       <input 
                         type="range" min="16" max="128" step="16"
                         value={formData.settings.tokenLimit}
                         onChange={(e) => setFormData({ ...formData, settings: { ...formData.settings, tokenLimit: parseInt(e.target.value) } })}
-                        className="w-full h-1.5 bg-zinc-900 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+                        className="w-full h-1.5 bg-white/40 rounded-lg appearance-none cursor-pointer accent-[#5381A5]"
                       />
                    </div>
                 </div>
@@ -507,33 +507,33 @@ const SettingsView: React.FC<SettingsViewProps> = ({ twin, onSave, onCancel }) =
             </section>
 
             {/* Capability Permissions & Defensive Policies */}
-            <section className="bg-zinc-950 border border-zinc-800 rounded-2xl p-6 shadow-2xl">
+            <section className="bg-white/40 border border-[#5381A5]/30 rounded-2xl p-6 shadow-2xl">
               <div className="flex items-center gap-3 mb-6">
-                <div className="p-2 bg-indigo-500/10 rounded-lg">
-                  <span className="material-symbols-outlined text-indigo-500 text-xl">shield</span>
+                <div className="p-2 bg-white/40 rounded-lg border border-[#5381A5]/20">
+                  <span className="material-symbols-outlined text-[#5381A5] text-xl">shield</span>
                 </div>
-                <h2 className="text-white text-lg font-bold">Policy Matrix</h2>
+                <h2 className="text-[#0b1b2b] text-lg font-bold">Policy Matrix</h2>
               </div>
               
               <div className="space-y-4">
                 {/* Global Defensive Policy Toggles */}
                 <div className="space-y-2">
-                  <span className="text-zinc-600 text-[9px] font-black uppercase tracking-widest mb-1 block">Defensive Policies</span>
+                  <span className="text-[#163247] text-[9px] font-black uppercase tracking-widest mb-1 block">Defensive Policies</span>
                   <button 
                     onClick={handleToggleCodeGen}
                     className={`w-full flex items-center justify-between p-3 rounded-xl border transition-all text-left ${
                       formData.settings.aiCodeGenerationEnabled 
-                        ? 'bg-indigo-600/10 border-indigo-600/30 text-white' 
-                        : 'bg-zinc-900/50 border-zinc-800 text-zinc-500 opacity-60'
+                        ? 'bg-white/40 border-[#5381A5]/40 text-[#0b1b2b]' 
+                        : 'bg-white/20 border-[#5381A5]/20 text-[#163247] opacity-60'
                     }`}
                   >
                      <div className="flex items-center gap-3">
-                       <span className={`material-symbols-outlined text-sm ${formData.settings.aiCodeGenerationEnabled ? 'text-indigo-400' : 'text-zinc-600'}`}>
+                       <span className={`material-symbols-outlined text-sm ${formData.settings.aiCodeGenerationEnabled ? 'text-[#5381A5]' : 'text-[#163247]'}`}>
                          code
                        </span>
                        <span className="text-[11px] font-bold uppercase tracking-tight">AI Code Generation</span>
                      </div>
-                     <div className={`w-8 h-4 rounded-full relative transition-colors ${formData.settings.aiCodeGenerationEnabled ? 'bg-indigo-600' : 'bg-zinc-800'}`}>
+                     <div className={`w-8 h-4 rounded-full relative transition-colors ${formData.settings.aiCodeGenerationEnabled ? 'bg-[#5381A5]' : 'bg-white/40'}`}>
                         <div className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-all ${formData.settings.aiCodeGenerationEnabled ? 'right-0.5' : 'left-0.5'}`} />
                      </div>
                   </button>
@@ -541,24 +541,24 @@ const SettingsView: React.FC<SettingsViewProps> = ({ twin, onSave, onCancel }) =
 
                 {/* Tactical Tools */}
                 <div className="space-y-2">
-                  <span className="text-zinc-600 text-[9px] font-black uppercase tracking-widest mb-1 block">Tactical Tools</span>
+                  <span className="text-[#163247] text-[9px] font-black uppercase tracking-widest mb-1 block">Tactical Tools</span>
                   {AVAILABLE_TOOLS.map(tool => (
                     <button 
                       key={tool.id}
                       onClick={() => handleToggleTool(tool.id)}
                       className={`flex items-center gap-4 p-3 rounded-xl border transition-all text-left group/tool ${
                         formData.settings.toolAccess.includes(tool.id) 
-                          ? 'bg-indigo-600/5 border-indigo-600/30' 
-                          : 'bg-zinc-900/50 border-zinc-800 opacity-40 grayscale'
+                          ? 'bg-white/40 border-[#5381A5]/40' 
+                          : 'bg-white/20 border-[#5381A5]/20 opacity-50 grayscale'
                       }`}
                     >
-                       <span className={`material-symbols-outlined text-sm ${formData.settings.toolAccess.includes(tool.id) ? 'text-indigo-400' : 'text-zinc-600'}`}>
+                       <span className={`material-symbols-outlined text-sm ${formData.settings.toolAccess.includes(tool.id) ? 'text-[#5381A5]' : 'text-[#163247]'}`}>
                          {tool.icon}
                        </span>
                        <div className="flex-1">
-                         <div className="text-[11px] font-bold text-zinc-100 uppercase tracking-tight">{tool.name}</div>
+                         <div className="text-[11px] font-bold text-[#0b1b2b] uppercase tracking-tight">{tool.name}</div>
                        </div>
-                       <span className="material-symbols-outlined text-lg text-indigo-500">
+                       <span className="material-symbols-outlined text-lg text-[#5381A5]">
                          {formData.settings.toolAccess.includes(tool.id) ? 'check_circle' : 'circle'}
                        </span>
                     </button>

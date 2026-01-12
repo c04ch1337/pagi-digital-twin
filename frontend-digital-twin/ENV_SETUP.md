@@ -5,7 +5,17 @@
 Create a `.env.local` file in the `frontend-digital-twin` directory with the following variables:
 
 ```env
-# Google Gemini API Key (for fallback/direct API usage - optional if using WebSocket backend)
+# OpenRouter API Key (for image generation and LLM access - recommended)
+# Get your key from https://openrouter.ai/
+VITE_OPENROUTER_API_KEY=sk-or-v1-your-openrouter-api-key-here
+
+# Replicate API Key (for video generation - free tier available)
+# Get your free API key from https://replicate.com/account/api-tokens
+# Free tier includes credits for testing
+VITE_REPLICATE_API_KEY=r8_your-replicate-api-key-here
+
+# Google Gemini API Key (for fallback image generation - optional)
+# Only needed if you want Gemini as a fallback for image generation
 GEMINI_API_KEY=your_gemini_api_key_here
 
 # PAGI Chat Backend WebSocket URL

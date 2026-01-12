@@ -133,7 +133,7 @@ const NeuralMemorySearch: React.FC<NeuralMemorySearchProps> = ({ activeTwin }) =
       case 'Critical': return 'bg-rose-500/10 border-rose-500/30';
       case 'High': return 'bg-orange-500/10 border-orange-500/30';
       case 'Medium': return 'bg-amber-500/10 border-amber-500/30';
-      default: return 'bg-zinc-800/50 border-zinc-800';
+      default: return 'bg-white/30 border-[#5381A5]/25';
     }
   };
 
@@ -147,19 +147,19 @@ const NeuralMemorySearch: React.FC<NeuralMemorySearchProps> = ({ activeTwin }) =
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={handleKeyPress}
           placeholder="Semantic memory query..."
-          className="w-full bg-zinc-900 border border-zinc-800 rounded-lg pl-8 pr-20 py-2 text-[11px] focus:ring-1 focus:ring-indigo-500/50 focus:border-indigo-500/50 outline-none transition-all placeholder-zinc-600 text-zinc-200"
+          className="w-full bg-white/30 border border-[#5381A5]/30 rounded-lg pl-8 pr-20 py-2 text-[12px] focus:ring-1 focus:ring-[#5381A5]/30 focus:border-[#5381A5]/60 outline-none transition-all placeholder-[#163247]/70 text-[#0b1b2b]"
           disabled={isLoading}
         />
-        <span className="material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-600 text-[14px]">
+        <span className="material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-[#5381A5] text-[14px]">
           search
         </span>
         {isLoading && (
-          <div className="absolute right-12 top-1/2 -translate-y-1/2 w-3 h-3 border border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+          <div className="absolute right-12 top-1/2 -translate-y-1/2 w-3 h-3 border border-[#5381A5] border-t-transparent rounded-full animate-spin"></div>
         )}
         <button
           type="submit"
           disabled={isLoading || !query.trim()}
-          className="absolute right-2 top-1/2 -translate-y-1/2 px-2 py-1 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-[10px] font-semibold rounded transition-all"
+          className="absolute right-2 top-1/2 -translate-y-1/2 px-2 py-1 bg-[#5381A5] hover:bg-[#437091] disabled:opacity-50 disabled:cursor-not-allowed text-white text-[10px] font-semibold rounded transition-all"
         >
           Search
         </button>
@@ -176,18 +176,18 @@ const NeuralMemorySearch: React.FC<NeuralMemorySearchProps> = ({ activeTwin }) =
       <div className="space-y-2 max-h-64 overflow-y-auto custom-scrollbar">
         {results.length === 0 && !isLoading && query ? (
           <div className="text-center py-4">
-            <p className="text-[9px] text-zinc-600 italic">No semantic matches found.</p>
+            <p className="text-[10px] text-[#163247] italic">No semantic matches found.</p>
           </div>
         ) : results.length === 0 && !isLoading && !query ? (
           <div className="text-center py-4">
-            <p className="text-[9px] text-zinc-600 italic">Enter a query to search the Neural Archive.</p>
-            <p className="text-[8px] text-zinc-700 mt-1">Namespace: {activeTwin.settings.memoryNamespace}</p>
+            <p className="text-[10px] text-[#163247] italic">Enter a query to search the Neural Archive.</p>
+            <p className="text-[9px] text-[#163247]/70 mt-1">Namespace: {activeTwin.settings.memoryNamespace}</p>
           </div>
         ) : (
           results.map((result) => (
             <div
               key={result.id}
-              className={`p-2.5 rounded-lg border transition-all hover:border-indigo-500/50 ${getRiskBg(result.risk_level)}`}
+              className={`p-2.5 rounded-lg border transition-all hover:border-[#5381A5]/55 ${getRiskBg(result.risk_level)}`}
             >
               {/* Header with Risk Level and Timestamp */}
               <div className="flex items-center justify-between mb-1.5">
@@ -196,27 +196,27 @@ const NeuralMemorySearch: React.FC<NeuralMemorySearchProps> = ({ activeTwin }) =
                     {result.risk_level}
                   </span>
                   {result.similarity && (
-                    <span className="text-[8px] text-zinc-600 font-mono">
+                    <span className="text-[9px] text-[#163247] font-mono">
                       {(result.similarity * 100).toFixed(0)}% match
                     </span>
                   )}
                 </div>
-                <span className="text-[8px] text-zinc-600 font-mono">
+                <span className="text-[9px] text-[#163247] font-mono">
                   {new Date(result.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                 </span>
               </div>
 
               {/* Content */}
-              <p className="text-[10px] text-zinc-300 leading-snug mb-1.5 line-clamp-3">
+              <p className="text-[11px] text-[#0b1b2b] leading-snug mb-1.5 line-clamp-3">
                 {result.content}
               </p>
 
               {/* Footer with Agent ID */}
               <div className="flex items-center justify-between">
-                <span className="text-[8px] font-semibold text-indigo-400 uppercase tracking-wider">
+                <span className="text-[9px] font-semibold text-[#5381A5] uppercase tracking-wider">
                   {result.agent_id}
                 </span>
-                <span className="text-[8px] text-zinc-600 font-mono">
+                <span className="text-[9px] text-[#163247] font-mono">
                   {result.id}
                 </span>
               </div>
@@ -227,8 +227,8 @@ const NeuralMemorySearch: React.FC<NeuralMemorySearchProps> = ({ activeTwin }) =
 
       {/* Results Count */}
       {results.length > 0 && (
-        <div className="text-center pt-2 border-t border-zinc-900">
-          <p className="text-[9px] text-zinc-600">
+        <div className="text-center pt-2 border-t border-[#5381A5]/20">
+          <p className="text-[10px] text-[#163247]">
             Found {results.length} {results.length === 1 ? 'result' : 'results'}
           </p>
         </div>

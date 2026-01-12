@@ -23,7 +23,10 @@ WORKDIR /src/backend-rust-build
 RUN cargo build --release
 
 # --- STAGE 2: RUNTIME ---
-FROM debian:bookworm-slim
+# IMPORTANT: This service must be able to execute `cargo build` at runtime in order
+# to compile newly-created tools. Therefore we intentionally ship with the Rust
+# toolchain (cargo + rustc).
+FROM rust:1.78-slim-bookworm
 WORKDIR /app
 
 RUN apt-get update \

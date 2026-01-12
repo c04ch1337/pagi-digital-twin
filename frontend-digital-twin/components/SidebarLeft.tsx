@@ -24,7 +24,7 @@ const SidebarLeft: React.FC<SidebarLeftProps> = ({ twins, activeTwinId, currentV
         />
         <div className="flex-1 flex flex-col min-w-0">
           <span className="font-bold text-lg tracking-tight leading-none text-[#0b1b2b] font-display">Ferrellgas AGI</span>
-          <span className="text-[9px] text-[#163247] font-bold tracking-wider uppercase mt-1">Tactical Node Network</span>
+          <span className="text-[9px] text-[#163247] font-bold tracking-wider uppercase mt-1">Tactical Agent Desktop</span>
         </div>
       </div>
 
@@ -103,7 +103,7 @@ const SidebarLeft: React.FC<SidebarLeftProps> = ({ twins, activeTwinId, currentV
               <div className="w-10 h-10 flex items-center justify-center rounded-xl bg-white/40 border border-[#5381A5]/30 shrink-0">
                 <span className="material-symbols-outlined text-sm">add</span>
               </div>
-              <div className="text-xs font-bold uppercase tracking-widest">New Tactical Node</div>
+              <div className="text-xs font-bold uppercase tracking-widest">New Agent</div>
             </button>
           </div>
         </div>

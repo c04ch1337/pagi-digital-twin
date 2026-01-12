@@ -3,6 +3,7 @@ import { Job, Approval, Twin } from '../types';
 import { ICONS } from '../constants';
 import TelemetryCharts from './TelemetryCharts';
 import NeuralMemorySearch from './NeuralMemorySearch';
+import HoverTooltip from './HoverTooltip';
 import { fetchNamespaceMetrics, MemoryStatus } from '../services/memory';
 import { useTelemetry } from '../context/TelemetryContext';
 
@@ -54,71 +55,107 @@ const SidebarRight: React.FC<SidebarRightProps> = ({ jobs, approvals, onApprove,
     }
   };
 
-  const Tooltip = ({ title, description }: { title: string, description: string }) => (
-    <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 w-48 p-2 bg-white/80 border border-[#5381A5]/30 rounded shadow-2xl pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity z-50 text-left">
-      <div className="text-[10px] font-bold text-[#5381A5] uppercase tracking-widest mb-1">{title}</div>
-      <div className="text-[9px] text-[#163247] leading-tight">{description}</div>
-      <div className="absolute top-full left-1/2 -translate-x-1/2 border-8 border-transparent border-t-[#5381A5]/30"></div>
-    </div>
-  );
-
   return (
     <aside className="w-80 bg-[#90C3EA] border-l border-[#5381A5]/30 flex flex-col shrink-0 relative">
       <div className="flex items-center h-14 border-b border-[#5381A5]/30">
-        <div className="flex-1 flex justify-center border-r border-[#5381A5]/30 py-3 text-[#163247] hover:text-[#0b1b2b] transition-colors cursor-pointer group relative">
-          <div className="flex flex-col items-center">
-            <ICONS.Brain />
-            <span className="text-[8px] uppercase font-bold mt-1 tracking-tighter opacity-0 group-hover:opacity-100 transition-opacity">Mind</span>
+        <HoverTooltip
+          title="Mind"
+          description="Vector vault indicators and semantic memory query. Shows the active namespace and lets you search stored intelligence."
+        >
+          <div className="flex-1 flex justify-center border-r border-[#5381A5]/30 py-3 text-[#163247] hover:text-[#0b1b2b] transition-colors cursor-pointer group">
+            <div className="flex flex-col items-center">
+              <ICONS.Brain />
+              <span className="text-[8px] uppercase font-bold mt-1 tracking-tighter opacity-0 group-hover:opacity-100 transition-opacity">Mind</span>
+            </div>
           </div>
-        </div>
-        <div className="flex-1 flex justify-center border-r border-[#5381A5]/30 py-3 text-[#163247] hover:text-[#0b1b2b] transition-colors cursor-pointer group relative">
-          <div className="flex flex-col items-center">
-            <ICONS.Heart />
-            <span className="text-[8px] uppercase font-bold mt-1 tracking-tighter opacity-0 group-hover:opacity-100 transition-opacity">Heart</span>
+        </HoverTooltip>
+
+        <HoverTooltip
+          title="Heart"
+          description="Operator-facing status/health area. Reserved for trust, approvals, and other human-in-the-loop controls."
+        >
+          <div className="flex-1 flex justify-center border-r border-[#5381A5]/30 py-3 text-[#163247] hover:text-[#0b1b2b] transition-colors cursor-pointer group">
+            <div className="flex flex-col items-center">
+              <ICONS.Heart />
+              <span className="text-[8px] uppercase font-bold mt-1 tracking-tighter opacity-0 group-hover:opacity-100 transition-opacity">Heart</span>
+            </div>
           </div>
-        </div>
-        <div className="flex-1 flex justify-center py-3 text-[#163247] hover:text-[#0b1b2b] transition-colors cursor-pointer group relative">
-          <div className="flex flex-col items-center">
-            <ICONS.Activity />
-            <span className="text-[8px] uppercase font-bold mt-1 tracking-tighter opacity-0 group-hover:opacity-100 transition-opacity">Body</span>
+        </HoverTooltip>
+
+        <HoverTooltip
+          title="Body"
+          description="System telemetry view. Shows CPU, memory, and network time-series along with the latest values."
+        >
+          <div className="flex-1 flex justify-center py-3 text-[#163247] hover:text-[#0b1b2b] transition-colors cursor-pointer group">
+            <div className="flex flex-col items-center">
+              <ICONS.Activity />
+              <span className="text-[8px] uppercase font-bold mt-1 tracking-tighter opacity-0 group-hover:opacity-100 transition-opacity">Body</span>
+            </div>
           </div>
-        </div>
+        </HoverTooltip>
       </div>
 
       <div className="flex-1 overflow-y-auto custom-scrollbar">
         {/* BODY - SYSTEM TELEMETRY */}
         <section className="p-4 border-b border-[#5381A5]/20">
           <div className="flex items-center justify-between mb-4">
-             <div className="flex items-center gap-2">
-                <div className="p-1.5 bg-white/40 text-[#5381A5] rounded">
+             <HoverTooltip
+               title="System Telemetry"
+               description="Live hardware telemetry (CPU, memory, and network) streamed from the Telemetry service and displayed as recent time-series samples."
+             >
+               <div className="flex items-center gap-2">
+                 <div className="p-1.5 bg-white/40 text-[#5381A5] rounded">
                    <ICONS.Activity />
-                </div>
-                <h3 className="text-xs font-bold uppercase tracking-widest text-[#163247]">Body (System)</h3>
-             </div>
-             <div className="flex items-center gap-2">
-               <span className={`w-1.5 h-1.5 rounded-full ${isTelemetryConnected ? 'bg-[#5381A5] animate-pulse' : 'bg-[#78A2C2]'}`}></span>
-               <span className="text-[10px] text-[#163247] mono">
-                  {isTelemetryConnected ? 'LIVE' : 'OFFLINE'}
-                </span>
-              </div>
+                 </div>
+                 <h3 className="text-xs font-bold uppercase tracking-widest text-[#163247]">Body (System)</h3>
+               </div>
+             </HoverTooltip>
+
+             <HoverTooltip
+               title="Telemetry Link"
+               description="Connection status to the telemetry stream (SSE). LIVE means the UI is receiving fresh samples; OFFLINE means telemetry updates are not arriving."
+             >
+               <div className="flex items-center gap-2">
+                 <span className={`w-1.5 h-1.5 rounded-full ${isTelemetryConnected ? 'bg-[#5381A5] animate-pulse' : 'bg-[#78A2C2]'}`}></span>
+                 <span className="text-[10px] text-[#163247] mono">
+                   {isTelemetryConnected ? 'LIVE' : 'OFFLINE'}
+                 </span>
+               </div>
+             </HoverTooltip>
            </div>
            <div className="space-y-4">
-             <div className="bg-white/40 rounded-xl p-3 border border-[#5381A5]/30">
-                <TelemetryCharts data={telemetry} />
-             </div>
-             
-             <div className="grid grid-cols-2 gap-2">
-                <div className="bg-white/30 p-2 rounded-lg border border-[#5381A5]/30">
-                   <div className="text-[9px] font-bold text-[#163247] mb-1 uppercase tracking-tighter">CPU LOAD</div>
-                   <div className="text-sm font-bold mono text-[#0b1b2b]">{latest.cpu}%</div>
-                </div>
-                <div className="bg-white/30 p-2 rounded-lg border border-[#5381A5]/30">
-                   <div className="text-[9px] font-bold text-[#163247] mb-1 uppercase tracking-tighter">RAM CORE</div>
-                   <div className="text-sm font-bold mono text-[#0b1b2b]">{latest.memory}%</div>
-                </div>
-              </div>
-           </div>
-         </section>
+             <HoverTooltip
+               title="Telemetry Charts"
+               description="Displays the last ~30 samples. Hover a line to see the point-in-time value. Values are percentages (0–100)."
+             >
+               <div className="bg-white/40 rounded-xl p-3 border border-[#5381A5]/30">
+                 <TelemetryCharts data={telemetry} />
+               </div>
+             </HoverTooltip>
+              
+              <div className="grid grid-cols-2 gap-2">
+                <HoverTooltip
+                  title="CPU Load"
+                  description="Current CPU utilization (percent). This is the latest sample and may fluctuate rapidly during builds/executions."
+                >
+                  <div className="bg-white/30 p-2 rounded-lg border border-[#5381A5]/30">
+                    <div className="text-[9px] font-bold text-[#163247] mb-1 uppercase tracking-tighter">CPU LOAD</div>
+                    <div className="text-sm font-bold mono text-[#0b1b2b]">{Number(latest.cpu).toFixed(2)}%</div>
+                  </div>
+                </HoverTooltip>
+
+                <HoverTooltip
+                  title="RAM Core"
+                  description="Current memory utilization (percent). High values can indicate memory pressure and may impact tool execution performance."
+                >
+                  <div className="bg-white/30 p-2 rounded-lg border border-[#5381A5]/30">
+                    <div className="text-[9px] font-bold text-[#163247] mb-1 uppercase tracking-tighter">RAM CORE</div>
+                    <div className="text-sm font-bold mono text-[#0b1b2b]">{Number(latest.memory).toFixed(2)}%</div>
+                  </div>
+                </HoverTooltip>
+               </div>
+            </div>
+          </section>
 
         {/* MIND - VECTOR VAULT & SEMANTIC SEARCH */}
         <section className="p-4 border-b border-[#5381A5]/20">

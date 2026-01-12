@@ -1,7 +1,8 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { Message, Twin, TwinStatus } from '../types';
-import { generateTacticalImage, generateDeepVideo } from '../services/gemini';
+import { generateTacticalImage, generateDeepVideo, generateCodePatch } from '../services/gemini';
+import HoverTooltip from './HoverTooltip';
 
 interface OrchestratorHubProps {
   orchestrator: Twin;
@@ -47,11 +48,34 @@ const OrchestratorHub: React.FC<OrchestratorHubProps> = ({ orchestrator, message
     if (type === 'image') {
       const imgUrl = await generateTacticalImage(userPrompt);
       if (imgUrl) {
-         // In a full implementation, we'd add this to messages state properly
+         // Display the generated image in the chat
+         onSendMessage(`[IMAGE GENERATED] Visual evidence created successfully.`);
          console.log("Image Gen Success:", imgUrl);
+         // TODO: Add image display in message UI
+      } else {
+         onSendMessage(`[IMAGE GENERATION FAILED] Unable to generate image. Please check API keys (OpenRouter or Gemini).`);
       }
     } else if (type === 'video') {
-      await generateDeepVideo(userPrompt);
+      const result = await generateDeepVideo(userPrompt);
+      if (result.status === 'completed' && result.videoUrl) {
+        onSendMessage(`[VIDEO GENERATED] Scenario reconstruction completed. Video URL: ${result.videoUrl}`);
+        console.log("Video Gen Success:", result.videoUrl);
+        // TODO: Add video display in message UI
+      } else {
+        onSendMessage(`[VIDEO GENERATION ${result.status.toUpperCase()}] ${result.message}`);
+      }
+    } else if (type === 'code') {
+      const result = await generateCodePatch(userPrompt);
+      if (result.status === 'completed' && result.code) {
+        // Format code with language identifier for better display
+        const codeBlock = result.language 
+          ? `\`\`\`${result.language}\n${result.code}\n\`\`\``
+          : `\`\`\`\n${result.code}\n\`\`\``;
+        onSendMessage(`[CODE PATCH GENERATED] ${result.message}\n\n${codeBlock}`);
+        console.log("Code Gen Success:", { language: result.language, codeLength: result.code.length });
+      } else {
+        onSendMessage(`[CODE GENERATION ${result.status.toUpperCase()}] ${result.message}`);
+      }
     }
     
     setIsGenerating(false);
@@ -134,7 +158,7 @@ const OrchestratorHub: React.FC<OrchestratorHubProps> = ({ orchestrator, message
                 </div>
                 <div className="relative z-10">
                   <div className="text-xs font-bold text-[#0b1b2b]">Generate Visual Evidence</div>
-                  <div className="text-[9px] text-[#163247] mt-1 leading-tight">Gemini 2.5 Flash • 1K Tactical Visuals</div>
+                  <div className="text-[9px] text-[#163247] mt-1 leading-tight">OpenRouter/DALL-E • Fallback: Gemini</div>
                 </div>
               </button>
 
@@ -148,7 +172,7 @@ const OrchestratorHub: React.FC<OrchestratorHubProps> = ({ orchestrator, message
                 </div>
                 <div className="relative z-10">
                   <div className="text-xs font-bold text-[#0b1b2b]">Reconstruct Scenario</div>
-                  <div className="text-[9px] text-[#163247] mt-1 leading-tight">Veo 3.1 • Deep Video Synthesis</div>
+                  <div className="text-[9px] text-[#163247] mt-1 leading-tight">Replicate • Stable Video Diffusion (Free Tier)</div>
                 </div>
               </button>
 
@@ -165,33 +189,50 @@ const OrchestratorHub: React.FC<OrchestratorHubProps> = ({ orchestrator, message
                     Synthesize Patch {isCodeDisabled && '(Locked)'}
                   </div>
                   <div className="text-[9px] text-[#163247] mt-1 leading-tight">
-                    {isCodeDisabled ? 'Policy: AI Code Generation Disabled' : 'Gemini 3 Pro • Advanced Logic'}
+                    {isCodeDisabled ? 'Policy: AI Code Generation Disabled' : 'OpenRouter/Claude • Fallback: Gemini'}
                   </div>
                 </div>
               </button>
           </div>
 
           <div className="pt-6 border-t border-[#5381A5]/30">
-             <div className="text-[10px] font-bold text-[#163247] uppercase tracking-widest mb-3">Global Mission Status</div>
+             <HoverTooltip
+               title="Global Mission Status"
+               description="High-level mission readiness indicators. These are dashboard signals intended to summarize system posture at a glance."
+             >
+               <div className="text-[10px] font-bold text-[#163247] uppercase tracking-widest mb-3">Global Mission Status</div>
+             </HoverTooltip>
+
              <div className="bg-white/50 p-3 rounded-xl border border-[#5381A5]/30 space-y-4">
-                <div className="space-y-2">
-                   <div className="flex justify-between text-[9px] text-[#163247]">
-                      <span>Neural Sync</span>
-                      <span className="text-[#5381A5]">98%</span>
-                    </div>
-                   <div className="h-1 bg-white/50 rounded-full overflow-hidden">
-                      <div className="h-full bg-[#5381A5] w-[98%]" />
-                    </div>
-                </div>
-                <div className="space-y-2">
-                   <div className="flex justify-between text-[9px] text-[#163247]">
-                      <span>Threat Suppression</span>
-                      <span className="text-[#78A2C2]">72%</span>
-                    </div>
-                   <div className="h-1 bg-white/50 rounded-full overflow-hidden">
-                      <div className="h-full bg-[#78A2C2] w-[72%]" />
-                    </div>
-                </div>
+                <HoverTooltip
+                  title="Neural Sync"
+                  description="Represents how synchronized the system’s memory/agent state is across components. Higher is better; drops may indicate delayed ingestion or connectivity issues."
+                >
+                  <div className="space-y-2">
+                     <div className="flex justify-between text-[9px] text-[#163247]">
+                        <span>Neural Sync</span>
+                        <span className="text-[#5381A5]">98%</span>
+                      </div>
+                     <div className="h-1 bg-white/50 rounded-full overflow-hidden" title="Neural Sync progress bar">
+                        <div className="h-full bg-[#5381A5] w-[98%]" />
+                      </div>
+                  </div>
+                </HoverTooltip>
+
+                <HoverTooltip
+                  title="Threat Suppression"
+                  description="Represents progress toward containment/mitigation objectives for active threats (detections, patches, quarantines). Higher is better."
+                >
+                  <div className="space-y-2">
+                     <div className="flex justify-between text-[9px] text-[#163247]">
+                        <span>Threat Suppression</span>
+                        <span className="text-[#78A2C2]">72%</span>
+                      </div>
+                     <div className="h-1 bg-white/50 rounded-full overflow-hidden" title="Threat Suppression progress bar">
+                        <div className="h-full bg-[#78A2C2] w-[72%]" />
+                      </div>
+                  </div>
+                </HoverTooltip>
              </div>
           </div>
         </div>

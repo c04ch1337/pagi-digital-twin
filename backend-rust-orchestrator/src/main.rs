@@ -1049,7 +1049,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     load_dotenv();
 
     let llm_provider = env::var("LLM_PROVIDER")
-        .unwrap_or_else(|_| "mock".to_string())
+        .unwrap_or_else(|_| "openrouter".to_string())
         .to_lowercase();
 
     // Get service addresses

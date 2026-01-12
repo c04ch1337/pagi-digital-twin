@@ -4,8 +4,15 @@ __pycache__/
 *.pyc
 *.pyo
 
-# Env
+# Env files (all variants - prevent API key exposure)
 .env
+.env.local
+.env.production
+.env.development
+.env.test
+.env.*.local
+*.env
+*.env.local
 
 # Node
 node_modules/

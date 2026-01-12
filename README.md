@@ -622,10 +622,33 @@ Once services are running, access the frontend application:
 
 **Initial Setup:**
 1. Start all services via Docker Compose: `docker compose up`
-2. Open browser to http://localhost:3000
-3. You'll see the Orchestrator Hub by default
-4. Use left sidebar to navigate between views
-5. Create your first agent using "+ Create Twin" button
+2. Configure frontend environment variables (optional, for generative features):
+   - Create `frontend-digital-twin/.env.local`
+   - Add `VITE_OPENROUTER_API_KEY` for image generation (or `GEMINI_API_KEY` for fallback)
+   - Add `VITE_REPLICATE_API_KEY` for video generation (free tier available)
+3. Open browser to http://localhost:3000
+4. You'll see the Orchestrator Hub by default
+5. Use left sidebar to navigate between views
+6. Create your first agent using "+ Create Twin" button
+
+**Frontend Environment Variables (Optional):**
+For full generative capabilities, create `frontend-digital-twin/.env.local`:
+```env
+# OpenRouter API Key (for image generation via DALL-E 3)
+VITE_OPENROUTER_API_KEY=YOUR_OPENROUTER_API_KEY_HERE
+
+# Replicate API Key (for video generation - free tier available)
+VITE_REPLICATE_API_KEY=YOUR_REPLICATE_API_KEY_HERE
+
+# Gemini API Key (optional fallback for image generation)
+GEMINI_API_KEY=YOUR_GEMINI_API_KEY_HERE
+
+# WebSocket and Telemetry URLs (usually auto-detected)
+VITE_WS_URL=ws://127.0.0.1:8181/ws/chat
+VITE_SSE_URL=http://127.0.0.1:8181/v1/telemetry/stream
+```
+
+See [`frontend-digital-twin/ENV_SETUP.md`](frontend-digital-twin/ENV_SETUP.md) for detailed frontend configuration.
 
 **Use Cases:**
 - **Security Operations Center:** Real-time dashboard for security teams monitoring multiple agents
@@ -951,7 +974,7 @@ The left sidebar provides primary navigation and agent management:
   - *Use Case:* Incident responders search across all agent conversations and execution logs to trace security events
   - *Use Case:* Developers search for specific tool executions or error patterns across the entire system
 
-**Tactical Node Network Section:**
+**Tactical Agent Desktop Section:**
 - Lists all configured digital twin agents
 - Each agent shows:
   - Avatar/icon
@@ -1018,12 +1041,15 @@ The right sidebar provides real-time monitoring and system information:
   - *Use Case:* System administrators coordinate multi-agent workflows
 
 - **Generative Tasks Panel:**
-  - **Generate Visual Evidence:** Uses Gemini 2.5 Flash to create tactical visuals
+  - **Generate Visual Evidence:** Uses OpenRouter/DALL-E 3 (with Gemini fallback) to create tactical visuals
     - *Use Case:* Security teams generate visual representations of attack patterns
     - *Use Case:* Incident responders create visual timelines of security events
-  - **Reconstruct Scenario:** Uses Veo 3.1 for deep video synthesis
+    - *Configuration:* Requires `VITE_OPENROUTER_API_KEY` (or `GEMINI_API_KEY` for fallback)
+  - **Reconstruct Scenario:** Uses Replicate API (AnimateDiff) for text-to-video synthesis
     - *Use Case:* Forensic analysts reconstruct security incident scenarios
     - *Use Case:* Training teams create realistic attack simulation videos
+    - *Configuration:* Requires `VITE_REPLICATE_API_KEY` (free tier available)
+    - *Note:* Free tier includes credits for testing; get API key from [Replicate](https://replicate.com/account/api-tokens)
   - **Synthesize Patch:** AI code generation (can be disabled via policy)
     - *Use Case:* Developers generate security patches based on vulnerability analysis
     - *Use Case:* DevOps teams create automated remediation scripts
@@ -1535,6 +1561,8 @@ pagi-chat-desktop/
 
 ### Environment Variables
 
+#### Backend Services
+
 Create a `.env` file (optional; defaults exist). Start with [`.env.example`](.env.example:1).
 
 ```bash
@@ -1559,10 +1587,39 @@ MODEL_GATEWAY_GRPC_TIMEOUT_SECONDS=5
 # Logging
 LOG_LEVEL=info
 
+# OpenRouter (for Orchestrator LLM planning)
+OPENROUTER_API_KEY=YOUR_OPENROUTER_API_KEY_HERE
+OPENROUTER_MODEL=google/gemini-2.0-flash-exp
+OPENROUTER_URL=https://openrouter.ai/api/v1/chat/completions
+
 # SECURITY (Agent Planner)
 # If set, Agent Planner requires X-API-Key (or Authorization: Bearer)
 PAGI_API_KEY=
 ```
+
+#### Frontend Application
+
+Create `frontend-digital-twin/.env.local` for frontend-specific configuration:
+
+```bash
+# OpenRouter API Key (for image generation via DALL-E 3)
+VITE_OPENROUTER_API_KEY=YOUR_OPENROUTER_API_KEY_HERE
+
+# Replicate API Key (for video generation - free tier available)
+# Get free API key from: https://replicate.com/account/api-tokens
+VITE_REPLICATE_API_KEY=YOUR_REPLICATE_API_KEY_HERE
+
+# Gemini API Key (optional fallback for image generation)
+GEMINI_API_KEY=YOUR_GEMINI_API_KEY_HERE
+
+# WebSocket and Telemetry URLs
+VITE_WS_URL=ws://127.0.0.1:8181/ws/chat
+VITE_SSE_URL=http://127.0.0.1:8181/v1/telemetry/stream
+```
+
+**Note:** Frontend environment variables are optional. The application will work without them, but generative features (image/video generation) require the respective API keys.
+
+See [`frontend-digital-twin/ENV_SETUP.md`](frontend-digital-twin/ENV_SETUP.md) for detailed frontend configuration.
 
 ### mTLS for internal gRPC (research/testing)
 
@@ -2344,6 +2401,11 @@ Create production environment file (`.env.production`):
 VITE_GATEWAY_URL=https://api.yourdomain.com
 VITE_WS_URL=wss://api.yourdomain.com
 VITE_TELEMETRY_URL=https://api.yourdomain.com/v1/telemetry/stream
+
+# Generative Features (optional)
+VITE_OPENROUTER_API_KEY=YOUR_OPENROUTER_API_KEY_HERE
+VITE_REPLICATE_API_KEY=YOUR_REPLICATE_API_KEY_HERE
+GEMINI_API_KEY=YOUR_GEMINI_API_KEY_HERE  # Fallback for image generation
 ```
 
 #### Serving Frontend

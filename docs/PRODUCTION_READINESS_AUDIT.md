@@ -22,7 +22,7 @@ This codebase has been audited against SpaceX extreme high standards for product
 **Location:** Terminal 14 command history  
 **Issue:** Live OpenRouter API key exposed in plain text:
 ```
-OPENROUTER_API_KEY=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
+OPENROUTER_API_KEY=sk-or-v1-[REDACTED]
 ```
 
 **Impact:** Immediate credential compromise, potential financial liability, unauthorized API usage.

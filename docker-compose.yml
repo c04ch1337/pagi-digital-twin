@@ -188,6 +188,27 @@ services:
     networks:
       - pagi-network
 
+  rust-build-service:
+    container_name: rust-build-service
+    build:
+      context: .
+      dockerfile: backend-rust-build/Dockerfile
+    env_file:
+      - .env
+    environment:
+      - BUILD_SERVICE_PORT=${BUILD_SERVICE_PORT:-50055}
+      - TOOLS_REPO_DIR=/app/tools_repo
+      - BUILD_TIMEOUT_MS=${BUILD_TIMEOUT_MS:-120000}
+      - BUILD_MAX_CONCURRENT=${BUILD_MAX_CONCURRENT:-1}
+      - BUILD_MAX_PENDING=${BUILD_MAX_PENDING:-4}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+    ports:
+      - "${BUILD_SERVICE_PORT:-50055}:50055"
+    volumes:
+      - tools_repo:/app/tools_repo
+    networks:
+      - pagi-network
+
   rust-orchestrator:
     container_name: rust-orchestrator
     build:
@@ -272,6 +293,7 @@ volumes:
   qdrant_data:
   agent_planner_audit:
   tools_sandbox:
+  tools_repo:
 
 networks:
   pagi-network:
