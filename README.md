@@ -222,7 +222,7 @@ graph TB
 
 | Service | Language | Framework | Ports | Purpose | Key Features |
 |---------|----------|-----------|-------|---------|--------------|
-| **Rust Gateway** | Rust | Axum | 8181 (HTTP/WebSocket/SSE) | Edge protocol + UI integration | • WebSocket ingress for real-time chat<br>• HTTP proxy to Orchestrator<br>• SSE proxy for telemetry streaming<br>• Single entry point for frontend |
+| **Rust Gateway** | Rust | Axum | 8181 (HTTP/WebSocket/SSE) | Edge protocol + UI integration | • WebSocket ingress for real-time chat<br>• WebSocket signaling for media coordination<br>• HTTP proxy to Orchestrator<br>• SSE proxy for telemetry streaming<br>• Media upload proxy<br>• Single entry point for frontend |
 
 #### Orchestrator Layer
 
@@ -243,7 +243,7 @@ graph TB
 
 | Service | Language | Framework | Ports | Purpose | Key Features |
 |---------|----------|-----------|-------|---------|--------------|
-| **Rust Telemetry Service** | Rust | Axum | 8183 (SSE) | Real-time host telemetry | • CPU, Memory, GPU, Network metrics<br>• Server-Sent Events streaming<br>• Low-latency monitoring |
+| **Rust Telemetry Service** | Rust | Axum | 8183 (SSE) | Real-time host telemetry | • CPU, Memory, Process metrics<br>• Server-Sent Events streaming<br>• Media upload and storage<br>• Low-latency monitoring |
 | **Jaeger** | N/A | jaeger | 16686 (UI) / 4317-4318 (ports) | Distributed tracing | • Request tracing across services<br>• Performance bottleneck identification<br>• Debugging complex flows |
 | **Prometheus** | N/A | prometheus | 9090 | Metrics collection | • System metrics scraping<br>• Alerting rule evaluation<br>• Historical metric storage |
 
@@ -507,7 +507,7 @@ cp .env.example .env
 docker compose up --build
 
 # 2. Verify services are running
-curl http://localhost:8181/health          # Gateway
+curl http://localhost:8181/api/health      # Gateway
 curl http://localhost:8182/health          # Orchestrator
 curl http://localhost:8183/health          # Telemetry
 curl http://localhost:6333/health          # Qdrant
@@ -544,7 +544,7 @@ python scripts/run_all_dev.py --profile core
 make run-dev
 
 # 2. Verify core endpoints
-curl http://localhost:8181/health          # Gateway
+curl http://localhost:8181/api/health      # Gateway
 curl http://localhost:8182/health          # Orchestrator
 
 # 3. Test chat endpoint
@@ -1333,12 +1333,14 @@ The right sidebar provides real-time monitoring and system information:
 ### Frontend Architecture
 
 **Technology Stack:**
-- **React 18** with TypeScript
+- **React 19** with TypeScript
 - **Vite** for build tooling
 - **WebSocket** for real-time chat communication
 - **Server-Sent Events (SSE)** for telemetry streaming
 - **Tailwind CSS** for styling
 - **Prism.js** for code syntax highlighting
+- **Recharts** for data visualization
+- **Lucide React** for icons
 
 **Key Components:**
 - `App.tsx` - Main application container and routing
@@ -1347,13 +1349,26 @@ The right sidebar provides real-time monitoring and system information:
 - Component library in `components/` directory
 
 **Connection Endpoints:**
-- WebSocket: `ws://localhost:8181/ws/chat/:user_id`
+- WebSocket Chat: `ws://localhost:8181/ws/chat/:user_id`
+- WebSocket Signaling: `ws://localhost:8181/ws/signaling/:room_id`
 - Telemetry SSE: `http://localhost:8181/v1/telemetry/stream`
+- Media Upload: `http://localhost:8181/api/media/upload`
+- Health Check: `http://localhost:8181/api/health`
 - Memory API: Integrated via service layer
 
 ---
 
 ## API Endpoints
+
+### Rust Gateway (Tri-Layer Architecture; port 8181)
+
+| Method | Endpoint | Description | Request Body | Response |
+|--------|----------|-------------|--------------|----------|
+| `GET` | `/api/health` | Health check | - | `{service, status, version}` |
+| `GET` | `/ws/chat/:user_id` | WebSocket connection for chat | WebSocket upgrade | Real-time chat messages |
+| `GET` | `/ws/signaling/:room_id` | WebSocket connection for media signaling | WebSocket upgrade | Real-time signaling messages |
+| `GET` | `/v1/telemetry/stream` | SSE proxy for telemetry | - | Server-Sent Events stream |
+| `POST` | `/api/media/upload` | Media upload proxy | Multipart form data | `{success, filename, path}` |
 
 ### Rust Orchestrator (Tri-Layer Architecture; port 8182)
 
@@ -1437,6 +1452,35 @@ grpcurl -plaintext -d '{
 - **Self-Extending Systems:** Agents expand their own capabilities
 
 See [`backend-rust-build/README.md`](backend-rust-build/README.md) and [`docs/build_service.md`](docs/build_service.md) for detailed documentation.
+
+### Rust Telemetry Service (SSE; port 8183)
+
+| Method | Endpoint | Description | Request | Response |
+|--------|----------|-------------|---------|----------|
+| `GET` | `/v1/telemetry/stream` | SSE stream of system metrics | - | Server-Sent Events with `TelemetryPayload` |
+| `POST` | `/v1/media/upload` | Upload media files (video/audio) | Multipart form data | `{success, filename, stored_path}` |
+
+**Telemetry Payload Format:**
+```json
+{
+  "ts_ms": 1234567890,
+  "cpu_percent": 45.2,
+  "mem_total": 8589934592,
+  "mem_used": 4294967296,
+  "mem_free": 4294967296,
+  "process_count": 150
+}
+```
+
+**Configuration:**
+- `TELEMETRY_PORT` (default: `8183`)
+- `TELEMETRY_INTERVAL_MS` (default: `2000`)
+- `TELEMETRY_STORAGE_DIR` (default: `./telemetry_storage`)
+
+**Use Cases:**
+- **Real-time Monitoring:** Frontend displays live system metrics
+- **Performance Analysis:** Track resource usage over time
+- **Media Recording:** Store uploaded video/audio files for analysis
 
 ---
 
@@ -2034,7 +2078,7 @@ For questions or issues:
 | **Agent Planner** | http://localhost:8585 | HTTP API for agent planning |
 | **Rust Gateway** | http://localhost:8181 | WebSocket gateway and API proxy |
 | **Rust Orchestrator** | http://localhost:8182 | Agent orchestration HTTP API |
-| **Telemetry Service** | http://localhost:8183 | System telemetry SSE stream |
+| **Telemetry Service** | http://localhost:8183 | System telemetry SSE stream and media upload |
 | **Memory Service (Python)** | http://localhost:8003 | Legacy memory service HTTP API |
 | **Chroma DB** | http://localhost:8000 | Vector database UI (legacy) |
 | **Qdrant DB** | http://localhost:6333 | Vector database REST API |
@@ -2046,7 +2090,9 @@ For questions or issues:
 | Endpoint | URL | Purpose |
 |----------|-----|---------|
 | **Chat WebSocket** | `ws://localhost:8181/ws/chat/:user_id` | Real-time chat communication |
+| **Signaling WebSocket** | `ws://localhost:8181/ws/signaling/:room_id` | Real-time media signaling coordination |
 | **Telemetry SSE** | `http://localhost:8181/v1/telemetry/stream` | Real-time system metrics stream |
+| **Media Upload** | `http://localhost:8181/api/media/upload` | Upload media files (proxied to telemetry service) |
 
 ### Common Workflows
 
