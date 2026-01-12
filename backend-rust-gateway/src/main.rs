@@ -1,29 +1,32 @@
 use axum::{
-    body::Body,
+    body::{Body, Bytes},
     extract::{
         ws::{Message, WebSocket, WebSocketUpgrade},
         Path, State,
     },
+    http::HeaderMap,
     response::IntoResponse,
-    routing::get,
+    routing::{get, post},
     Router,
 };
 use axum::http::{header, HeaderValue, StatusCode};
 use axum::response::Response;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::env;
 use std::net::SocketAddr;
 use std::sync::Arc;
+use tokio::sync::{broadcast, Mutex};
 use tracing::{info, error, warn};
 use uuid::Uuid;
 use futures::StreamExt;
 
 // --- Shared State ---
-#[derive(Clone)]
 struct AppState {
     orchestrator_url: String, // e.g., http://127.0.0.1:8182
     telemetry_url: String,   // e.g., http://127.0.0.1:8183
     http_client: reqwest::Client,
+    signaling_rooms: Mutex<HashMap<String, broadcast::Sender<String>>>,
 }
 
 // --- Protocol Types (matching frontend) ---
@@ -92,6 +95,68 @@ async fn ws_handler(
 ) -> impl IntoResponse {
     info!(user_id = %user_id, "WebSocket connection requested");
     ws.on_upgrade(move |socket| handle_socket(socket, user_id, state))
+}
+
+// --- WebRTC Signaling Relay (WebSocket room broadcast) ---
+async fn signaling_ws_handler(
+    ws: WebSocketUpgrade,
+    Path(room_id): Path<String>,
+    State(state): State<Arc<AppState>>,
+) -> impl IntoResponse {
+    info!(room_id = %room_id, "Signaling WebSocket connection requested");
+    ws.on_upgrade(move |socket| handle_signaling_socket(socket, room_id, state))
+}
+
+async fn handle_signaling_socket(mut socket: WebSocket, room_id: String, state: Arc<AppState>) {
+    let (tx, mut rx) = {
+        let mut rooms = state.signaling_rooms.lock().await;
+        let entry = rooms.entry(room_id.clone()).or_insert_with(|| {
+            let (tx, _rx) = broadcast::channel::<String>(128);
+            tx
+        });
+        (entry.clone(), entry.subscribe())
+    };
+
+    info!(room_id = %room_id, "Signaling WebSocket connected");
+
+    loop {
+        tokio::select! {
+            incoming = socket.recv() => {
+                match incoming {
+                    Some(Ok(Message::Text(text))) => {
+                        // Broadcast signaling payload to room.
+                        let _ = tx.send(text);
+                    }
+                    Some(Ok(Message::Close(_))) => break,
+                    Some(Ok(_)) => {
+                        // ignore binary/ping
+                    }
+                    Some(Err(e)) => {
+                        warn!(room_id = %room_id, error = %e, "Signaling WS receive error");
+                        break;
+                    }
+                    None => break,
+                }
+            }
+            broadcasted = rx.recv() => {
+                match broadcasted {
+                    Ok(text) => {
+                        // Echo is acceptable; clients can ignore their own messages via ids.
+                        if let Err(e) = socket.send(Message::Text(text)).await {
+                            warn!(room_id = %room_id, error = %e, "Signaling WS send error");
+                            break;
+                        }
+                    }
+                    Err(broadcast::error::RecvError::Lagged(skipped)) => {
+                        warn!(room_id = %room_id, skipped = skipped, "Signaling WS lagged");
+                    }
+                    Err(broadcast::error::RecvError::Closed) => break,
+                }
+            }
+        }
+    }
+
+    info!(room_id = %room_id, "Signaling WebSocket disconnected");
 }
 
 async fn handle_socket(mut socket: WebSocket, user_id: String, state: Arc<AppState>) {
@@ -312,6 +377,73 @@ async fn telemetry_proxy_handler(
     resp
 }
 
+// --- Media Upload Proxy Handler (stateless) ---
+async fn media_upload_options() -> impl IntoResponse {
+    // Preflight for browser uploads
+    let mut resp = Response::new(Body::empty());
+    *resp.status_mut() = StatusCode::NO_CONTENT;
+    resp.headers_mut().insert(
+        header::ACCESS_CONTROL_ALLOW_ORIGIN,
+        HeaderValue::from_static("*"),
+    );
+    resp.headers_mut().insert(
+        header::ACCESS_CONTROL_ALLOW_METHODS,
+        HeaderValue::from_static("POST, OPTIONS"),
+    );
+    resp.headers_mut().insert(
+        header::ACCESS_CONTROL_ALLOW_HEADERS,
+        HeaderValue::from_static("content-type"),
+    );
+    resp
+}
+
+async fn media_upload_proxy_handler(
+    State(state): State<Arc<AppState>>,
+    headers: HeaderMap,
+    body: Bytes,
+) -> impl IntoResponse {
+    let telemetry_endpoint = format!(
+        "{}/v1/media/upload",
+        state.telemetry_url.trim_end_matches('/')
+    );
+
+    info!(endpoint = %telemetry_endpoint, size_bytes = body.len(), "Proxying media upload to telemetry");
+
+    let mut req = state.http_client.post(&telemetry_endpoint);
+
+    // Forward Content-Type (multipart boundary) so telemetry can parse the form.
+    if let Some(ct) = headers.get(header::CONTENT_TYPE).cloned() {
+        req = req.header(header::CONTENT_TYPE, ct);
+    }
+
+    let upstream = req.body(body.to_vec()).send().await;
+
+    match upstream {
+        Ok(r) => {
+            let status = r.status();
+            let bytes = r.bytes().await.unwrap_or_default();
+
+            let mut resp = Response::new(Body::from(bytes));
+            *resp.status_mut() = status;
+            resp.headers_mut().insert(
+                header::ACCESS_CONTROL_ALLOW_ORIGIN,
+                HeaderValue::from_static("*"),
+            );
+            resp
+        }
+        Err(e) => {
+            error!(error = %e, endpoint = %telemetry_endpoint, "Failed to proxy media upload");
+            let mut resp = Response::new(Body::from("Telemetry service unavailable"));
+            *resp.status_mut() = StatusCode::BAD_GATEWAY;
+            resp.headers_mut().insert(
+                header::ACCESS_CONTROL_ALLOW_ORIGIN,
+                HeaderValue::from_static("*"),
+            );
+            resp
+        }
+    }
+}
+
 // --- Health Check ---
 async fn health_check() -> impl IntoResponse {
     (axum::http::StatusCode::OK, "Gateway operational")
@@ -365,13 +497,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         orchestrator_url,
         telemetry_url,
         http_client,
+        signaling_rooms: Mutex::new(HashMap::new()),
     });
 
     // Create router
     let app = Router::new()
         .route("/api/health", get(health_check))
         .route("/ws/chat/:user_id", get(ws_handler))
+        .route("/ws/signaling/:room_id", get(signaling_ws_handler))
         .route("/v1/telemetry/stream", get(telemetry_proxy_handler))
+        .route("/api/media/upload", post(media_upload_proxy_handler).options(media_upload_options))
         .with_state(app_state);
 
     let addr = SocketAddr::from(([0, 0, 0, 0], gateway_port));

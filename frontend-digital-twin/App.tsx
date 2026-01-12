@@ -10,6 +10,7 @@ import JobLogsView from './components/JobLogsView';
 import CreateTwinModal from './components/CreateTwinModal';
 import SearchView from './components/SearchView';
 import CommandModal from './components/CommandModal';
+import MediaControls from './components/MediaControls';
 import MemoryExplorer from './pages/memory-explorer';
 import Evolution from './pages/evolution';
 import { executeJobLifecycle } from './services/orchestrator';
@@ -337,6 +338,12 @@ const App: React.FC = () => {
             onSendMessage={(txt) => handleSendMessage(txt, orchestrator)}
           />
         );
+      case 'evolution':
+        return (
+          <Evolution
+            onClose={() => setView('orchestrator')}
+          />
+        );
       case 'settings':
         return (
           <SettingsView 
@@ -422,12 +429,22 @@ const App: React.FC = () => {
             <div className="flex items-center gap-2">
               <span className={`w-2 h-2 rounded-full ${view === 'orchestrator' ? 'bg-[#5381A5]' : view === 'logs' ? 'bg-[#78A2C2]' : view === 'search' ? 'bg-[#5381A5]' : 'bg-[#78A2C2]'} animate-pulse`}></span>
               <h1 className="font-semibold text-sm tracking-tight text-[#0b1b2b]">
-                {view === 'orchestrator' ? 'Command Center' : view === 'logs' ? 'System Logs' : view === 'search' ? 'Neural Index Search' : 'Tactical Agent'}
+                {view === 'orchestrator'
+                  ? 'Command Center'
+                  : view === 'logs'
+                  ? 'System Logs'
+                  : view === 'search'
+                  ? 'Neural Index Search'
+                  : view === 'memory-explorer'
+                  ? 'Neural Archive Explorer'
+                  : view === 'evolution'
+                  ? 'Evolutionary Timeline'
+                  : 'Tactical Agent'}
               </h1>
             </div>
           </div>
           <div className="flex items-center gap-4">
-            {view !== 'orchestrator' && view !== 'logs' && view !== 'search' && (
+            {(view === 'chat' || view === 'settings') && (
               <button 
                 onClick={() => setView(view === 'chat' ? 'settings' : 'chat')}
                 className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
@@ -481,6 +498,8 @@ const App: React.FC = () => {
         onExecute={handleCommandExecute}
         onDeny={handleCommandDeny}
       />
+
+      <MediaControls />
     </div>
   );
 };

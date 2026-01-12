@@ -23,6 +23,65 @@ const SidebarRight: React.FC<SidebarRightProps> = ({ jobs, approvals, onApprove,
 
   const latest = telemetry.length > 0 ? telemetry[telemetry.length - 1] : { cpu: 0, memory: 0, network: 0, gpu: 0, timestamp: '' };
 
+  // --- Threshold-based UI feedback for CPU/RAM ---
+  // Values are percents (0..100). Tune as desired.
+  const METRIC_THRESHOLDS = {
+    cpu: { high: 70, critical: 90 },
+    memory: { high: 75, critical: 90 },
+  } as const;
+
+  type MetricKey = keyof typeof METRIC_THRESHOLDS;
+  type MetricSeverity = 'normal' | 'high' | 'critical';
+
+  const metricSeverity = (metric: MetricKey, value: number): MetricSeverity => {
+    const v = Number.isFinite(value) ? value : 0;
+    const t = METRIC_THRESHOLDS[metric];
+    if (v >= t.critical) return 'critical';
+    if (v >= t.high) return 'high';
+    return 'normal';
+  };
+
+  const metricCardClasses = (severity: MetricSeverity): string => {
+    // Keep the base style consistent with the existing UI, but add color + pulse when elevated.
+    // When telemetry is offline, we intentionally disable pulsing to avoid “false alarm” visuals.
+    const offline = !isTelemetryConnected;
+    const base = 'bg-white/30 p-2 rounded-lg border transition-colors';
+    const offlineMute = offline ? ' opacity-60' : '';
+
+    switch (severity) {
+      case 'critical':
+        return `${base} border-rose-500/60 bg-rose-200/30 ${offline ? '' : 'animate-pulse'} ring-1 ring-rose-500/20${offlineMute}`;
+      case 'high':
+        return `${base} border-amber-500/50 bg-amber-200/25 ${offline ? '' : 'animate-pulse'}${offlineMute}`;
+      case 'normal':
+      default:
+        return `${base} border-[#5381A5]/30${offlineMute}`;
+    }
+  };
+
+  const metricValueClasses = (severity: MetricSeverity): string => {
+    switch (severity) {
+      case 'critical':
+        return 'text-rose-700';
+      case 'high':
+        return 'text-amber-800';
+      case 'normal':
+      default:
+        return 'text-[#0b1b2b]';
+    }
+  };
+
+  const metricLabel = (severity: MetricSeverity): string => {
+    switch (severity) {
+      case 'critical':
+        return 'CRITICAL';
+      case 'high':
+        return 'HIGH';
+      default:
+        return '';
+    }
+  };
+
   useEffect(() => {
     const updateMemory = () => {
       const metrics = fetchNamespaceMetrics(activeTwin.settings.memoryNamespace);
@@ -57,44 +116,6 @@ const SidebarRight: React.FC<SidebarRightProps> = ({ jobs, approvals, onApprove,
 
   return (
     <aside className="w-80 bg-[#90C3EA] border-l border-[#5381A5]/30 flex flex-col shrink-0 relative">
-      <div className="flex items-center h-14 border-b border-[#5381A5]/30">
-        <HoverTooltip
-          title="Mind"
-          description="Vector vault indicators and semantic memory query. Shows the active namespace and lets you search stored intelligence."
-        >
-          <div className="flex-1 flex justify-center border-r border-[#5381A5]/30 py-3 text-[#163247] hover:text-[#0b1b2b] transition-colors cursor-pointer group">
-            <div className="flex flex-col items-center">
-              <ICONS.Brain />
-              <span className="text-[8px] uppercase font-bold mt-1 tracking-tighter opacity-0 group-hover:opacity-100 transition-opacity">Mind</span>
-            </div>
-          </div>
-        </HoverTooltip>
-
-        <HoverTooltip
-          title="Heart"
-          description="Operator-facing status/health area. Reserved for trust, approvals, and other human-in-the-loop controls."
-        >
-          <div className="flex-1 flex justify-center border-r border-[#5381A5]/30 py-3 text-[#163247] hover:text-[#0b1b2b] transition-colors cursor-pointer group">
-            <div className="flex flex-col items-center">
-              <ICONS.Heart />
-              <span className="text-[8px] uppercase font-bold mt-1 tracking-tighter opacity-0 group-hover:opacity-100 transition-opacity">Heart</span>
-            </div>
-          </div>
-        </HoverTooltip>
-
-        <HoverTooltip
-          title="Body"
-          description="System telemetry view. Shows CPU, memory, and network time-series along with the latest values."
-        >
-          <div className="flex-1 flex justify-center py-3 text-[#163247] hover:text-[#0b1b2b] transition-colors cursor-pointer group">
-            <div className="flex flex-col items-center">
-              <ICONS.Activity />
-              <span className="text-[8px] uppercase font-bold mt-1 tracking-tighter opacity-0 group-hover:opacity-100 transition-opacity">Body</span>
-            </div>
-          </div>
-        </HoverTooltip>
-      </div>
-
       <div className="flex-1 overflow-y-auto custom-scrollbar">
         {/* BODY - SYSTEM TELEMETRY */}
         <section className="p-4 border-b border-[#5381A5]/20">
@@ -132,27 +153,65 @@ const SidebarRight: React.FC<SidebarRightProps> = ({ jobs, approvals, onApprove,
                  <TelemetryCharts data={telemetry} />
                </div>
              </HoverTooltip>
-              
-              <div className="grid grid-cols-2 gap-2">
-                <HoverTooltip
-                  title="CPU Load"
-                  description="Current CPU utilization (percent). This is the latest sample and may fluctuate rapidly during builds/executions."
-                >
-                  <div className="bg-white/30 p-2 rounded-lg border border-[#5381A5]/30">
-                    <div className="text-[9px] font-bold text-[#163247] mb-1 uppercase tracking-tighter">CPU LOAD</div>
-                    <div className="text-sm font-bold mono text-[#0b1b2b]">{Number(latest.cpu).toFixed(2)}%</div>
-                  </div>
-                </HoverTooltip>
+               
+               <div className="grid grid-cols-2 gap-2">
+                 <HoverTooltip
+                   title="CPU Load"
+                   description="Current CPU utilization (percent). This is the latest sample and may fluctuate rapidly during builds/executions."
+                 >
+                  {(() => {
+                    const sev = metricSeverity('cpu', Number(latest.cpu));
+                    return (
+                      <div className={metricCardClasses(sev)}>
+                        <div className="flex items-center justify-between gap-2 mb-1">
+                          <div className="text-[9px] font-bold text-[#163247] uppercase tracking-tighter">CPU LOAD</div>
+                          {metricLabel(sev) && (
+                            <div
+                              className={`text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded border ${
+                                sev === 'critical'
+                                  ? 'text-rose-700 border-rose-500/40 bg-rose-200/30'
+                                  : 'text-amber-800 border-amber-500/40 bg-amber-200/30'
+                              }`}
+                              title={`Threshold: ${sev}`}
+                            >
+                              {metricLabel(sev)}
+                            </div>
+                          )}
+                        </div>
+                        <div className={`text-sm font-bold mono ${metricValueClasses(sev)}`}>{Number(latest.cpu).toFixed(2)}%</div>
+                      </div>
+                    );
+                  })()}
+                  </HoverTooltip>
 
-                <HoverTooltip
-                  title="RAM Core"
-                  description="Current memory utilization (percent). High values can indicate memory pressure and may impact tool execution performance."
-                >
-                  <div className="bg-white/30 p-2 rounded-lg border border-[#5381A5]/30">
-                    <div className="text-[9px] font-bold text-[#163247] mb-1 uppercase tracking-tighter">RAM CORE</div>
-                    <div className="text-sm font-bold mono text-[#0b1b2b]">{Number(latest.memory).toFixed(2)}%</div>
-                  </div>
-                </HoverTooltip>
+                 <HoverTooltip
+                   title="RAM Core"
+                   description="Current memory utilization (percent). High values can indicate memory pressure and may impact tool execution performance."
+                 >
+                  {(() => {
+                    const sev = metricSeverity('memory', Number(latest.memory));
+                    return (
+                      <div className={metricCardClasses(sev)}>
+                        <div className="flex items-center justify-between gap-2 mb-1">
+                          <div className="text-[9px] font-bold text-[#163247] uppercase tracking-tighter">RAM CORE</div>
+                          {metricLabel(sev) && (
+                            <div
+                              className={`text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded border ${
+                                sev === 'critical'
+                                  ? 'text-rose-700 border-rose-500/40 bg-rose-200/30'
+                                  : 'text-amber-800 border-amber-500/40 bg-amber-200/30'
+                              }`}
+                              title={`Threshold: ${sev}`}
+                            >
+                              {metricLabel(sev)}
+                            </div>
+                          )}
+                        </div>
+                        <div className={`text-sm font-bold mono ${metricValueClasses(sev)}`}>{Number(latest.memory).toFixed(2)}%</div>
+                      </div>
+                    );
+                  })()}
+                  </HoverTooltip>
                </div>
             </div>
           </section>
@@ -209,6 +268,53 @@ const SidebarRight: React.FC<SidebarRightProps> = ({ jobs, approvals, onApprove,
               </HoverTooltip>
            </div>
          </section>
+
+        {/* GLOBAL MISSION STATUS */}
+        <section className="p-4 border-b border-[#5381A5]/20">
+          <HoverTooltip
+            title="Global Mission Status"
+            description="High-level mission readiness indicators. These are dashboard signals intended to summarize system posture at a glance."
+          >
+            <div className="flex items-center gap-2 mb-4 cursor-help">
+              <div className="p-1.5 bg-white/40 text-[#5381A5] rounded">
+                <span className="material-symbols-outlined text-[14px]">shield</span>
+              </div>
+              <h3 className="text-xs font-bold uppercase tracking-widest text-[#163247]">Global Mission Status</h3>
+            </div>
+          </HoverTooltip>
+
+          <div className="bg-white/30 p-3 rounded-xl border border-[#5381A5]/30 space-y-4">
+            <HoverTooltip
+              title="Neural Sync"
+              description="Represents how synchronized the system’s memory/agent state is across components. Higher is better; drops may indicate delayed ingestion or connectivity issues."
+            >
+              <div className="space-y-2 cursor-help">
+                <div className="flex justify-between text-[9px] text-[#163247]">
+                  <span>Neural Sync</span>
+                  <span className="text-[#5381A5] font-mono font-bold">98%</span>
+                </div>
+                <div className="h-1 bg-white/50 rounded-full overflow-hidden" title="Neural Sync progress bar">
+                  <div className="h-full bg-[#5381A5] w-[98%]" />
+                </div>
+              </div>
+            </HoverTooltip>
+
+            <HoverTooltip
+              title="Threat Suppression"
+              description="Represents progress toward containment/mitigation objectives for active threats (detections, patches, quarantines). Higher is better."
+            >
+              <div className="space-y-2 cursor-help">
+                <div className="flex justify-between text-[9px] text-[#163247]">
+                  <span>Threat Suppression</span>
+                  <span className="text-[#78A2C2] font-mono font-bold">72%</span>
+                </div>
+                <div className="h-1 bg-white/50 rounded-full overflow-hidden" title="Threat Suppression progress bar">
+                  <div className="h-full bg-[#78A2C2] w-[72%]" />
+                </div>
+              </div>
+            </HoverTooltip>
+          </div>
+        </section>
 
         {/* ACTIVE JOBS */}
         <section className="p-4">

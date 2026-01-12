@@ -1,6 +1,6 @@
 use axum::{
     extract::{Json, State},
-    http::StatusCode,
+    http::{Method, StatusCode},
     response::Json as ResponseJson,
     routing::{get, post},
     Router,
@@ -15,6 +15,7 @@ use tokio::sync::{mpsc, RwLock};
 use tonic::transport::Channel;
 use tracing::{info, warn, error};
 use uuid::Uuid;
+use tower_http::cors::{Any, CorsLayer};
 
 const DEFAULT_SYSTEM_PROMPT_TEMPLATE: &str = include_str!("../config/system_prompt.txt");
 
@@ -74,7 +75,14 @@ pub mod orchestrator_admin {
 }
 
 use memory_client::memory_service_client::MemoryServiceClient;
-use memory_client::{QueryMemoryRequest, QueryMemoryResponse};
+use memory_client::{
+    DeleteMemoryRequest,
+    DeleteMemoryResponse,
+    ListMemoriesRequest,
+    ListMemoriesResponse,
+    QueryMemoryRequest,
+    QueryMemoryResponse,
+};
 use tools_client::tool_executor_service_client::ToolExecutorServiceClient;
 use tools_client::{ExecutionRequest, ExecutionResponse};
 
@@ -84,6 +92,8 @@ use orchestrator_admin::orchestrator_admin_service_server::{
 use orchestrator_admin::{
     HealthCheckRequest as AdminHealthCheckRequest,
     HealthCheckResponse as AdminHealthCheckResponse,
+    GetPromptHistoryRequest, GetPromptHistoryResponse,
+    PromptHistoryEntry,
     UpdateSystemPromptRequest, UpdateSystemPromptResponse,
 };
 
@@ -153,24 +163,62 @@ impl SystemPromptRepository {
 struct SystemPromptManager {
     repo: SystemPromptRepository,
     current: Arc<RwLock<String>>,
+    history: Arc<RwLock<Vec<PromptHistoryRecord>>>,
+}
+
+#[derive(Clone, Debug)]
+struct PromptHistoryRecord {
+    id: String,
+    timestamp: String,
+    previous_prompt: String,
+    new_prompt: String,
+    change_summary: String,
 }
 
 impl SystemPromptManager {
     async fn update(&self, new_prompt: String) -> Result<(), String> {
+        self.update_with_history(new_prompt, None).await
+    }
+
+    async fn update_with_history(
+        &self,
+        new_prompt: String,
+        change_summary: Option<String>,
+    ) -> Result<(), String> {
         let trimmed = new_prompt.trim();
         if trimmed.is_empty() {
             return Err("new_prompt must not be empty".to_string());
         }
+
+        let previous_prompt = self.current.read().await.clone();
+        let normalized_new_prompt = format!("{}\n", trimmed);
 
         // Persist first; only update in-memory if the write succeeds.
         self.repo.write(trimmed).await?;
 
         {
             let mut guard = self.current.write().await;
-            *guard = format!("{}\n", trimmed);
+            *guard = normalized_new_prompt.clone();
+        }
+
+        let entry = PromptHistoryRecord {
+            id: Uuid::new_v4().to_string(),
+            timestamp: chrono::Utc::now().to_rfc3339(),
+            previous_prompt,
+            new_prompt: normalized_new_prompt,
+            change_summary: change_summary.unwrap_or_default(),
+        };
+
+        {
+            let mut history = self.history.write().await;
+            history.push(entry);
         }
 
         Ok(())
+    }
+
+    async fn history(&self) -> Vec<PromptHistoryRecord> {
+        self.history.read().await.clone()
     }
 
     async fn get_template(&self) -> String {
@@ -191,6 +239,11 @@ impl OrchestratorAdminService for OrchestratorAdminServiceImpl {
     ) -> Result<tonic::Response<UpdateSystemPromptResponse>, tonic::Status> {
         let req = request.into_inner();
         let new_prompt = req.new_prompt;
+        let change_summary = if req.change_summary.trim().is_empty() {
+            None
+        } else {
+            Some(req.change_summary)
+        };
 
         if new_prompt.len() > 200_000 {
             return Err(tonic::Status::invalid_argument(
@@ -199,7 +252,7 @@ impl OrchestratorAdminService for OrchestratorAdminServiceImpl {
         }
 
         self.prompt_mgr
-            .update(new_prompt)
+            .update_with_history(new_prompt, change_summary)
             .await
             .map_err(|e| tonic::Status::internal(e))?;
 
@@ -218,6 +271,25 @@ impl OrchestratorAdminService for OrchestratorAdminServiceImpl {
             version: env!("CARGO_PKG_VERSION").to_string(),
             message: "Orchestrator admin service is operational".to_string(),
         }))
+    }
+
+    async fn get_prompt_history(
+        &self,
+        _request: tonic::Request<GetPromptHistoryRequest>,
+    ) -> Result<tonic::Response<GetPromptHistoryResponse>, tonic::Status> {
+        let history = self.prompt_mgr.history().await;
+        let entries = history
+            .into_iter()
+            .map(|e| PromptHistoryEntry {
+                id: e.id,
+                timestamp: e.timestamp,
+                previous_prompt: e.previous_prompt,
+                new_prompt: e.new_prompt,
+                change_summary: e.change_summary,
+            })
+            .collect();
+
+        Ok(tonic::Response::new(GetPromptHistoryResponse { entries }))
     }
 }
 
@@ -243,6 +315,88 @@ struct ChatResponse {
     /// Only present for action-producing decisions (tool/memory).
     #[serde(skip_serializing_if = "Option::is_none")]
     raw_orchestrator_decision: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct MemoryListHttpRequest {
+    #[serde(default)]
+    namespace: String,
+    #[serde(default = "default_page")]
+    page: i32,
+    #[serde(default = "default_page_size")]
+    page_size: i32,
+    #[serde(default)]
+    twin_id: String,
+}
+
+fn default_page() -> i32 {
+    1
+}
+
+fn default_page_size() -> i32 {
+    50
+}
+
+#[derive(Debug, Serialize)]
+struct MemoryResultJson {
+    id: String,
+    timestamp: String,
+    content: String,
+    agent_id: String,
+    risk_level: String,
+    similarity: f64,
+    memory_type: String,
+    metadata: HashMap<String, String>,
+}
+
+#[derive(Debug, Serialize)]
+struct MemoryListHttpResponse {
+    memories: Vec<MemoryResultJson>,
+    total_count: i32,
+    total_pages: i32,
+    page: i32,
+    page_size: i32,
+    namespace: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct MemoryDeleteHttpRequest {
+    memory_id: String,
+    #[serde(default)]
+    namespace: String,
+}
+
+#[derive(Debug, Serialize)]
+struct MemoryDeleteHttpResponse {
+    success: bool,
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    error_message: String,
+}
+
+#[derive(Debug, Serialize)]
+struct PromptHistoryEntryHttp {
+    id: String,
+    timestamp: String,
+    previous_prompt: String,
+    new_prompt: String,
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    change_summary: String,
+}
+
+#[derive(Debug, Serialize)]
+struct PromptHistoryHttpResponse {
+    entries: Vec<PromptHistoryEntryHttp>,
+}
+
+#[derive(Debug, Deserialize)]
+struct PromptRestoreHttpRequest {
+    entry_id: String,
+}
+
+#[derive(Debug, Serialize)]
+struct PromptRestoreHttpResponse {
+    success: bool,
+    message: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -981,8 +1135,12 @@ async fn handle_chat_request(
                 "Self-improvement action requested"
             );
 
-            // Persist + atomically swap the active prompt.
-            match state.system_prompt.update(new_prompt.clone()).await {
+            // Persist + atomically swap the active prompt and store history.
+            match state
+                .system_prompt
+                .update_with_history(new_prompt.clone(), Some("self_improve".to_string()))
+                .await
+            {
                 Ok(_) => {
                     actions_taken.push("self_improve_applied".to_string());
                     response_message = "System prompt updated and reloaded for future requests.".to_string();
@@ -1024,6 +1182,130 @@ async fn handle_chat_request(
         status: "completed".to_string(),
         issued_command,
         raw_orchestrator_decision,
+    }))
+}
+
+async fn handle_memory_list(
+    State(state): State<AppState>,
+    Json(request): Json<MemoryListHttpRequest>,
+) -> Result<ResponseJson<MemoryListHttpResponse>, StatusCode> {
+    let mut memory_client = state.memory_client.clone();
+
+    let page = request.page.max(1);
+    let page_size = request.page_size.clamp(1, 1000);
+
+    let grpc_req = tonic::Request::new(ListMemoriesRequest {
+        namespace: request.namespace,
+        page,
+        page_size,
+        twin_id: request.twin_id,
+    });
+
+    let resp: ListMemoriesResponse = memory_client
+        .list_memories(grpc_req)
+        .await
+        .map_err(|e| {
+            error!(error = %e, "Memory list RPC failed");
+            StatusCode::BAD_GATEWAY
+        })?
+        .into_inner();
+
+    let memories = resp
+        .memories
+        .into_iter()
+        .map(|m| MemoryResultJson {
+            id: m.id,
+            timestamp: m.timestamp,
+            content: m.content,
+            agent_id: m.agent_id,
+            risk_level: m.risk_level,
+            similarity: m.similarity,
+            memory_type: m.memory_type,
+            metadata: m.metadata,
+        })
+        .collect();
+
+    Ok(ResponseJson(MemoryListHttpResponse {
+        memories,
+        total_count: resp.total_count,
+        total_pages: resp.total_pages,
+        page: resp.page,
+        page_size: resp.page_size,
+        namespace: resp.namespace,
+    }))
+}
+
+async fn handle_memory_delete(
+    State(state): State<AppState>,
+    Json(request): Json<MemoryDeleteHttpRequest>,
+) -> Result<ResponseJson<MemoryDeleteHttpResponse>, StatusCode> {
+    let mut memory_client = state.memory_client.clone();
+
+    let grpc_req = tonic::Request::new(DeleteMemoryRequest {
+        memory_id: request.memory_id,
+        namespace: request.namespace,
+    });
+
+    let resp: DeleteMemoryResponse = memory_client
+        .delete_memory(grpc_req)
+        .await
+        .map_err(|e| {
+            error!(error = %e, "Memory delete RPC failed");
+            StatusCode::BAD_GATEWAY
+        })?
+        .into_inner();
+
+    Ok(ResponseJson(MemoryDeleteHttpResponse {
+        success: resp.success,
+        error_message: resp.error_message,
+    }))
+}
+
+async fn handle_prompt_history(
+    State(state): State<AppState>,
+) -> ResponseJson<PromptHistoryHttpResponse> {
+    let history = state.system_prompt.history().await;
+    let entries = history
+        .into_iter()
+        .map(|e| PromptHistoryEntryHttp {
+            id: e.id,
+            timestamp: e.timestamp,
+            previous_prompt: e.previous_prompt,
+            new_prompt: e.new_prompt,
+            change_summary: e.change_summary,
+        })
+        .collect();
+
+    ResponseJson(PromptHistoryHttpResponse { entries })
+}
+
+async fn handle_prompt_restore(
+    State(state): State<AppState>,
+    Json(request): Json<PromptRestoreHttpRequest>,
+) -> Result<ResponseJson<PromptRestoreHttpResponse>, StatusCode> {
+    let history = state.system_prompt.history().await;
+    let Some(entry) = history.into_iter().find(|e| e.id == request.entry_id) else {
+        return Ok(ResponseJson(PromptRestoreHttpResponse {
+            success: false,
+            message: "prompt history entry not found".to_string(),
+        }));
+    };
+
+    state
+        .system_prompt
+        .update_with_history(
+            entry.new_prompt,
+            Some(format!("restore_from:{}", entry.id)),
+        )
+        .await
+        .map_err(|e| {
+            error!(error = %e, "Prompt restore failed");
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
+
+    Ok(ResponseJson(PromptRestoreHttpResponse {
+        success: true,
+        message: "prompt restored".to_string(),
     }))
 }
 
@@ -1140,6 +1422,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let system_prompt = SystemPromptManager {
         repo,
         current: Arc::new(RwLock::new(loaded_prompt)),
+        history: Arc::new(RwLock::new(Vec::new())),
     };
 
     // Create application state
@@ -1164,9 +1447,21 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let prompt_mgr = state.system_prompt.clone();
 
     // Create HTTP router
+    // NOTE: The frontend dev server runs on a different origin, so we enable CORS.
+    // In production this should be tightened to known origins.
+    let cors = CorsLayer::new()
+        .allow_origin(Any)
+        .allow_methods([Method::GET, Method::POST])
+        .allow_headers(Any);
+
     let app = Router::new()
         .route("/health", get(health_check))
         .route("/chat", post(handle_chat_request))
+        .route("/v1/memory/list", post(handle_memory_list))
+        .route("/v1/memory/delete", post(handle_memory_delete))
+        .route("/v1/prompt/history", get(handle_prompt_history))
+        .route("/v1/prompt/restore", post(handle_prompt_restore))
+        .layer(cors)
         .with_state(state.clone());
 
     let addr: std::net::SocketAddr = format!("0.0.0.0:{}", http_port)

@@ -1,8 +1,6 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { Message, Twin, TwinStatus } from '../types';
-import { generateTacticalImage, generateDeepVideo, generateCodePatch } from '../services/gemini';
-import HoverTooltip from './HoverTooltip';
 
 interface OrchestratorHubProps {
   orchestrator: Twin;
@@ -12,7 +10,6 @@ interface OrchestratorHubProps {
 
 const OrchestratorHub: React.FC<OrchestratorHubProps> = ({ orchestrator, messages, onSendMessage }) => {
   const [input, setInput] = useState('');
-  const [isGenerating, setIsGenerating] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -29,60 +26,6 @@ const OrchestratorHub: React.FC<OrchestratorHubProps> = ({ orchestrator, message
     }
   };
 
-  const handleGenTask = async (type: 'image' | 'video' | 'code') => {
-    if (!input.trim()) return;
-    
-    // Check for AI code generation policy if type is code
-    if (type === 'code' && !orchestrator.settings.aiCodeGenerationEnabled) {
-      onSendMessage("[POLICY DENIED] AI code generation is disabled in the Defensive Policies settings for this node.");
-      return;
-    }
-
-    setIsGenerating(true);
-    const userPrompt = input.trim();
-    setInput('');
-    
-    // Add user message for record
-    onSendMessage(`[REQUEST: ${type.toUpperCase()}] ${userPrompt}`);
-
-    if (type === 'image') {
-      const imgUrl = await generateTacticalImage(userPrompt);
-      if (imgUrl) {
-         // Display the generated image in the chat
-         onSendMessage(`[IMAGE GENERATED] Visual evidence created successfully.`);
-         console.log("Image Gen Success:", imgUrl);
-         // TODO: Add image display in message UI
-      } else {
-         onSendMessage(`[IMAGE GENERATION FAILED] Unable to generate image. Please check API keys (OpenRouter or Gemini).`);
-      }
-    } else if (type === 'video') {
-      const result = await generateDeepVideo(userPrompt);
-      if (result.status === 'completed' && result.videoUrl) {
-        onSendMessage(`[VIDEO GENERATED] Scenario reconstruction completed. Video URL: ${result.videoUrl}`);
-        console.log("Video Gen Success:", result.videoUrl);
-        // TODO: Add video display in message UI
-      } else {
-        onSendMessage(`[VIDEO GENERATION ${result.status.toUpperCase()}] ${result.message}`);
-      }
-    } else if (type === 'code') {
-      const result = await generateCodePatch(userPrompt);
-      if (result.status === 'completed' && result.code) {
-        // Format code with language identifier for better display
-        const codeBlock = result.language 
-          ? `\`\`\`${result.language}\n${result.code}\n\`\`\``
-          : `\`\`\`\n${result.code}\n\`\`\``;
-        onSendMessage(`[CODE PATCH GENERATED] ${result.message}\n\n${codeBlock}`);
-        console.log("Code Gen Success:", { language: result.language, codeLength: result.code.length });
-      } else {
-        onSendMessage(`[CODE GENERATION ${result.status.toUpperCase()}] ${result.message}`);
-      }
-    }
-    
-    setIsGenerating(false);
-  };
-
-  const isCodeDisabled = !orchestrator.settings.aiCodeGenerationEnabled;
-
   return (
     <div className="flex-1 flex flex-col bg-[#9EC9D9] overflow-hidden relative">
       {/* Background Tactical Grid */}
@@ -91,7 +34,7 @@ const OrchestratorHub: React.FC<OrchestratorHubProps> = ({ orchestrator, message
 
       <div className="flex-1 flex flex-col md:flex-row min-h-0">
         {/* Unified Command Chat */}
-        <div className="flex-1 flex flex-col border-r border-[#5381A5]/30">
+        <div className="flex-1 flex flex-col">
           <div className="p-4 border-b border-[#5381A5]/30 flex items-center justify-between bg-[#90C3EA]">
              <div className="flex items-center gap-2">
                 <span className="material-symbols-outlined text-[#5381A5]">terminal</span>
@@ -127,7 +70,7 @@ const OrchestratorHub: React.FC<OrchestratorHubProps> = ({ orchestrator, message
               <input 
                 value={input}
                 onChange={e => setInput(e.target.value)}
-                placeholder="Global directives or AI task prompt..."
+                placeholder="Global directives..."
                 className="flex-1 bg-white/70 border border-[#5381A5]/30 rounded-lg px-3 py-2 text-xs focus:ring-1 focus:ring-[#5381A5]/40"
               />
               <button 
@@ -139,113 +82,7 @@ const OrchestratorHub: React.FC<OrchestratorHubProps> = ({ orchestrator, message
             </form>
           </div>
         </div>
-
-        {/* Task Matrix & Generative Controls */}
-        <div className="w-full md:w-80 bg-[#90C3EA] p-4 space-y-4 overflow-y-auto">
-          <div className="space-y-1">
-            <h3 className="text-[10px] font-bold text-[#163247] uppercase tracking-widest px-1">Generative Tasks</h3>
-            <p className="text-[9px] text-[#163247] px-1 italic mb-4">Requires active instruction payload in chat</p>
-          </div>
-
-          <div className="grid grid-cols-1 gap-3">
-              <button 
-                 onClick={() => handleGenTask('image')}
-                 disabled={isGenerating || !input.trim()}
-                 className="group relative bg-white/60 border border-[#5381A5]/30 p-4 rounded-2xl text-left hover:border-[#5381A5] transition-all overflow-hidden disabled:opacity-50"
-              >
-                <div className="absolute top-0 right-0 p-2 opacity-10 group-hover:opacity-30 transition-opacity">
-                  <span className="material-symbols-outlined text-4xl">image</span>
-                </div>
-                <div className="relative z-10">
-                  <div className="text-xs font-bold text-[#0b1b2b]">Generate Visual Evidence</div>
-                  <div className="text-[9px] text-[#163247] mt-1 leading-tight">OpenRouter/DALL-E • Fallback: Gemini</div>
-                </div>
-              </button>
-
-              <button 
-                 onClick={() => handleGenTask('video')}
-                 disabled={isGenerating || !input.trim()}
-                 className="group relative bg-white/60 border border-[#5381A5]/30 p-4 rounded-2xl text-left hover:border-[#5381A5] transition-all overflow-hidden disabled:opacity-50"
-              >
-                <div className="absolute top-0 right-0 p-2 opacity-10 group-hover:opacity-30 transition-opacity">
-                  <span className="material-symbols-outlined text-4xl">movie</span>
-                </div>
-                <div className="relative z-10">
-                  <div className="text-xs font-bold text-[#0b1b2b]">Reconstruct Scenario</div>
-                  <div className="text-[9px] text-[#163247] mt-1 leading-tight">Replicate • Stable Video Diffusion (Free Tier)</div>
-                </div>
-              </button>
-
-              <button 
-                 onClick={() => handleGenTask('code')}
-                 disabled={isGenerating || !input.trim() || isCodeDisabled}
-                 className={`group relative bg-white/60 border p-4 rounded-2xl text-left transition-all overflow-hidden disabled:opacity-50 ${isCodeDisabled ? 'border-[#5381A5]/30 opacity-40 cursor-not-allowed' : 'border-[#5381A5]/30 hover:border-[#5381A5]'}`}
-              >
-                <div className="absolute top-0 right-0 p-2 opacity-10 group-hover:opacity-30 transition-opacity">
-                  <span className="material-symbols-outlined text-4xl">{isCodeDisabled ? 'lock' : 'code'}</span>
-                </div>
-                <div className="relative z-10">
-                  <div className={`text-xs font-bold ${isCodeDisabled ? 'text-[#163247]' : 'text-[#0b1b2b]'}`}>
-                    Synthesize Patch {isCodeDisabled && '(Locked)'}
-                  </div>
-                  <div className="text-[9px] text-[#163247] mt-1 leading-tight">
-                    {isCodeDisabled ? 'Policy: AI Code Generation Disabled' : 'OpenRouter/Claude • Fallback: Gemini'}
-                  </div>
-                </div>
-              </button>
-          </div>
-
-          <div className="pt-6 border-t border-[#5381A5]/30">
-             <HoverTooltip
-               title="Global Mission Status"
-               description="High-level mission readiness indicators. These are dashboard signals intended to summarize system posture at a glance."
-             >
-               <div className="text-[10px] font-bold text-[#163247] uppercase tracking-widest mb-3">Global Mission Status</div>
-             </HoverTooltip>
-
-             <div className="bg-white/50 p-3 rounded-xl border border-[#5381A5]/30 space-y-4">
-                <HoverTooltip
-                  title="Neural Sync"
-                  description="Represents how synchronized the system’s memory/agent state is across components. Higher is better; drops may indicate delayed ingestion or connectivity issues."
-                >
-                  <div className="space-y-2">
-                     <div className="flex justify-between text-[9px] text-[#163247]">
-                        <span>Neural Sync</span>
-                        <span className="text-[#5381A5]">98%</span>
-                      </div>
-                     <div className="h-1 bg-white/50 rounded-full overflow-hidden" title="Neural Sync progress bar">
-                        <div className="h-full bg-[#5381A5] w-[98%]" />
-                      </div>
-                  </div>
-                </HoverTooltip>
-
-                <HoverTooltip
-                  title="Threat Suppression"
-                  description="Represents progress toward containment/mitigation objectives for active threats (detections, patches, quarantines). Higher is better."
-                >
-                  <div className="space-y-2">
-                     <div className="flex justify-between text-[9px] text-[#163247]">
-                        <span>Threat Suppression</span>
-                        <span className="text-[#78A2C2]">72%</span>
-                      </div>
-                     <div className="h-1 bg-white/50 rounded-full overflow-hidden" title="Threat Suppression progress bar">
-                        <div className="h-full bg-[#78A2C2] w-[72%]" />
-                      </div>
-                  </div>
-                </HoverTooltip>
-             </div>
-          </div>
-        </div>
       </div>
-
-      {isGenerating && (
-        <div className="absolute inset-0 bg-black/20 backdrop-blur-sm z-50 flex items-center justify-center">
-          <div className="flex flex-col items-center gap-4">
-             <div className="w-12 h-12 border-4 border-[#5381A5] border-t-transparent rounded-full animate-spin" />
-             <div className="text-xs font-bold text-[#5381A5] animate-pulse tracking-widest">SYNTHESIZING TACTICAL ASSET...</div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

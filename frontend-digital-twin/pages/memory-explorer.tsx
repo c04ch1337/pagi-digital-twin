@@ -86,7 +86,9 @@ const MemoryExplorer: React.FC<MemoryExplorerProps> = ({ activeTwin, onClose }) 
     content: '',
   });
 
-  const orchestratorUrl = import.meta.env.VITE_ORCHESTRATOR_URL || 'http://127.0.0.1:8182';
+  // NOTE: The original orchestrator instance may already be running on 8182.
+  // We default to 8185 for dev so we can run a second instance without killing the first.
+  const orchestratorUrl = import.meta.env.VITE_ORCHESTRATOR_URL || 'http://127.0.0.1:8185';
 
   const loadMemories = useCallback(async () => {
     setLoading(true);
