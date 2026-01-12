@@ -14,7 +14,9 @@ from __future__ import annotations
 import math
 from pathlib import Path
 
-from PIL import Image, ImageDraw, ImageFont
+# Pillow is expected to be available in the runtime environment used to generate assets.
+# Some editors/typecheckers may not have it configured in their analysis environment.
+from PIL import Image, ImageDraw, ImageFont  # pyright: ignore[reportMissingImports]
 
 
 ROOT = Path(__file__).resolve().parent.parent
