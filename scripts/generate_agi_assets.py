@@ -84,24 +84,84 @@ def make_badge_png(path: Path, size: int = 512) -> Image.Image:
     # Pillow's alpha_composite doesn't accept a separate mask; use paste with mask instead.
     img.paste(glow, (0, 0), glow_mask)
 
-    # Monogram: "F"
-    try:
-        # Best effort: use a system font if available.
-        font = ImageFont.truetype("arialbd.ttf", int(size * 0.52))
-    except Exception:
-        font = ImageFont.load_default()
+    # Propane / natural gas inspired flame icon.
+    # Outer flame (amber -> orange)
+    flame_box = (
+        int(size * 0.22),
+        int(size * 0.16),
+        int(size * 0.78),
+        int(size * 0.88),
+    )
+    left, top, right, bottom = flame_box
+    w = right - left
+    h = bottom - top
+    cx = (left + right) // 2
 
-    text = "F"
-    bbox = draw.textbbox((0, 0), text, font=font)
-    tw = bbox[2] - bbox[0]
-    th = bbox[3] - bbox[1]
-    tx = (size - tw) // 2
-    ty = (size - th) // 2 - int(size * 0.03)
+    outer_color = (251, 146, 60, 235)  # orange-400
+    outer_highlight = (252, 211, 77, 225)  # amber-300
+    inner_color = (255, 255, 255, 210)
 
-    # Shadow
-    draw.text((tx + int(size * 0.01), ty + int(size * 0.02)), text, font=font, fill=(0, 0, 0, 90))
-    # Foreground
-    draw.text((tx, ty), text, font=font, fill=(255, 255, 255, 235))
+    # Outer flame: combine a base ellipse with an upper polygon.
+    base_h = int(h * 0.32)
+    base_box = (
+        int(left + w * 0.20),
+        bottom - base_h,
+        int(right - w * 0.20),
+        bottom,
+    )
+
+    tip = (cx, top)
+    poly = [
+        (int(left + w * 0.20), bottom - base_h // 2),
+        (int(left + w * 0.10), int(top + h * 0.46)),
+        (int(left + w * 0.28), int(top + h * 0.30)),
+        tip,
+        (int(right - w * 0.28), int(top + h * 0.30)),
+        (int(right - w * 0.10), int(top + h * 0.46)),
+        (int(right - w * 0.20), bottom - base_h // 2),
+    ]
+
+    draw.polygon(poly, fill=outer_color)
+    draw.ellipse(base_box, fill=outer_color)
+
+    # Outer highlight (subtle)
+    highlight_poly = [
+        (cx, int(top + h * 0.10)),
+        (int(left + w * 0.40), int(top + h * 0.48)),
+        (cx, int(bottom - base_h * 0.65)),
+        (int(right - w * 0.40), int(top + h * 0.48)),
+    ]
+    draw.polygon(highlight_poly, fill=outer_highlight)
+
+    # Inner flame
+    inner = (
+        int(left + w * 0.25),
+        int(top + h * 0.28),
+        int(right - w * 0.25),
+        int(bottom - h * 0.18),
+    )
+    il, it, ir, ib = inner
+    iw = ir - il
+    ih = ib - it
+    icx = (il + ir) // 2
+
+    inner_tip = (icx, it)
+    inner_base_h = int(ih * 0.34)
+    inner_base_box = (
+        int(il + iw * 0.26),
+        ib - inner_base_h,
+        int(ir - iw * 0.26),
+        ib,
+    )
+    inner_poly = [
+        (int(il + iw * 0.26), ib - inner_base_h // 2),
+        (int(il + iw * 0.18), int(it + ih * 0.55)),
+        inner_tip,
+        (int(ir - iw * 0.18), int(it + ih * 0.55)),
+        (int(ir - iw * 0.26), ib - inner_base_h // 2),
+    ]
+    draw.polygon(inner_poly, fill=inner_color)
+    draw.ellipse(inner_base_box, fill=inner_color)
 
     img.save(path)
     return img
@@ -110,14 +170,36 @@ def make_badge_png(path: Path, size: int = 512) -> Image.Image:
 def write_svg(path: Path) -> None:
     svg = """<svg xmlns='http://www.w3.org/2000/svg' width='512' height='512' viewBox='0 0 512 512'>
   <defs>
-    <radialGradient id='g' cx='40%' cy='35%' r='70%'>
+    <radialGradient id='bg' cx='40%' cy='35%' r='70%'>
       <stop offset='0%' stop-color='#6366f1'/>
       <stop offset='100%' stop-color='#1e1b4b'/>
     </radialGradient>
+    <linearGradient id='flame' x1='0' y1='0' x2='0' y2='1'>
+      <stop offset='0%' stop-color='#fcd34d'/>
+      <stop offset='55%' stop-color='#fb923c'/>
+      <stop offset='100%' stop-color='#ef4444'/>
+    </linearGradient>
   </defs>
-  <circle cx='256' cy='256' r='236' fill='url(#g)'/>
+
+  <circle cx='256' cy='256' r='236' fill='url(#bg)'/>
   <circle cx='256' cy='256' r='212' fill='none' stroke='rgba(255,255,255,0.25)' stroke-width='18'/>
-  <text x='256' y='312' text-anchor='middle' font-family='Inter, Space Grotesk, Arial Black, sans-serif' font-size='280' font-weight='800' fill='rgba(255,255,255,0.92)'>F</text>
+
+  <!-- Propane / natural gas flame -->
+  <path
+    d='M256 96
+       C214 154 176 198 186 270
+       C198 355 238 396 256 420
+       C274 396 314 355 326 270
+       C336 198 298 154 256 96 Z'
+    fill='url(#flame)' opacity='0.95'/>
+
+  <path
+    d='M256 164
+       C236 200 216 222 220 272
+       C224 322 244 350 256 366
+       C268 350 288 322 292 272
+       C296 222 276 200 256 164 Z'
+    fill='rgba(255,255,255,0.85)'/>
 </svg>"""
     path.write_text(svg, encoding="utf-8")
 
