@@ -15,7 +15,13 @@ const SidebarLeft: React.FC<SidebarLeftProps> = ({ twins, activeTwinId, currentV
   return (
     <aside className="w-64 bg-zinc-950 flex flex-col shrink-0 border-r border-zinc-800/50">
       <div className="p-4 border-b border-zinc-800/50 flex items-center gap-3">
-        <div className="w-9 h-9 rounded bg-indigo-600 flex items-center justify-center font-bold text-xl text-white shadow-lg shadow-indigo-500/20 shrink-0">F</div>
+        <img
+          src="/ferrellgas-agi-badge.svg"
+          alt="Ferrellgas AGI"
+          className="w-9 h-9 rounded shadow-lg shadow-indigo-500/20 shrink-0"
+          loading="eager"
+          decoding="async"
+        />
         <div className="flex-1 flex flex-col min-w-0">
           <span className="font-bold text-lg tracking-tight leading-none text-white font-display">Ferrellgas AGI</span>
           <span className="text-[9px] text-zinc-500 font-bold tracking-wider uppercase mt-1">Tactical Node Network</span>
