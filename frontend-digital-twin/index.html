@@ -9,92 +9,6 @@
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
     <!-- Prism.js Tomorrow Night theme -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet" />
-    <style>
-        body {
-            font-family: 'Inter', sans-serif;
-            background-color: #09090b;
-            color: #fafafa;
-            margin: 0;
-            overflow: hidden;
-        }
-        .font-display { font-family: 'Space Grotesk', sans-serif; }
-        .mono { font-family: 'JetBrains Mono', monospace; }
-        
-        ::-webkit-scrollbar {
-            width: 6px;
-            height: 6px;
-        }
-        ::-webkit-scrollbar-track {
-            background: transparent;
-        }
-        ::-webkit-scrollbar-thumb {
-            background: #27272a;
-            border-radius: 10px;
-        }
-        ::-webkit-scrollbar-thumb:hover {
-            background: #3f3f46;
-        }
-        
-        /* Tactical Editor High-Precision Styles */
-        pre[class*="language-"], 
-        code[class*="language-"],
-        .code-textarea {
-            font-family: 'JetBrains Mono', monospace !important;
-            font-size: 13px !important;
-            line-height: 1.6 !important;
-            tab-size: 2 !important;
-            padding: 0 !important;
-            margin: 0 !important;
-            border: none !important;
-            outline: none !important;
-            white-space: pre-wrap !important;
-            word-break: break-all !important;
-        }
-
-        pre[class*="language-"] {
-            background: transparent !important;
-            box-shadow: none !important;
-        }
-
-        .code-textarea {
-            color: transparent !important;
-            caret-color: #818cf8 !important; /* indigo-400 */
-            background: transparent !important;
-            resize: none !important;
-            width: 100% !important;
-            height: 100% !important;
-            z-index: 10;
-        }
-
-        .scrollbar-hide::-webkit-scrollbar {
-            display: none;
-        }
-        .scrollbar-hide {
-            -ms-overflow-style: none;
-            scrollbar-width: none;
-        }
-        
-        .code-editor-bg {
-            background-color: #0d0f14;
-        }
-
-        /* Tomorrow Night Accent for selected text */
-        .code-textarea::selection {
-            background: rgba(99, 102, 241, 0.3);
-            color: transparent;
-        }
-
-        /* Prism override for our tactical UI */
-        .token.comment, .token.prolog, .token.doctype, .token.cdata { color: #636363; }
-        .token.punctuation { color: #ccc; }
-        .token.namespace { opacity: .7; }
-        .token.property, .token.tag, .token.boolean, .token.number, .token.constant, .token.symbol, .token.deleted { color: #f07178; }
-        .token.selector, .token.attr-name, .token.string, .token.char, .token.builtin, .token.inserted { color: #c3e88d; }
-        .token.operator, .token.entity, .token.url, .language-css .token.string, .style .token.string { color: #89ddff; }
-        .token.atrule, .token.attr-value, .token.keyword { color: #c792ea; }
-        .token.function, .token.class-name { color: #82aaff; }
-        .token.regex, .token.important, .token.variable { color: #f78c6c; }
-    </style>
 <script type="importmap">
 {
   "imports": {
@@ -108,7 +22,6 @@
   }
 }
 </script>
-<link rel="stylesheet" href="/index.css">
 </head>
 <body>
     <div id="root"></div>

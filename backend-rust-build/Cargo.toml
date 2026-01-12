@@ -1,0 +1,16 @@
+[package]
+name = "backend-rust-build"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+tokio = { version = "1.37.0", features = ["full"] }
+tonic = { version = "0.12.3", features = ["transport"] }
+prost = "0.13.5"
+tracing = "0.1.40"
+tracing-subscriber = { version = "0.3.18", features = ["json", "env-filter"] }
+dotenvy = "0.15"
+
+[build-dependencies]
+tonic-build = "0.12.3"
+

@@ -195,8 +195,11 @@ func main() {
 
 	shutdownOTel, promHandler, err := initOpenTelemetry(ctx)
 	if err != nil {
-		log.Error("otel_init_failed", "error", err)
-		os.Exit(1)
+		// Bare-metal/dev runs often do not have an OTLP collector running.
+		// Treat OpenTelemetry as best-effort so the core Agent Planner stack can boot.
+		log.Warn("otel_init_failed_continuing_without_tracing", "error", err)
+		shutdownOTel = func(context.Context) error { return nil }
+		promHandler = nil
 	}
 	defer func() { _ = shutdownOTel(context.Background()) }()
 
@@ -227,7 +230,7 @@ func main() {
 
 	port := os.Getenv("AGENT_PLANNER_PORT")
 	if port == "" {
-		port = "8080" // Default port, overridden to 8585 by docker-compose
+		port = "8181" // Default port, overridden to 8585 by docker-compose
 	}
 
 	// Health Check Endpoint

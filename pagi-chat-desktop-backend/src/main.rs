@@ -13,117 +13,69 @@ use tokio::sync::Mutex;
 use tracing::{error, info};
 
 mod protocol;
+mod llm_client;
 
-use protocol::{ChatRequest, ChatResponse};
+// Import actual Agent, Memory, and Protocol types from the core crate
+use pagi_digital_twin_core::{
+    agent::DigitalTwinAgent,
+    memory::{MemorySystem, DebugMemorySystem},
+    agent::{ExternalLLM, ChatRequest, ChatResponse},
+};
 
-// === Core Agent Integration ===
-//
-// This crate is intended to wrap the real Digital Twin core crate when available.
-// In this workspace the core package currently lives at:
-//   ../pagi-companion-core
-// and is aliased (in Cargo.toml) as `pagi-digital-twin-core`.
-//
-// For now (and for this repo to remain buildable), we provide a mock fallback.
-
-#[cfg(feature = "with-core")]
-mod core {
-    // TODO: replace with real imports when the Digital Twin core crate is present.
-    // Example (expected shape; adjust to real core API):
-    // use pagi_digital_twin_core::agent::DigitalTwinAgent;
-
-    use super::protocol::{ChatRequest, ChatResponse};
-    use uuid::Uuid;
-
-    // Temporary alias to keep the scaffold compiling while the real types land.
-    #[derive(Debug, Clone)]
-    pub struct DigitalTwinAgent;
-
-    impl DigitalTwinAgent {
-        pub async fn new(user_id: &str) -> anyhow::Result<Self> {
-            tracing::info!(user_id = user_id, "DigitalTwinAgent initialized (core stub)");
-            Ok(Self)
-        }
-
-        pub async fn process_user_input(&self, req: ChatRequest) -> anyhow::Result<ChatResponse> {
-            let started = std::time::Instant::now();
-            tracing::info!(
-                user_id = %req.user_id,
-                session_id = %req.session_id,
-                input = %req.message,
-                "[CORE STUB] Processing input"
-            );
-
-            Ok(ChatResponse::CompleteMessage {
-                id: Uuid::new_v4(),
-                content: format!("ACK(core-stub): {}", req.message),
-                is_final: true,
-                latency_ms: started.elapsed().as_millis() as u64,
-                source_memories: vec![],
-                issued_command: None,
-            })
-        }
-    }
-}
-
-#[cfg(not(feature = "with-core"))]
-mod core {
-    use super::protocol::{ChatRequest, ChatResponse};
-    use uuid::Uuid;
-
-    #[derive(Debug, Clone)]
-    pub struct DigitalTwinAgent;
-
-    impl DigitalTwinAgent {
-        pub async fn new(user_id: &str) -> anyhow::Result<Self> {
-            tracing::info!(user_id = user_id, "DigitalTwinAgent initialized (mock)");
-            Ok(Self)
-        }
-
-        pub async fn process_user_input(&self, req: ChatRequest) -> anyhow::Result<ChatResponse> {
-            let started = std::time::Instant::now();
-            tracing::info!(
-                user_id = %req.user_id,
-                session_id = %req.session_id,
-                input = %req.message,
-                "[CORE MOCK] Processing input"
-            );
-            tokio::time::sleep(std::time::Duration::from_millis(250)).await;
-
-            Ok(ChatResponse::CompleteMessage {
-                id: Uuid::new_v4(),
-                content: format!(
-                    "ACK(mock): Agent processed '{}'. State updated.",
-                    req.message
-                ),
-                is_final: true,
-                latency_ms: started.elapsed().as_millis() as u64,
-                source_memories: vec![],
-                issued_command: None,
-            })
-        }
-    }
-}
-
-use core::DigitalTwinAgent;
+// Use the local LLM client implementation
+use llm_client::AxumLLMClient;
 
 // --- API Shared State ---
 // Stores the active, long-running Digital Twin Agent instance for each user/session.
+// The LLM client and Memory System are shared across all agents for efficient resource usage.
 pub struct ApiState {
     active_agents: Mutex<HashMap<String, Arc<DigitalTwinAgent>>>,
+    llm_client: Arc<dyn ExternalLLM>,
+    memory_system: Arc<dyn MemorySystem>,
 }
 
 impl ApiState {
-    pub async fn get_or_create_agent(&self, user_id: &str) -> Result<Arc<DigitalTwinAgent>> {
+    /// Creates a new ApiState with the provided LLM client and Memory System.
+    /// Both are shared across all agent instances.
+    pub fn new(llm_client: Arc<dyn ExternalLLM>, memory_system: Arc<dyn MemorySystem>) -> Self {
+        Self {
+            active_agents: Mutex::new(HashMap::new()),
+            llm_client,
+            memory_system,
+        }
+    }
+
+    /// Gets or creates a DigitalTwinAgent for the given user and session.
+    /// Each agent instance shares the LLM client and Memory System.
+    pub async fn get_or_create_agent(
+        &self,
+        user_id: &str,
+        session_id: &str,
+    ) -> Result<Arc<DigitalTwinAgent>> {
         let mut map = self.active_agents.lock().await;
-        if let Some(agent) = map.get(user_id) {
+        
+        // Use a composite key for user_id + session_id to support multiple sessions per user
+        let agent_key = format!("{}:{}", user_id, session_id);
+        
+        if let Some(agent) = map.get(&agent_key) {
             return Ok(agent.clone());
         }
         
-        // --- Critical Integration Point ---
-        // This is where the core logic is instantiated.
-        let new_agent = Arc::new(DigitalTwinAgent::new(user_id).await?);
-        map.insert(user_id.to_string(), new_agent.clone());
-        info!(user_id = user_id, "New Digital Twin session created");
+        // --- Critical Wiring Point ---
+        // This is where the real core logic is instantiated with the LLM client and Memory System.
+        let new_agent = Arc::new(
+            DigitalTwinAgent::new(
+                user_id.to_string(),
+                self.llm_client.clone(),
+                self.memory_system.clone(),
+            )
+        );
+        map.insert(agent_key, new_agent.clone());
+        info!(
+            user_id = user_id,
+            session_id = session_id,
+            "New Digital Twin session created"
+        );
         Ok(new_agent)
     }
 }
@@ -132,25 +84,43 @@ impl ApiState {
 async fn main() -> Result<()> {
     tracing_subscriber::fmt().with_target(false).init();
 
-    let state = Arc::new(ApiState {
-        active_agents: Mutex::new(HashMap::new()),
+    // --- LLM Service Configuration ---
+    // Environment variable to source the LLM endpoint (Bare Metal Compliance)
+    let llm_url = std::env::var("LLM_SERVICE_URL").unwrap_or_else(|_| {
+        let default_url = "http://127.0.0.1:8000/llm/inference".to_string();
+        info!("LLM_SERVICE_URL not set. Using default: {}", default_url);
+        default_url
     });
+
+    info!(llm_url = %llm_url, "Initializing LLM client");
+
+    // Create the LLM client that will be shared across all agent instances
+    let llm_client: Arc<dyn ExternalLLM> = Arc::new(AxumLLMClient::new(llm_url));
+    info!("LLM Client initialized.");
+
+    // Initialize the shared Memory System
+    let memory_system = Arc::new(DebugMemorySystem::new()) as Arc<dyn MemorySystem>;
+    info!("Memory System (DebugMemorySystem) initialized.");
+
+    // Create API state with the shared LLM client and Memory System
+    let state = Arc::new(ApiState::new(llm_client, memory_system));
 
     let app = Router::new()
         .route("/api/health", get(health_check))
         .route("/ws/chat/:user_id", get(ws_handler))
         .with_state(state);
 
-    let bind_addr = std::env::var("PAGI_CHAT_BACKEND_BIND").unwrap_or_else(|_| "127.0.0.1:8080".to_string());
+    let bind_addr = std::env::var("PAGI_CHAT_BACKEND_BIND")
+        .unwrap_or_else(|_| "127.0.0.1:8181".to_string());
     let listener = tokio::net::TcpListener::bind(&bind_addr).await?;
-    info!(addr = %bind_addr, "PAGI Chat Desktop Backend listening");
+    info!("🚀 PAGI Chat Desktop Backend running on http://{}", bind_addr);
 
     axum::serve(listener, app.into_make_service()).await?;
     Ok(())
 }
 
 async fn health_check() -> impl IntoResponse {
-    (axum::http::StatusCode::OK, "PAGI Chat Desktop Backend Operational")
+    (axum::http::StatusCode::OK, "PAGI Chat Backend Operational")
 }
 
 async fn ws_handler(
@@ -162,18 +132,11 @@ async fn ws_handler(
 }
 
 async fn handle_socket(mut socket: WebSocket, user_id: String, state: Arc<ApiState>) {
-    info!(user_id = %user_id, "WebSocket connected");
+    info!(user_id = %user_id, "WebSocket connection established");
 
-    let agent = match state.get_or_create_agent(&user_id).await {
-        Ok(a) => a,
-        Err(e) => {
-            error!(user_id = %user_id, error = %e, "Failed to init agent");
-            let _ = socket
-                .send(Message::Text("Error initializing agent.".to_string()))
-                .await;
-            return;
-        }
-    };
+    // Note: We'll get the session_id from the first ChatRequest
+    // For now, we'll use a default session_id and update it when we receive the first message
+    let mut current_session_id: Option<String> = None;
 
     while let Some(Ok(msg)) = socket.recv().await {
         match msg {
@@ -183,11 +146,14 @@ async fn handle_socket(mut socket: WebSocket, user_id: String, state: Arc<ApiSta
                     Err(e) => {
                         error!(user_id = %user_id, error = %e, "Invalid ChatRequest JSON");
                         let resp = ChatResponse::StatusUpdate {
-                            status: "invalid_request".to_string(),
-                            details: Some(e.to_string()),
+                            status: "error".to_string(),
+                            details: Some(format!("Invalid JSON payload: {}", e)),
                         };
                         let _ = socket
-                            .send(Message::Text(serde_json::to_string(&resp).unwrap_or_else(|_| "{\"type\":\"status_update\",\"status\":\"serialization_error\"}".to_string())))
+                            .send(Message::Text(serde_json::to_string(&resp).unwrap_or_else(|_| {
+                                "{\"type\":\"status_update\",\"status\":\"error\",\"details\":\"serialization_error\"}"
+                                    .to_string()
+                            })))
                             .await;
                         continue;
                     }
@@ -200,13 +166,13 @@ async fn handle_socket(mut socket: WebSocket, user_id: String, state: Arc<ApiSta
                         "user_id mismatch between path and payload"
                     );
                     let resp = ChatResponse::StatusUpdate {
-                        status: "user_id_mismatch".to_string(),
-                        details: Some("user_id in payload must match /ws/chat/:user_id".to_string()),
+                        status: "error".to_string(),
+                        details: Some("User ID mismatch between path and request payload.".to_string()),
                     };
                     let _ = socket
                         .send(Message::Text(
                             serde_json::to_string(&resp).unwrap_or_else(|_| {
-                                "{\"type\":\"status_update\",\"status\":\"serialization_error\"}"
+                                "{\"type\":\"status_update\",\"status\":\"error\"}"
                                     .to_string()
                             }),
                         ))
@@ -220,6 +186,34 @@ async fn handle_socket(mut socket: WebSocket, user_id: String, state: Arc<ApiSta
                     msg = %req.message,
                     "User message"
                 );
+
+                // Update current session_id if this is the first message or session changed
+                let session_id_str = req.session_id.to_string();
+                if current_session_id.as_ref() != Some(&session_id_str) {
+                    current_session_id = Some(session_id_str.clone());
+                }
+
+                // Get or create agent for this user + session combination
+                let agent = match state
+                    .get_or_create_agent(&user_id, &session_id_str)
+                    .await
+                {
+                    Ok(a) => a,
+                    Err(e) => {
+                        error!(user_id = %user_id, error = %e, "Failed to initialize DigitalTwinAgent");
+                        let resp = ChatResponse::StatusUpdate {
+                            status: "error".to_string(),
+                            details: Some(format!("Failed to initialize DigitalTwinAgent: {}", e)),
+                        };
+                        let _ = socket
+                            .send(Message::Text(serde_json::to_string(&resp).unwrap_or_else(|_| {
+                                "{\"type\":\"status_update\",\"status\":\"error\"}"
+                                    .to_string()
+                            })))
+                            .await;
+                        continue;
+                    }
+                };
 
                 let agent_clone = agent.clone();
                 let user_id_clone = user_id.clone();
@@ -239,13 +233,13 @@ async fn handle_socket(mut socket: WebSocket, user_id: String, state: Arc<ApiSta
                             Err(e) => {
                                 error!(user_id = %user_id, error = %e, "Failed to serialize ChatResponse");
                                 let resp = ChatResponse::StatusUpdate {
-                                    status: "serialization_error".to_string(),
-                                    details: Some(e.to_string()),
+                                    status: "error".to_string(),
+                                    details: Some(format!("Failed to serialize response: {}", e)),
                                 };
                                 let _ = socket
                                     .send(Message::Text(
                                         serde_json::to_string(&resp).unwrap_or_else(|_| {
-                                            "{\"type\":\"status_update\",\"status\":\"serialization_error\"}"
+                                            "{\"type\":\"status_update\",\"status\":\"error\"}"
                                                 .to_string()
                                         }),
                                     ))
@@ -256,18 +250,24 @@ async fn handle_socket(mut socket: WebSocket, user_id: String, state: Arc<ApiSta
                     Ok(Err(e)) => {
                         error!(user_id = %user_id, error = %e, "Agent processing failed");
                         let resp = ChatResponse::StatusUpdate {
-                            status: "agent_error".to_string(),
-                            details: Some(e.to_string()),
+                            status: "error".to_string(),
+                            details: Some(format!("Agent failed to process input: {}", e)),
                         };
-                        let _ = socket.send(Message::Text(serde_json::to_string(&resp).unwrap_or_else(|_| "{\"type\":\"status_update\",\"status\":\"agent_error\"}".to_string()))).await;
+                        let _ = socket.send(Message::Text(serde_json::to_string(&resp).unwrap_or_else(|_| {
+                            "{\"type\":\"status_update\",\"status\":\"error\"}"
+                                .to_string()
+                        }))).await;
                     }
                     Err(e) => {
-                        error!(user_id = %user_id, error = %e, "Agent task panicked/aborted");
+                        error!(user_id = %user_id, error = %e, "Agent processing task panicked");
                         let resp = ChatResponse::StatusUpdate {
-                            status: "agent_task_failed".to_string(),
-                            details: Some(e.to_string()),
+                            status: "error".to_string(),
+                            details: Some("Fatal: Agent task failed.".to_string()),
                         };
-                        let _ = socket.send(Message::Text(serde_json::to_string(&resp).unwrap_or_else(|_| "{\"type\":\"status_update\",\"status\":\"agent_task_failed\"}".to_string()))).await;
+                        let _ = socket.send(Message::Text(serde_json::to_string(&resp).unwrap_or_else(|_| {
+                            "{\"type\":\"status_update\",\"status\":\"error\"}"
+                                .to_string()
+                        }))).await;
                     }
                 }
             }

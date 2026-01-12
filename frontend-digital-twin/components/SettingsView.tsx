@@ -149,9 +149,9 @@ const SettingsView: React.FC<SettingsViewProps> = ({ twin, onSave, onCancel }) =
   }, [highlightedCode]);
 
   const providers = [
-    { id: 'gemini', name: 'Gemini', icon: 'google', desc: 'Google Native Multi-modal' },
-    { id: 'openrouter', name: 'OpenRouter', icon: 'rocket_launch', desc: 'Unified API Gateway Access' },
+    { id: 'openrouter', name: 'OpenRouter', icon: 'rocket_launch', desc: 'Unified API Gateway Access (Default)' },
     { id: 'ollama', name: 'Ollama', icon: 'terminal', desc: 'Local Infrastructure Inference' },
+    { id: 'gemini', name: 'Gemini', icon: 'google', desc: 'Google Native Multi-modal' },
     { id: 'openai', name: 'OpenAI', icon: 'psychology', desc: 'GPT-4o / o1 Architecture' },
     { id: 'anthropic', name: 'Anthropic', icon: 'neurology', desc: 'Claude 3.5 Sonnet Precision' },
     { id: 'llama', name: 'Llama', icon: 'adb', desc: 'Meta Specialized Weights' },

@@ -1,0 +1,42 @@
+syntax = "proto3";
+
+package tools;
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/empty.proto";
+
+// Request to execute a tool/command
+message ExecutionRequest {
+  string command = 1;           // Command to execute (e.g., "ls", "echo", "file_write")
+  repeated string args = 2;     // Arguments for the command
+  string twin_id = 3;           // The ID of the agent requesting the execution
+  string job_id = 4;            // The ID of the Orchestrator job (optional)
+  string namespace = 5;         // Memory namespace for context
+  map<string, string> metadata = 6; // Additional metadata
+}
+
+// Response from execution
+message ExecutionResponse {
+  bool success = 1;             // Whether execution was successful
+  int32 exit_code = 2;          // Process exit code (0 = success)
+  repeated string stdout_logs = 3; // Standard output lines
+  repeated string stderr_logs = 4; // Standard error lines
+  string message = 5;           // Policy failure reason or execution summary
+  string execution_id = 6;      // Unique ID for this execution
+}
+
+// Health check response
+message HealthCheckResponse {
+  string status = 1;            // "healthy", "degraded", "unhealthy"
+  string version = 2;           // Service version
+  string message = 3;           // Optional status message
+}
+
+// Tool Executor Service
+service ToolExecutorService {
+  // Request execution of a tool/command with policy enforcement
+  rpc RequestExecution(ExecutionRequest) returns (ExecutionResponse);
+  
+  // Health check endpoint
+  rpc HealthCheck(google.protobuf.Empty) returns (HealthCheckResponse);
+}

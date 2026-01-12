@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { TelemetryData, Job, Approval, Twin } from '../types';
+import { Job, Approval, Twin } from '../types';
 import { ICONS } from '../constants';
 import TelemetryCharts from './TelemetryCharts';
-import { fetchNamespaceMetrics, MemoryStatus, VectorShard } from '../services/memory';
-import { querySemanticMemory } from '../services/gemini';
+import NeuralMemorySearch from './NeuralMemorySearch';
+import { fetchNamespaceMetrics, MemoryStatus } from '../services/memory';
+import { useTelemetry } from '../context/TelemetryContext';
 
 interface SidebarRightProps {
-  telemetry: TelemetryData[];
   jobs: Job[];
   approvals: Approval[];
   onApprove: (id: string) => void;
@@ -15,13 +15,12 @@ interface SidebarRightProps {
   onViewLogs: (jobId: string) => void;
 }
 
-const SidebarRight: React.FC<SidebarRightProps> = ({ telemetry, jobs, approvals, onApprove, onDeny, activeTwin, onViewLogs }) => {
+const SidebarRight: React.FC<SidebarRightProps> = ({ jobs, approvals, onApprove, onDeny, activeTwin, onViewLogs }) => {
+  // Get telemetry data from context (SSE stream)
+  const { telemetry, isConnected: isTelemetryConnected } = useTelemetry();
   const [memoryInfo, setMemoryInfo] = useState<MemoryStatus | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState<VectorShard[]>([]);
-  const [isSearching, setIsSearching] = useState(false);
 
-  const latest = telemetry[telemetry.length - 1] || { cpu: 0, memory: 0, network: 0, gpu: 0 };
+  const latest = telemetry.length > 0 ? telemetry[telemetry.length - 1] : { cpu: 0, memory: 0, network: 0, gpu: 0, timestamp: '' };
 
   useEffect(() => {
     const updateMemory = () => {
@@ -34,20 +33,6 @@ const SidebarRight: React.FC<SidebarRightProps> = ({ telemetry, jobs, approvals,
     return () => clearInterval(interval);
   }, [activeTwin.settings.memoryNamespace]);
 
-  const handleSearch = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!searchQuery.trim()) return;
-
-    setIsSearching(true);
-    try {
-      const results = await querySemanticMemory(activeTwin.settings.memoryNamespace, searchQuery);
-      setSearchResults(results);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setIsSearching(false);
-    }
-  };
 
   const getStatusColor = (status: Job['status']) => {
     switch (status) {
@@ -110,7 +95,12 @@ const SidebarRight: React.FC<SidebarRightProps> = ({ telemetry, jobs, approvals,
                 </div>
                 <h3 className="text-xs font-bold uppercase tracking-widest text-zinc-500">Body (System)</h3>
              </div>
-             <span className="text-[10px] text-zinc-600 mono">LAT: 24ms</span>
+             <div className="flex items-center gap-2">
+               <span className={`w-1.5 h-1.5 rounded-full ${isTelemetryConnected ? 'bg-emerald-500 animate-pulse' : 'bg-zinc-600'}`}></span>
+               <span className="text-[10px] text-zinc-600 mono">
+                 {isTelemetryConnected ? 'LIVE' : 'OFFLINE'}
+               </span>
+             </div>
           </div>
           <div className="space-y-4">
              <div className="bg-zinc-900/50 rounded-xl p-3 border border-zinc-800/50">
@@ -156,36 +146,8 @@ const SidebarRight: React.FC<SidebarRightProps> = ({ telemetry, jobs, approvals,
                 </div>
              </div>
 
-             {/* Semantic Search UI */}
-             <form onSubmit={handleSearch} className="relative">
-                <input 
-                  value={searchQuery}
-                  onChange={e => setSearchQuery(e.target.value)}
-                  placeholder="Query semantic index..."
-                  className="w-full bg-zinc-900 border border-zinc-800 rounded-lg pl-8 pr-3 py-2 text-[11px] focus:ring-1 focus:ring-indigo-500 outline-none transition-all placeholder-zinc-600"
-                />
-                <span className="material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-600 text-[14px]">search</span>
-                {isSearching && (
-                  <div className="absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 border border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
-                )}
-             </form>
-
-             {/* Results */}
-             <div className="space-y-2">
-                {searchResults.length > 0 ? (
-                  searchResults.map(shard => (
-                    <div key={shard.id} className="p-2.5 bg-zinc-900/50 border border-zinc-800 rounded-lg group hover:border-indigo-500/50 transition-all">
-                       <div className="flex items-center justify-between mb-1.5">
-                          <span className="text-[8px] font-bold text-indigo-500 uppercase tracking-widest">Matched Shard</span>
-                          <span className="text-[8px] text-zinc-600 font-mono">{shard.timestamp.toLocaleTimeString()}</span>
-                       </div>
-                       <p className="text-[10px] text-zinc-300 leading-snug line-clamp-3">{shard.text}</p>
-                    </div>
-                  ))
-                ) : searchQuery && !isSearching ? (
-                  <div className="text-[9px] text-zinc-600 text-center py-2 italic">No semantic matches in this namespace.</div>
-                ) : null}
-             </div>
+             {/* Neural Memory Search */}
+             <NeuralMemorySearch activeTwin={activeTwin} />
           </div>
         </section>
 

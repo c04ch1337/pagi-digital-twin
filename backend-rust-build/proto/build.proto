@@ -1,0 +1,30 @@
+syntax = "proto3";
+
+package build;
+
+service BuildService {
+  rpc CreateTool(CreateToolRequest) returns (CreateToolResponse);
+  rpc HealthCheck(HealthCheckRequest) returns (HealthCheckResponse);
+}
+
+message CreateToolRequest {
+  string tool_name = 1;
+  string tool_code = 2;
+}
+
+message CreateToolResponse {
+  bool success = 1;
+  int32 exit_code = 2;
+  string stdout = 3;
+  string stderr = 4;
+  string tool_dir = 5;
+}
+
+message HealthCheckRequest {}
+
+message HealthCheckResponse {
+  string status = 1;
+  string version = 2;
+  string message = 3;
+}
+

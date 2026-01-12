@@ -37,7 +37,7 @@ const CreateTwinModal: React.FC<CreateTwinModalProps> = ({ onSave, onClose }) =>
         tokenLimit: 64,
         memoryNamespace: 'default',
         aiCodeGenerationEnabled: false,
-        llmProvider: 'gemini',
+        llmProvider: 'openrouter',
         // Fix: Added missing temperature and topP properties required by TwinSettings interface
         temperature: 0.7,
         topP: 0.95

@@ -90,7 +90,39 @@ class SentenceTransformerEmbeddingFunction:
 
 
 _chroma_client: chromadb.ClientAPI | None = None
-_embedding_fn = SentenceTransformerEmbeddingFunction(model_name=os.environ.get("EMBEDDING_MODEL_NAME", "all-MiniLM-L6-v2"))
+
+
+def _build_embedding_fn():
+	"""Select an embedding function.
+
+	By default we try SentenceTransformers (semantic embeddings). If the model
+	can't be loaded (common on first boot behind strict proxies / broken CA
+	bundles), we fall back to a deterministic hash embedding so the service still
+	boots and RAG endpoints remain usable.
+	"""
+	provider = (os.environ.get("EMBEDDING_PROVIDER") or "sentence_transformers").lower()
+	if provider in {"hash", "mock", "deterministic"}:
+		return HashEmbeddingFunction(dim=int(os.environ.get("EMBEDDING_HASH_DIM", "32")))
+
+	try:
+		return SentenceTransformerEmbeddingFunction(
+			model_name=os.environ.get("EMBEDDING_MODEL_NAME", "all-MiniLM-L6-v2")
+		)
+	except Exception as e:
+		print(
+			json.dumps(
+				{
+					"level": "warn",
+					"service": "backend-python-memory",
+					"message": "failed_to_load_sentence_transformer_model; falling back to hash embeddings",
+					"error": str(e),
+				}
+			)
+		)
+		return HashEmbeddingFunction(dim=int(os.environ.get("EMBEDDING_HASH_DIM", "32")))
+
+
+_embedding_fn = _build_embedding_fn()
 
 
 def get_chroma_client() -> chromadb.ClientAPI:
@@ -412,7 +444,8 @@ async def _serve_grpc(port: int) -> None:
 	model_pb2_grpc.add_ModelGatewayServicer_to_server(ModelGatewayServicer(), server)
 	if health_pb2_grpc is not None and HealthServicer is not None:
 		health_pb2_grpc.add_HealthServicer_to_server(HealthServicer(), server)
-	server.add_insecure_port(f"[::]:{port}")
+	# Use 0.0.0.0 instead of [::] to avoid IPv6 binding issues on some Windows setups
+	server.add_insecure_port(f"0.0.0.0:{port}")
 	await server.start()
 	_grpc_server = server
 	await server.wait_for_termination()
@@ -476,4 +509,3 @@ def get_session_history(session_id: str) -> list[dict[str, Any]]:
 		)
 		conn.commit()
 		return []
-

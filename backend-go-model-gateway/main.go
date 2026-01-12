@@ -85,6 +85,16 @@ type llmRuntime struct {
 	Client   *openai.Client
 }
 
+// noopRAGClient is a fallback RAG client used when the Memory Service is not
+// reachable during boot (common in bare-metal dev when services start in
+// parallel). It keeps the model gateway online and simply returns no RAG
+// context.
+type noopRAGClient struct{}
+
+func (noopRAGClient) GetContext(_ context.Context, _ VectorQueryRequest) ([]VectorQueryMatch, error) {
+	return []VectorQueryMatch{}, nil
+}
+
 // --- Tool Definitions (for LLM tool-use prompting) ---
 type ToolDefinition struct {
 	Name        string               `json:"name"`
@@ -524,17 +534,26 @@ func main() {
 		port = DEFAULT_GRPC_PORT
 	}
 
-	// Initialize Vector DB client (mock for now).
+	// Initialize Vector DB (RAG) client.
+	//
+	// In bare-metal dev mode the Memory Service may not be ready when the Model
+	// Gateway starts. Don't fail fast here; fall back to a no-op RAG client so the
+	// gateway can still serve mock LLM responses and become healthy.
+	var ragClient *RAGGRPCClient
+	var vectorClient RAGContextClient = noopRAGClient{}
+
 	rigCtx, cancelRAGDial := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancelRAGDial()
-	vectorClient, err := NewRAGGRPCClient(rigCtx)
-	if err != nil {
-		log.Fatalf(
-			`{"timestamp":"%s","level":"fatal","service":"%s","component":"RAGGRPCClient","error":%q}`,
+	if rc, err := NewRAGGRPCClient(rigCtx); err != nil {
+		log.Printf(
+			`{"timestamp":"%s","level":"warn","service":"%s","component":"RAGGRPCClient","error":%q,"message":"failed to connect to memory service for RAG; starting with noop RAG client"}`,
 			time.Now().Format(time.RFC3339Nano), SERVICE_NAME, err.Error(),
 		)
+	} else {
+		ragClient = rc
+		vectorClient = rc
+		defer func() { _ = rc.Close() }()
 	}
-	defer func() { _ = vectorClient.Close() }()
 
 	// Temporary HTTP endpoint for independent testing of vector retrieval.
 	httpPort := getEnvInt("MODEL_GATEWAY_HTTP_PORT", DEFAULT_HTTP_PORT)
@@ -590,7 +609,7 @@ func main() {
 	}
 
 	s := grpc.NewServer(serverOpts...)
-	grpc_health_v1.RegisterHealthServer(s, &healthServer{llm: llm, ragClient: vectorClient})
+	grpc_health_v1.RegisterHealthServer(s, &healthServer{llm: llm, ragClient: ragClient})
 	pb.RegisterModelGatewayServer(s, &server{llm: llm, vectorDB: vectorClient, requestTimeout: time.Duration(timeoutSec) * time.Second})
 
 	log.Printf(

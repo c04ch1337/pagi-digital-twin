@@ -12,7 +12,9 @@ export default defineConfig(({ mode }) => {
       plugins: [react()],
       define: {
         'process.env.API_KEY': JSON.stringify(env.GEMINI_API_KEY),
-        'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY)
+        'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY),
+        'process.env.VITE_WS_URL': JSON.stringify(env.VITE_WS_URL || 'ws://127.0.0.1:8181/ws/chat'),
+        'process.env.VITE_SSE_URL': JSON.stringify(env.VITE_SSE_URL || 'http://127.0.0.1:8181/v1/telemetry/stream')
       },
       resolve: {
         alias: {

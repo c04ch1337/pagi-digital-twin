@@ -1,0 +1,26 @@
+syntax = "proto3";
+
+package orchestrator_admin;
+
+service OrchestratorAdminService {
+  rpc UpdateSystemPrompt(UpdateSystemPromptRequest) returns (UpdateSystemPromptResponse);
+  rpc HealthCheck(HealthCheckRequest) returns (HealthCheckResponse);
+}
+
+message UpdateSystemPromptRequest {
+  string new_prompt = 1;
+}
+
+message UpdateSystemPromptResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message HealthCheckRequest {}
+
+message HealthCheckResponse {
+  string status = 1;
+  string version = 2;
+  string message = 3;
+}
+

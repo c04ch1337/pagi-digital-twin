@@ -28,7 +28,7 @@ export const INITIAL_TWINS: Twin[] = [
       tokenLimit: 64,
       memoryNamespace: 'threat_intel_v24',
       aiCodeGenerationEnabled: false,
-      llmProvider: 'gemini',
+      llmProvider: 'openrouter',
       temperature: 0.7,
       topP: 0.9
     }
@@ -50,7 +50,7 @@ export const INITIAL_TWINS: Twin[] = [
       tokenLimit: 48,
       memoryNamespace: 'sandbox_quarantine',
       aiCodeGenerationEnabled: false,
-      llmProvider: 'gemini',
+      llmProvider: 'openrouter',
       temperature: 0.4,
       topP: 0.85
     }
@@ -72,7 +72,7 @@ export const INITIAL_TWINS: Twin[] = [
       tokenLimit: 128,
       memoryNamespace: 'network_traffic_logs',
       aiCodeGenerationEnabled: false,
-      llmProvider: 'gemini',
+      llmProvider: 'openrouter',
       temperature: 0.2,
       topP: 0.95
     }

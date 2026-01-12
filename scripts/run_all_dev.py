@@ -36,7 +36,7 @@ def load_env():
     env.setdefault("LOG_LEVEL", "info")
 
     # LLM provider switching (core)
-    env.setdefault("LLM_PROVIDER", "mock")
+    env.setdefault("LLM_PROVIDER", "openrouter")
 
     # --- Legacy (BFF demo harness) ---
     env.setdefault("PY_AGENT_PORT", "8000")
@@ -62,7 +62,8 @@ def services_core(env: dict) -> list[dict]:
         {
             "name": "Python Memory Service",
             "dir": "backend-python-memory",
-            "cmd": ["python", "main.py"],
+            # Use the same Python interpreter that launched this script (supports venv activation).
+            "cmd": [sys.executable, "main.py"],
             "port": env["MEMORY_PORT"],
             "health_url": f"http://localhost:{env['MEMORY_PORT']}/health",
         },

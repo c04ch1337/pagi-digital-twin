@@ -1,0 +1,70 @@
+syntax = "proto3";
+
+package memory;
+
+// Memory Service for Vector Database operations
+service MemoryService {
+  // Query memory using semantic search
+  rpc QueryMemory (QueryMemoryRequest) returns (QueryMemoryResponse);
+  
+  // Commit/store a new memory block
+  rpc CommitMemory (CommitMemoryRequest) returns (CommitMemoryResponse);
+  
+  // Health check endpoint
+  rpc HealthCheck (HealthCheckRequest) returns (HealthCheckResponse);
+}
+
+// Request to query memory
+message QueryMemoryRequest {
+  string query = 1;           // Semantic search query text
+  string namespace = 2;       // Memory namespace (e.g., "threat_intel_v24")
+  string twin_id = 3;         // Optional: Filter by twin ID
+  int32 top_k = 4;            // Number of results to return (default: 10)
+  repeated string memory_types = 5; // Optional: Filter by memory types
+}
+
+// Memory result from query
+message MemoryResult {
+  string id = 1;              // UUID of the memory block
+  string timestamp = 2;       // ISO 8601 timestamp
+  string content = 3;         // Memory content text
+  string agent_id = 4;        // ID of the agent that created this memory
+  string risk_level = 5;       // Risk level: "Low", "Medium", "High", "Critical"
+  double similarity = 6;       // Similarity score (0.0 to 1.0)
+  string memory_type = 7;     // Type: "Episodic", "Semantic", "RAGSource", "Reflection"
+  map<string, string> metadata = 8; // Additional metadata
+}
+
+// Response to query request
+message QueryMemoryResponse {
+  repeated MemoryResult results = 1;
+  int32 total_count = 2;      // Total number of results found
+  string namespace = 3;       // Namespace that was queried
+}
+
+// Request to commit/store memory
+message CommitMemoryRequest {
+  string content = 1;         // Memory content to store
+  string namespace = 2;       // Memory namespace
+  string twin_id = 3;         // ID of the twin creating this memory
+  string memory_type = 4;     // Type: "Episodic", "Semantic", "RAGSource", "Reflection"
+  string risk_level = 5;      // Optional risk level
+  map<string, string> metadata = 6; // Additional metadata
+}
+
+// Response to commit request
+message CommitMemoryResponse {
+  string memory_id = 1;       // UUID of the created memory block
+  bool success = 2;           // Whether the commit was successful
+  string error_message = 3;    // Error message if commit failed
+}
+
+// Health check request
+message HealthCheckRequest {}
+
+// Health check response
+message HealthCheckResponse {
+  string status = 1;          // "healthy", "degraded", "unhealthy"
+  string version = 2;         // Service version
+  string message = 3;         // Optional status message
+}

@@ -34,6 +34,17 @@ services:
     ports:
       - "8000:8000"
 
+  qdrant-db:
+    image: qdrant/qdrant:latest
+    container_name: qdrant-db
+    volumes:
+      - qdrant_data:/qdrant/storage
+    ports:
+      - "6333:6333" # REST
+      - "6334:6334" # gRPC
+    networks:
+      - pagi-network
+
   memory-service:
     container_name: memory-service
     build:
@@ -71,8 +82,9 @@ services:
       - RAG_GRPC_ADDR=memory-service:50052
 
       # LLM provider switching
-      # Default is "mock" so the stack boots without any API keys.
-      - LLM_PROVIDER=${LLM_PROVIDER:-mock}
+      # Default is "openrouter" (requires OPENROUTER_API_KEY).
+      # Set LLM_PROVIDER=mock for development without API keys.
+      - LLM_PROVIDER=${LLM_PROVIDER:-openrouter}
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
       - OPENROUTER_MODEL_NAME=${OPENROUTER_MODEL_NAME:-mistralai/mistral-7b-instruct:free}
       - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://ollama:11434}
@@ -89,7 +101,7 @@ services:
       context: .
       dockerfile: backend-go-agent-planner/Dockerfile
     environment:
-      - AGENT_PLANNER_PORT=8080
+      - AGENT_PLANNER_PORT=8181
       - MODEL_GATEWAY_ADDR=model-gateway:50051
       - MEMORY_GRPC_ADDR=memory-service:50052
       - MEMORY_URL=http://memory-service:8003
@@ -108,7 +120,7 @@ services:
     volumes:
       - agent_planner_audit:/audit
     ports:
-      - "8585:8080"
+      - "8585:8181"
     depends_on:
       - redis
       - memory-service
@@ -135,6 +147,132 @@ services:
     depends_on:
       - agent-planner
 
+  # --- New Rust Services (Tri-Layer Sovereign Architecture) ---
+  
+  rust-memory-service:
+    container_name: rust-memory-service
+    build:
+      context: .
+      dockerfile: backend-rust-memory/Dockerfile
+    env_file:
+      - .env
+    environment:
+      - MEMORY_GRPC_PORT=${MEMORY_GRPC_PORT:-50052}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      # Qdrant (gRPC)
+      - QDRANT_URL=${QDRANT_URL:-http://qdrant-db:6334}
+      - EMBEDDING_MODEL_DIM=${EMBEDDING_MODEL_DIM:-384}
+    ports:
+      - "${MEMORY_GRPC_PORT:-50052}:50052"
+    depends_on:
+      - qdrant-db
+    networks:
+      - pagi-network
+
+  rust-tools-service:
+    container_name: rust-tools-service
+    build:
+      context: .
+      dockerfile: backend-rust-tools/Dockerfile
+    env_file:
+      - .env
+    environment:
+      - TOOLS_GRPC_PORT=${TOOLS_GRPC_PORT:-50054}
+      - SANDBOX_DIR=/sandbox
+      - SAFE_MODE=${SAFE_MODE:-true}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+    ports:
+      - "${TOOLS_GRPC_PORT:-50054}:50054"
+    volumes:
+      - tools_sandbox:/sandbox
+    networks:
+      - pagi-network
+
+  rust-orchestrator:
+    container_name: rust-orchestrator
+    build:
+      context: .
+      dockerfile: backend-rust-orchestrator/Dockerfile
+    env_file:
+      - .env
+    environment:
+      - ORCHESTRATOR_HTTP_PORT=${ORCHESTRATOR_HTTP_PORT:-8182}
+      - MEMORY_GRPC_ADDR=http://rust-memory-service:50052
+      - TOOLS_GRPC_ADDR=http://rust-tools-service:50054
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+      - OPENROUTER_MODEL=${OPENROUTER_MODEL:-google/gemini-2.0-flash-exp}
+      - OPENROUTER_URL=${OPENROUTER_URL:-https://openrouter.ai/api/v1/chat/completions}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+    ports:
+      - "${ORCHESTRATOR_HTTP_PORT:-8182}:8182"
+    depends_on:
+      - rust-memory-service
+      - rust-tools-service
+    networks:
+      - pagi-network
+
+  rust-gateway:
+    container_name: rust-gateway
+    build:
+      context: .
+      dockerfile: backend-rust-gateway/Dockerfile
+    env_file:
+      - .env
+    environment:
+      - GATEWAY_PORT=${GATEWAY_PORT:-8181}
+      - ORCHESTRATOR_URL=http://rust-orchestrator:8182
+      - TELEMETRY_URL=http://telemetry:8183
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+    ports:
+      - "${GATEWAY_PORT:-8181}:8181"
+    depends_on:
+      - rust-orchestrator
+      - telemetry
+    networks:
+      - pagi-network
+
+  telemetry:
+    container_name: telemetry
+    build:
+      context: .
+      dockerfile: backend-rust-telemetry/Dockerfile
+    env_file:
+      - .env
+    environment:
+      - TELEMETRY_PORT=${TELEMETRY_PORT:-8183}
+      - TELEMETRY_INTERVAL_MS=${TELEMETRY_INTERVAL_MS:-2000}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+    ports:
+      - "${TELEMETRY_PORT:-8183}:8183"
+    networks:
+      - pagi-network
+
+  frontend:
+    container_name: frontend-digital-twin
+    build:
+      context: ./frontend-digital-twin
+      dockerfile: Dockerfile
+      args:
+        - VITE_WS_URL=${VITE_WS_URL:-ws://localhost:8181/ws/chat}
+        - VITE_SSE_URL=${VITE_SSE_URL:-http://localhost:8181/v1/telemetry/stream}
+    env_file:
+      - .env
+    environment:
+      - VITE_WS_URL=${VITE_WS_URL:-ws://localhost:8181/ws/chat}
+      - VITE_SSE_URL=${VITE_SSE_URL:-http://localhost:8181/v1/telemetry/stream}
+    ports:
+      - "3000:3000"
+    depends_on:
+      - rust-gateway
+    networks:
+      - pagi-network
+
 volumes:
   chroma_data:
+  qdrant_data:
   agent_planner_audit:
+  tools_sandbox:
+
+networks:
+  pagi-network:
+    driver: bridge

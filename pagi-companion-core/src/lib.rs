@@ -1,10 +1,7 @@
-//! pagi-companion-core (stub)
+//! pagi-companion-core
 //!
-//! This repository currently includes a minimal placeholder core crate so that
-//! [`pagi-chat-desktop-backend`](../pagi-chat-desktop-backend/Cargo.toml:1) can compile.
-//!
-//! Replace/expand this crate with the real "source of truth" agent logic as it
-//! becomes available.
+//! The core AGI logic for the PAGI Digital Twin system.
+//! This crate provides the foundational components for memory, planning, and reflection.
 
 pub mod companion {
     pub mod agent {
@@ -33,3 +30,12 @@ pub mod companion {
     }
 }
 
+/// Memory system module for RAG, episodic memory, and semantic memory.
+pub mod memory;
+
+/// Agent module containing the DigitalTwinAgent and related protocol types.
+pub mod agent;
+
+// Re-export key types for convenience
+pub use memory::{MemorySystem, MemoryBlock, MemoryQuery, MemoryQueryResult, MemoryType, DebugMemorySystem};
+pub use agent::{DigitalTwinAgent, ExternalLLM, LLMCallInput, LLMCallOutput, ChatRequest, ChatResponse, AgentCommand};

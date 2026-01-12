@@ -21,6 +21,6 @@ WORKDIR /app
 
 COPY --from=builder /out/agent-planner ./agent-planner
 
-EXPOSE 8080
+EXPOSE 8181
 CMD ["/app/agent-planner"]
 

@@ -1,0 +1,200 @@
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { PAGIClient } from '../services/pagiClient';
+import { ChatRequest, ChatResponse, CompleteMessage, MessageChunk, StatusUpdate } from '../types/protocol';
+import { usePagiSession } from '../hooks/usePagiSession';
+
+// --- Define Context State ---
+interface PagiContextType {
+  client: PAGIClient | null;
+  isConnected: boolean;
+  messages: ChatResponse[];
+  sendChatRequest: (message: string) => void;
+  currentUserId: string;
+  sessionId: string;
+  createNewSession: () => void;
+}
+
+const PagiContext = createContext<PagiContextType | undefined>(undefined);
+
+// --- Provider Component ---
+export const PagiProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { userId, sessionId, createNewSession } = usePagiSession();
+  const [client, setClient] = useState<PAGIClient | null>(null);
+  const [isConnected, setIsConnected] = useState(false);
+  const [messages, setMessages] = useState<ChatResponse[]>([]);
+  const clientRef = useRef<PAGIClient | null>(null);
+
+  const handleIncomingMessage = useCallback((response: ChatResponse) => {
+    setMessages(prev => {
+      // Handle streaming chunks: if message ID exists, append to existing content
+      if (response.type === 'message_chunk') {
+        const existingIndex = prev.findIndex(m => m.id === response.id);
+        if (existingIndex >= 0) {
+          // Update existing chunk message
+          const existing = prev[existingIndex] as MessageChunk;
+          const updated: MessageChunk = {
+            ...existing,
+            content_chunk: existing.content_chunk + response.content_chunk,
+            is_final: response.is_final,
+          };
+          const newMessages = [...prev];
+          newMessages[existingIndex] = updated;
+          return newMessages;
+        }
+      }
+      // For complete messages or new chunks, append
+      return [...prev, response];
+    });
+  }, []);
+
+  const handleConnectionStatus = useCallback((connected: boolean) => {
+    setIsConnected(connected);
+    if (connected) {
+      // Clear stale disconnect/error status messages from previous reconnect attempts.
+      setMessages(prev =>
+        prev.filter(m => !(m.type === 'status_update' && m.status === 'error'))
+      );
+
+      // Send a 'Connection Established' status to chat
+      const statusMsg: StatusUpdate = {
+        type: 'status_update',
+        status: 'ready',
+        details: 'Connection to Digital Twin established.',
+      };
+      setMessages(prev => [...prev, statusMsg]);
+    } else {
+      // Send a disconnection status
+      const statusMsg: StatusUpdate = {
+        type: 'status_update',
+        status: 'error',
+        details: 'Connection lost. Attempting to reconnect...',
+      };
+      setMessages(prev => [...prev, statusMsg]);
+    }
+  }, []);
+
+  // Initialize WebSocket client when userId and sessionId are available
+  useEffect(() => {
+    if (!userId || !sessionId) {
+      return;
+    }
+
+    // If client already exists and is for the same user, don't recreate
+    if (clientRef.current) {
+      return;
+    }
+
+    const wsUrl = import.meta.env.VITE_WS_URL || 'ws://127.0.0.1:8181/ws/chat';
+    console.log('[PagiContext] Initializing PAGIClient for user:', userId, 'session:', sessionId);
+    
+    const newClient = new PAGIClient(
+      wsUrl,
+      userId,
+      handleIncomingMessage,
+      handleConnectionStatus
+    );
+    
+    clientRef.current = newClient;
+    setClient(newClient);
+
+    // Cleanup function for disconnect
+    return () => {
+      if (clientRef.current) {
+        console.log('[PagiContext] Cleaning up PAGIClient');
+        clientRef.current.disconnect();
+        clientRef.current = null;
+        setClient(null);
+      }
+    };
+  }, [userId, sessionId, handleIncomingMessage, handleConnectionStatus]);
+
+  // Reconnect when session changes (for new chat sessions)
+  // Note: first render uses an empty sessionId, so we must seed the ref once sessionId is available
+  // to avoid an immediate "session changed" disconnect/reconnect loop.
+  const prevSessionIdRef = React.useRef<string>(sessionId);
+  useEffect(() => {
+    if (!sessionId) {
+      return;
+    }
+
+    // Seed on first non-empty sessionId
+    if (!prevSessionIdRef.current) {
+      prevSessionIdRef.current = sessionId;
+      return;
+    }
+
+    if (prevSessionIdRef.current !== sessionId && clientRef.current && userId) {
+      console.log('[PagiContext] Session changed, reconnecting...');
+      // Disconnect old client
+      clientRef.current.disconnect();
+      clientRef.current = null;
+      setClient(null);
+      
+      // Create new client for new session
+      const wsUrl = import.meta.env.VITE_WS_URL || 'ws://127.0.0.1:8181/ws/chat';
+      const newClient = new PAGIClient(
+        wsUrl,
+        userId,
+        handleIncomingMessage,
+        handleConnectionStatus
+      );
+      
+      clientRef.current = newClient;
+      setClient(newClient);
+      prevSessionIdRef.current = sessionId;
+    }
+  }, [sessionId, userId, handleIncomingMessage, handleConnectionStatus]);
+
+  const sendChatRequest = useCallback((message: string) => {
+    if (clientRef.current && isConnected && sessionId) {
+      const request: ChatRequest = {
+        session_id: sessionId,
+        user_id: userId,
+        timestamp: new Date().toISOString(),
+        message: message,
+      };
+      
+      const sent = clientRef.current.sendRequest(request);
+      if (sent) {
+        console.log('[PagiContext] Sent chat request:', message);
+        // Note: We don't add user message to messages here because
+        // the backend will echo it back or we can add it in the UI component
+      } else {
+        console.error('[PagiContext] Failed to send chat request');
+      }
+    } else {
+      console.warn('[PagiContext] Cannot send message: Client not connected or session not ready');
+      const statusMsg: StatusUpdate = {
+        type: 'status_update',
+        status: 'error',
+        details: 'Cannot send message: Connection not ready. Please wait...',
+      };
+      setMessages(prev => [...prev, statusMsg]);
+    }
+  }, [isConnected, userId, sessionId]);
+
+  const value = useMemo(() => ({
+    client: clientRef.current,
+    isConnected,
+    messages,
+    sendChatRequest,
+    currentUserId: userId,
+    sessionId,
+    createNewSession,
+  }), [isConnected, messages, sendChatRequest, userId, sessionId, createNewSession]);
+
+  return (
+    <PagiContext.Provider value={value}>
+      {children}
+    </PagiContext.Provider>
+  );
+};
+
+// --- Custom Hook for Consumption ---
+export const usePagi = (): PagiContextType => {
+  const context = useContext(PagiContext);
+  if (context === undefined) {
+    throw new Error('usePagi must be used within a PagiProvider');
+  }
+  return context;
+};

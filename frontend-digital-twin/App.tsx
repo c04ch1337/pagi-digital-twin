@@ -9,10 +9,19 @@ import OrchestratorHub from './components/OrchestratorHub';
 import JobLogsView from './components/JobLogsView';
 import CreateTwinModal from './components/CreateTwinModal';
 import SearchView from './components/SearchView';
-import { generateAgentResponse } from './services/gemini';
+import CommandModal from './components/CommandModal';
 import { executeJobLifecycle } from './services/orchestrator';
+import { usePagi } from './context/PagiContext';
+import { useTelemetry } from './context/TelemetryContext';
+import { convertChatResponseToMessage } from './utils/messageConverter';
+import { ChatResponse, CompleteMessage, AgentCommand, ChatRequest } from './types/protocol';
 
 const App: React.FC = () => {
+  // Get WebSocket context
+  const { sendChatRequest, messages: protocolMessages, isConnected } = usePagi();
+  // Get Telemetry context
+  const { telemetry, isConnected: isTelemetryConnected } = useTelemetry();
+  
   const [twins, setTwins] = useState<Twin[]>(INITIAL_TWINS);
   const [activeTwinId, setActiveTwinId] = useState<string>(INITIAL_TWINS[0].id);
   const [view, setView] = useState<AppView>('orchestrator');
@@ -20,38 +29,198 @@ const App: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [jobs, setJobs] = useState<Job[]>([]);
   const [approvals, setApprovals] = useState<Approval[]>([]);
-  const [telemetry, setTelemetry] = useState<TelemetryData[]>([]);
   const [isSidebarLeftOpen, setIsSidebarLeftOpen] = useState(true);
   const [isSidebarRightOpen, setIsSidebarRightOpen] = useState(true);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [activeCommand, setActiveCommand] = useState<AgentCommand | null>(null);
+  const [commandMessageId, setCommandMessageId] = useState<string | null>(null);
+  const [activeDecisionTrace, setActiveDecisionTrace] = useState<string | null>(null);
+
+  // Prevent re-processing the same issued_command on every render.
+  // `protocolMessages` is an append-only stream, so without this, the modal
+  // re-opens repeatedly for the same command.
+  const handledIssuedCommandIdsRef = React.useRef<Set<string>>(new Set());
 
   const activeTwin = twins.find(t => t.id === activeTwinId) || twins[0];
   const orchestrator = twins.find(t => t.isOrchestrator) || twins[0];
   const selectedJob = jobs.find(j => j.id === selectedJobId);
 
-  useEffect(() => {
-    const interval = setInterval(() => {
-      const newData: TelemetryData = {
-        cpu: Math.floor(Math.random() * 40) + 10,
-        memory: Math.floor(Math.random() * 30) + 40,
-        gpu: Math.floor(Math.random() * 20) + 5,
-        network: Math.floor(Math.random() * 100),
-        timestamp: new Date().toLocaleTimeString(),
-      };
-      setTelemetry(prev => [...prev.slice(-19), newData]);
-    }, 2000);
-    return () => clearInterval(interval);
+
+  // Handle agent commands from backend
+  const handleAgentCommand = useCallback((command: CompleteMessage['issued_command'], response: CompleteMessage) => {
+    if (!command) return;
+
+    console.log('[App] Agent command received:', command);
+
+    switch (command.command) {
+      case 'show_memory_page':
+        // Show modal for memory page request
+        setActiveCommand(command);
+        setCommandMessageId(response.id);
+        setActiveDecisionTrace(response.raw_orchestrator_decision ?? null);
+        break;
+
+      case 'prompt_for_config':
+        // Show configuration prompt modal
+        setActiveCommand(command);
+        setCommandMessageId(response.id);
+        setActiveDecisionTrace(response.raw_orchestrator_decision ?? null);
+        break;
+
+      case 'execute_tool':
+        // Show tool execution authorization modal
+        setActiveCommand(command);
+        setCommandMessageId(response.id);
+        setActiveDecisionTrace(response.raw_orchestrator_decision ?? null);
+        break;
+    }
   }, []);
+
+
+  // Convert protocol messages to UI messages
+  useEffect(() => {
+    const convertedMessages: Message[] = [];
+    const processedIds = new Set<string>();
+
+    protocolMessages.forEach((protocolMsg) => {
+      // Only some protocol message variants have a stable `id`.
+      // De-dupe complete/chunk messages by id; always process status updates.
+      const msgId = (protocolMsg.type === 'complete_message' || protocolMsg.type === 'message_chunk')
+        ? protocolMsg.id
+        : null;
+
+      if (msgId && processedIds.has(msgId)) {
+        return;
+      }
+
+      const uiMessage = convertChatResponseToMessage(protocolMsg, activeTwinId);
+      if (uiMessage) {
+        convertedMessages.push(uiMessage);
+        if (msgId) {
+          processedIds.add(msgId);
+        }
+
+        // Update twin status based on message type
+        if (protocolMsg.type === 'complete_message') {
+          // Set twin to IDLE when complete message arrives
+          setTwins(prev => prev.map(t => t.id === activeTwinId ? { ...t, status: TwinStatus.IDLE } : t));
+          
+          // Handle agent commands from complete messages
+          if (protocolMsg.issued_command && !handledIssuedCommandIdsRef.current.has(protocolMsg.id)) {
+            handledIssuedCommandIdsRef.current.add(protocolMsg.id);
+            handleAgentCommand(protocolMsg.issued_command, protocolMsg);
+          }
+        } else if (protocolMsg.type === 'status_update' && protocolMsg.status === 'busy') {
+          // Set twin to THINKING when status is busy
+          setTwins(prev => prev.map(t => t.id === activeTwinId ? { ...t, status: TwinStatus.THINKING } : t));
+        }
+      }
+    });
+
+    // Merge with existing messages, avoiding duplicates
+    setMessages(prev => {
+      const existingIds = new Set(prev.map(m => m.id));
+      const newMessages = convertedMessages.filter(m => !existingIds.has(m.id));
+      return [...prev, ...newMessages];
+    });
+  }, [protocolMessages, activeTwinId, handleAgentCommand]);
+
+  // Telemetry is now provided by TelemetryContext via SSE
+  // No need for local state or polling
 
   // Centralized job updater to avoid race conditions in state updates
   const updateJobInState = useCallback((updatedJob: Job) => {
     setJobs(prev => prev.map(j => j.id === updatedJob.id ? updatedJob : j));
   }, []);
 
-  const handleSendMessage = async (text: string, twinOverride?: Twin) => {
+  // Handle command execution (user approved)
+  const handleCommandExecute = useCallback((command: AgentCommand, value: string) => {
+    if (!commandMessageId || !sendChatRequest) {
+      console.error('[App] Cannot send command response: missing message ID or client');
+      return;
+    }
+
+    console.log('[App] Command executed:', command.command, 'value:', value);
+
+    // Send response back to backend
+    // Format: Send a follow-up message indicating the command was executed
+    const responseMessage = command.command === 'prompt_for_config'
+      ? `[CONFIG_RESPONSE] ${command.config_key}: ${value}`
+      : command.command === 'execute_tool'
+      ? `[TOOL_EXECUTED] ${command.tool_name} - ${value}`
+      : `[MEMORY_SHOWN] ${command.memory_id}`;
+
+    sendChatRequest(responseMessage);
+
+    // Handle tool execution locally if needed
+    if (command.command === 'execute_tool') {
+      // Check for operational trigger keywords to start a background mission
+      const triggers = ['generate', 'run', 'scan', 'analyze', 'patch', 'suppress', 'reconstruct'];
+      const shouldStartJob = triggers.some(t => 
+        command.tool_name.toLowerCase().includes(t) || 
+        (typeof command.arguments === 'string' && command.arguments.toLowerCase().includes(t))
+      );
+
+      if (shouldStartJob) {
+        const jobId = Math.random().toString(36).substr(2, 9);
+        const newJob: Job = {
+          id: jobId,
+          twinId: activeTwinId,
+          name: `Command: ${command.tool_name}`,
+          progress: 0,
+          status: 'pending',
+          startTime: new Date(),
+          logs: [
+            { id: 'init-1', timestamp: new Date(), level: 'info', message: 'Command received by Orchestrator.' },
+            { id: 'init-2', timestamp: new Date(), level: 'plan', message: `Routing request to ${activeTwin.name} logic cluster.` }
+          ]
+        };
+        
+        setJobs(prev => [...prev, newJob]);
+        executeJobLifecycle(newJob, activeTwin, updateJobInState);
+      }
+    } else if (command.command === 'show_memory_page') {
+      // Navigate to search view with the memory query
+      setView('search');
+      // TODO: Pre-populate search query with command.query
+    }
+
+    // Clear command state
+    setActiveCommand(null);
+    setCommandMessageId(null);
+    setActiveDecisionTrace(null);
+  }, [commandMessageId, sendChatRequest, activeTwinId, activeTwin, updateJobInState]);
+
+  // Handle command denial (user rejected)
+  const handleCommandDeny = useCallback(() => {
+    if (!commandMessageId || !sendChatRequest || !activeCommand) {
+      console.error('[App] Cannot send command denial: missing message ID, client, or command');
+      return;
+    }
+
+    console.log('[App] Command denied:', activeCommand.command);
+
+    // Send denial response back to backend
+    const denialMessage = activeCommand.command === 'prompt_for_config'
+      ? `[CONFIG_DENIED] ${activeCommand.config_key}`
+      : activeCommand.command === 'execute_tool'
+      ? `[TOOL_DENIED] ${activeCommand.tool_name}`
+      : `[MEMORY_DENIED] ${activeCommand.memory_id}`;
+
+    sendChatRequest(denialMessage);
+
+    // Clear command state
+    setActiveCommand(null);
+    setCommandMessageId(null);
+    setActiveDecisionTrace(null);
+  }, [commandMessageId, activeCommand, sendChatRequest]);
+
+  const handleSendMessage = useCallback((text: string, twinOverride?: Twin) => {
     const targetTwin = twinOverride || activeTwin;
+    
+    // Add user message to UI immediately
     const userMsg: Message = {
-      id: Date.now().toString(),
+      id: `user-${Date.now()}`,
       sender: 'user',
       content: text,
       timestamp: new Date(),
@@ -59,61 +228,24 @@ const App: React.FC = () => {
     };
     setMessages(prev => [...prev, userMsg]);
 
+    // Update twin status to thinking
     setTwins(prev => prev.map(t => t.id === targetTwin.id ? { ...t, status: TwinStatus.THINKING } : t));
 
-    try {
-      const response = await generateAgentResponse(
-        targetTwin,
-        text,
-        messages.slice(-5).filter(m => m.twinId === targetTwin.id || !m.twinId).map(m => ({ role: m.sender, content: m.content }))
-      );
-
-      const assistantMsg: Message = {
-        id: (Date.now() + 1).toString(),
+    // Send message via WebSocket
+    if (isConnected) {
+      sendChatRequest(text);
+    } else {
+      // Show error if not connected
+      const errMsg: Message = {
+        id: `error-${Date.now()}`,
         sender: 'assistant',
-        content: response.text,
+        content: "Connection not ready. Please wait for the Digital Twin to connect...",
         timestamp: new Date(),
         twinId: targetTwin.id,
       };
-      setMessages(prev => [...prev, assistantMsg]);
-
-      // Check for operational trigger keywords to start a background mission
-      const triggers = ['generate', 'run', 'scan', 'analyze', 'patch', 'suppress', 'reconstruct'];
-      const shouldStartJob = triggers.some(t => text.toLowerCase().includes(t));
-
-      if (shouldStartJob) {
-        const jobId = Math.random().toString(36).substr(2, 9);
-        const newJob: Job = {
-          id: jobId,
-          twinId: targetTwin.id,
-          name: `Command: ${text.substring(0, 30)}`,
-          progress: 0,
-          status: 'pending',
-          startTime: new Date(),
-          logs: [
-            { id: 'init-1', timestamp: new Date(), level: 'info', message: 'Command received by Orchestrator.' },
-            { id: 'init-2', timestamp: new Date(), level: 'plan', message: `Routing request to ${targetTwin.name} logic cluster.` }
-          ]
-        };
-        
-        setJobs(prev => [...prev, newJob]);
-        // Hand off to the Orchestrator Service
-        executeJobLifecycle(newJob, targetTwin, updateJobInState);
-      }
-
-    } catch (error) {
-      console.error(error);
-      const errMsg: Message = {
-        id: (Date.now() + 1).toString(),
-        sender: 'assistant',
-        content: "Operational failure: Tactical agent rejected instruction payload.",
-        timestamp: new Date(),
-      };
       setMessages(prev => [...prev, errMsg]);
-    } finally {
-      setTwins(prev => prev.map(t => t.id === targetTwin.id ? { ...t, status: TwinStatus.IDLE } : t));
     }
-  };
+  }, [activeTwin, isConnected, sendChatRequest]);
 
   const handleRunTool = (toolId: string) => {
     const tool = AVAILABLE_TOOLS.find(t => t.id === toolId);
@@ -251,7 +383,7 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="flex h-screen bg-[#09090b] text-zinc-100 overflow-hidden select-none">
+    <div className="flex h-screen bg-[#09090b] text-zinc-100 overflow-hidden">
       {isSidebarLeftOpen && (
         <SidebarLeft 
           twins={twins} 
@@ -309,7 +441,6 @@ const App: React.FC = () => {
 
       {isSidebarRightOpen && (
         <SidebarRight 
-          telemetry={telemetry}
           jobs={jobs}
           approvals={approvals}
           onApprove={handleApprove}
@@ -325,6 +456,20 @@ const App: React.FC = () => {
           onClose={() => setIsCreateModalOpen(false)}
         />
       )}
+
+      {/* Agent Command Modal */}
+      <CommandModal
+        command={activeCommand}
+        decisionTrace={activeDecisionTrace}
+        isVisible={activeCommand !== null}
+        onClose={() => {
+          setActiveCommand(null);
+          setCommandMessageId(null);
+          setActiveDecisionTrace(null);
+        }}
+        onExecute={handleCommandExecute}
+        onDeny={handleCommandDeny}
+      />
     </div>
   );
 };
