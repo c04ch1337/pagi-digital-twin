@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { TelemetryData } from '../types';
+import HoverTooltip from './HoverTooltip';
 
 interface TelemetryChartsProps {
   data: TelemetryData[];
@@ -80,7 +81,12 @@ const TelemetryCharts: React.FC<TelemetryChartsProps> = ({ data }) => {
   if (chartData.length === 0) {
     return (
       <div className="h-32 w-full flex items-center justify-center">
-        <p className="text-[10px] text-[#163247] italic">Waiting for telemetry data...</p>
+        <HoverTooltip
+          title="Telemetry"
+          description="No samples have arrived yet. Ensure the Telemetry service is running and the UI has an active SSE connection."
+        >
+          <p className="text-[10px] text-[#163247] italic cursor-help">Waiting for telemetry data...</p>
+        </HoverTooltip>
       </div>
     );
   }
@@ -88,17 +94,26 @@ const TelemetryCharts: React.FC<TelemetryChartsProps> = ({ data }) => {
   return (
     <div className="w-full space-y-3">
       {/* CPU Usage Chart */}
-      <div className="h-28" title="CPU chart: last ~30 samples (0–100%). Hover the line for point details.">
+      <HoverTooltip
+        title="CPU Usage Chart"
+        description="CPU utilization history (last ~30 samples, 0–100%). Hover the line to inspect the value at a point in time."
+      >
+        <div className="h-28 cursor-help">
         <div className="flex items-center justify-between mb-1">
-          <h4
-            className="text-[10px] font-bold text-indigo-400 uppercase tracking-wider"
-            title="CPU utilization (%). Higher values indicate more compute load across cores."
+          <HoverTooltip
+            title="CPU Usage"
+            description="CPU utilization (%). Higher values indicate more compute load across cores."
           >
-            CPU Usage
-          </h4>
-          <span className="text-[9px] text-zinc-500" title="Latest CPU utilization sample">
-            {chartData[chartData.length - 1]?.cpu.toFixed(1) || 0}%
-          </span>
+            <h4 className="text-[10px] font-bold text-indigo-400 uppercase tracking-wider cursor-help">CPU Usage</h4>
+          </HoverTooltip>
+          <HoverTooltip
+            title="Latest CPU"
+            description="Most recent CPU utilization sample."
+          >
+            <span className="text-[9px] text-zinc-500 cursor-help">
+              {chartData[chartData.length - 1]?.cpu.toFixed(1) || 0}%
+            </span>
+          </HoverTooltip>
         </div>
         <ResponsiveContainer width="100%" height="100%">
           <LineChart 
@@ -133,20 +148,30 @@ const TelemetryCharts: React.FC<TelemetryChartsProps> = ({ data }) => {
             />
           </LineChart>
         </ResponsiveContainer>
-      </div>
+        </div>
+      </HoverTooltip>
 
       {/* Memory Usage Chart */}
-      <div className="h-28" title="Memory chart: last ~30 samples (0–100%). Hover the line for point details.">
+      <HoverTooltip
+        title="Memory Usage Chart"
+        description="Memory utilization history (last ~30 samples, 0–100%). Hover the line to inspect the value at a point in time."
+      >
+        <div className="h-28 cursor-help">
         <div className="flex items-center justify-between mb-1">
-          <h4
-            className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider"
-            title="Memory utilization (%). Higher values indicate increased RAM pressure."
+          <HoverTooltip
+            title="Memory Usage"
+            description="Memory utilization (%). Higher values indicate increased RAM pressure."
           >
-            Memory Usage
-          </h4>
-          <span className="text-[9px] text-zinc-500" title="Latest memory utilization sample">
-            {chartData[chartData.length - 1]?.memory.toFixed(1) || 0}%
-          </span>
+            <h4 className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider cursor-help">Memory Usage</h4>
+          </HoverTooltip>
+          <HoverTooltip
+            title="Latest Memory"
+            description="Most recent memory utilization sample."
+          >
+            <span className="text-[9px] text-zinc-500 cursor-help">
+              {chartData[chartData.length - 1]?.memory.toFixed(1) || 0}%
+            </span>
+          </HoverTooltip>
         </div>
         <ResponsiveContainer width="100%" height="100%">
           <LineChart 
@@ -181,21 +206,31 @@ const TelemetryCharts: React.FC<TelemetryChartsProps> = ({ data }) => {
             />
           </LineChart>
         </ResponsiveContainer>
-      </div>
+        </div>
+      </HoverTooltip>
 
       {/* Network Usage Chart (if available) */}
       {chartData.some(d => d.network !== undefined && d.network > 0) && (
-        <div className="h-28" title="Network chart: last ~30 samples (0–100%). Hover the line for point details.">
+        <HoverTooltip
+          title="Network Activity Chart"
+          description="Normalized network activity history (last ~30 samples, 0–100%). Hover the line to inspect point values."
+        >
+          <div className="h-28 cursor-help">
           <div className="flex items-center justify-between mb-1">
-            <h4
-              className="text-[10px] font-bold text-cyan-400 uppercase tracking-wider"
-              title="Network activity (%). This is a normalized indicator from the telemetry service."
+            <HoverTooltip
+              title="Network"
+              description="Network activity (%). This is a normalized indicator from the telemetry service."
             >
-              Network
-            </h4>
-            <span className="text-[9px] text-zinc-500" title="Latest network activity sample">
-              {chartData[chartData.length - 1]?.network.toFixed(1) || 0}%
-            </span>
+              <h4 className="text-[10px] font-bold text-cyan-400 uppercase tracking-wider cursor-help">Network</h4>
+            </HoverTooltip>
+            <HoverTooltip
+              title="Latest Network"
+              description="Most recent network activity sample."
+            >
+              <span className="text-[9px] text-zinc-500 cursor-help">
+                {chartData[chartData.length - 1]?.network.toFixed(1) || 0}%
+              </span>
+            </HoverTooltip>
           </div>
           <ResponsiveContainer width="100%" height="100%">
             <LineChart 
@@ -230,7 +265,8 @@ const TelemetryCharts: React.FC<TelemetryChartsProps> = ({ data }) => {
               />
             </LineChart>
           </ResponsiveContainer>
-        </div>
+          </div>
+        </HoverTooltip>
       )}
     </div>
   );

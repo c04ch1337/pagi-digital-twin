@@ -10,6 +10,12 @@ service MemoryService {
   // Commit/store a new memory block
   rpc CommitMemory (CommitMemoryRequest) returns (CommitMemoryResponse);
   
+  // List all memories with pagination
+  rpc ListMemories (ListMemoriesRequest) returns (ListMemoriesResponse);
+  
+  // Delete a memory by ID
+  rpc DeleteMemory (DeleteMemoryRequest) returns (DeleteMemoryResponse);
+  
   // Health check endpoint
   rpc HealthCheck (HealthCheckRequest) returns (HealthCheckResponse);
 }
@@ -57,6 +63,36 @@ message CommitMemoryResponse {
   string memory_id = 1;       // UUID of the created memory block
   bool success = 2;           // Whether the commit was successful
   string error_message = 3;    // Error message if commit failed
+}
+
+// Request to list memories with pagination
+message ListMemoriesRequest {
+  string namespace = 1;        // Memory namespace (optional: empty string for all namespaces)
+  int32 page = 2;             // Page number (1-indexed, default: 1)
+  int32 page_size = 3;       // Number of results per page (default: 50, max: 1000)
+  string twin_id = 4;        // Optional: Filter by twin ID
+}
+
+// Response to list memories request
+message ListMemoriesResponse {
+  repeated MemoryResult memories = 1;
+  int32 total_count = 2;      // Total number of memories matching the filter
+  int32 page = 3;             // Current page number
+  int32 page_size = 4;        // Page size used
+  int32 total_pages = 5;       // Total number of pages
+  string namespace = 6;        // Namespace that was queried (empty if all)
+}
+
+// Request to delete a memory
+message DeleteMemoryRequest {
+  string memory_id = 1;       // UUID of the memory block to delete
+  string namespace = 2;       // Memory namespace (required for Qdrant)
+}
+
+// Response to delete memory request
+message DeleteMemoryResponse {
+  bool success = 1;           // Whether the deletion was successful
+  string error_message = 2;   // Error message if deletion failed
 }
 
 // Health check request

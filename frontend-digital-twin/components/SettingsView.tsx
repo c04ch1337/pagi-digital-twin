@@ -6,6 +6,7 @@ import 'prismjs/components/prism-yaml';
 import 'prismjs/components/prism-json';
 import { Twin } from '../types';
 import { AVAILABLE_TOOLS } from '../constants';
+import HoverTooltip from './HoverTooltip';
 
 interface SettingsViewProps {
   twin: Twin;
@@ -212,23 +213,33 @@ const SettingsView: React.FC<SettingsViewProps> = ({ twin, onSave, onCancel }) =
                 </div>
                 
                 <div className="flex items-center gap-3">
-                  <button
-                    onClick={handleResetPrompt}
-                    className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-[#5381A5]/35 bg-white/35 text-[#0b1b2b] text-[11px] font-black uppercase tracking-widest hover:text-rose-700 hover:border-rose-500/40 transition-all"
-                    title="Restore default directive"
+                  <HoverTooltip
+                    title="Reset Directive"
+                    description="Revert the directive text back to the agent’s saved baseline (discarding any unsaved edits in the editor)."
                   >
-                    <span className="material-symbols-outlined text-sm">restart_alt</span>
-                    Reset
-                  </button>
+                    <button
+                      onClick={handleResetPrompt}
+                      className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-[#5381A5]/35 bg-white/35 text-[#0b1b2b] text-[11px] font-black uppercase tracking-widest hover:text-rose-700 hover:border-rose-500/40 transition-all"
+                      title="Restore default directive"
+                    >
+                      <span className="material-symbols-outlined text-sm">restart_alt</span>
+                      Reset
+                    </button>
+                  </HoverTooltip>
 
                   <div className="relative" ref={exampleMenuRef}>
-                    <button
-                      onClick={() => setIsExampleMenuOpen(!isExampleMenuOpen)}
-                      className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-[#5381A5]/35 bg-white/35 text-[#0b1b2b] text-[11px] font-black uppercase tracking-widest hover:bg-[#78A2C2] transition-all"
+                    <HoverTooltip
+                      title="Blueprints"
+                      description="Insert a prebuilt directive template (Markdown/YAML/JSON) as a starting point for the agent’s mission logic."
                     >
-                      <span className="material-symbols-outlined text-sm">lightbulb</span>
-                      Blueprints
-                    </button>
+                      <button
+                        onClick={() => setIsExampleMenuOpen(!isExampleMenuOpen)}
+                        className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-[#5381A5]/35 bg-white/35 text-[#0b1b2b] text-[11px] font-black uppercase tracking-widest hover:bg-[#78A2C2] transition-all"
+                      >
+                        <span className="material-symbols-outlined text-sm">lightbulb</span>
+                        Blueprints
+                      </button>
+                    </HoverTooltip>
                     {isExampleMenuOpen && (
                       <div className="absolute top-full right-0 mt-2 w-64 bg-[#90C3EA] border border-[#5381A5]/35 rounded-xl shadow-2xl z-50 p-2 animate-in fade-in slide-in-from-top-2">
                         {TACTICAL_BLUEPRINTS.map(bp => (
@@ -247,15 +258,22 @@ const SettingsView: React.FC<SettingsViewProps> = ({ twin, onSave, onCancel }) =
 
                   <div className="flex items-center gap-1.5 p-1 bg-white/35 rounded-lg border border-[#5381A5]/35 shadow-inner">
                     {(['markdown', 'yaml', 'json'] as const).map((lang) => (
-                      <button
+                      <HoverTooltip
                         key={lang}
-                        onClick={() => setEditorLanguage(lang)}
-                        className={`px-3 py-1 text-[11px] font-black uppercase tracking-widest rounded-md transition-all ${
-                          editorLanguage === lang ? 'bg-[#5381A5] text-white shadow-lg shadow-[#5381A5]/20' : 'text-[#163247] hover:text-[#0b1b2b]'
-                        }`}
+                        title={`Syntax: ${lang.toUpperCase()}`}
+                        description="Switches the syntax highlighting mode for the directive editor."
                       >
-                        {lang}
-                      </button>
+                        <button
+                          onClick={() => setEditorLanguage(lang)}
+                          className={`px-3 py-1 text-[11px] font-black uppercase tracking-widest rounded-md transition-all ${
+                            editorLanguage === lang
+                              ? 'bg-[#5381A5] text-white shadow-lg shadow-[#5381A5]/20'
+                              : 'text-[#163247] hover:text-[#0b1b2b]'
+                          }`}
+                        >
+                          {lang}
+                        </button>
+                      </HoverTooltip>
                     ))}
                   </div>
                 </div>
@@ -407,23 +425,28 @@ const SettingsView: React.FC<SettingsViewProps> = ({ twin, onSave, onCancel }) =
               <div className="space-y-6">
                 <div className="relative" ref={providerMenuRef}>
                    <span className="text-[#163247] text-[10px] font-black uppercase tracking-widest mb-3 block">LLM Provider Selection</span>
-                   <button
-                     onClick={() => setIsProviderDropdownOpen(!isProviderDropdownOpen)}
-                     className="w-full flex items-center justify-between p-3 rounded-xl border border-[#5381A5]/30 bg-white/30 hover:border-[#5381A5]/60 transition-all text-left group"
+                   <HoverTooltip
+                     title="LLM Provider"
+                     description="Select the language model backend this agent uses for planning. Provider choice impacts latency, capability, and cost."
                    >
-                     <div className="flex items-center gap-3">
-                        <span className="material-symbols-outlined text-[#5381A5]">
-                          {currentProvider.icon}
-                        </span>
-                        <div className="flex flex-col">
-                           <span className="text-[11px] font-bold text-[#0b1b2b] uppercase tracking-tight">{currentProvider.name}</span>
-                           <span className="text-[9px] text-[#163247] font-bold uppercase tracking-widest">Active Link</span>
-                        </div>
-                     </div>
-                     <span className={`material-symbols-outlined text-[#163247] transition-transform duration-300 ${isProviderDropdownOpen ? 'rotate-180' : ''}`}>
-                       expand_more
-                     </span>
-                   </button>
+                     <button
+                       onClick={() => setIsProviderDropdownOpen(!isProviderDropdownOpen)}
+                       className="w-full flex items-center justify-between p-3 rounded-xl border border-[#5381A5]/30 bg-white/30 hover:border-[#5381A5]/60 transition-all text-left group"
+                     >
+                       <div className="flex items-center gap-3">
+                          <span className="material-symbols-outlined text-[#5381A5]">
+                            {currentProvider.icon}
+                          </span>
+                          <div className="flex flex-col">
+                             <span className="text-[11px] font-bold text-[#0b1b2b] uppercase tracking-tight">{currentProvider.name}</span>
+                             <span className="text-[9px] text-[#163247] font-bold uppercase tracking-widest">Active Link</span>
+                          </div>
+                       </div>
+                       <span className={`material-symbols-outlined text-[#163247] transition-transform duration-300 ${isProviderDropdownOpen ? 'rotate-180' : ''}`}>
+                         expand_more
+                       </span>
+                     </button>
+                   </HoverTooltip>
 
                    {isProviderDropdownOpen && (
                      <div className="absolute top-full left-0 right-0 mt-2 bg-[#90C3EA] border border-[#5381A5]/30 rounded-xl shadow-2xl z-[60] p-1.5 animate-in fade-in slide-in-from-top-2">
@@ -461,16 +484,21 @@ const SettingsView: React.FC<SettingsViewProps> = ({ twin, onSave, onCancel }) =
                   <div className="space-y-2 animate-in fade-in slide-in-from-top-1 duration-300">
                     <span className="text-[#163247] text-[10px] font-black uppercase tracking-widest">Infrastructure Key</span>
                     <div className="relative">
-                      <input 
-                        type="password"
-                        placeholder="sk-..."
-                        className="w-full rounded-xl text-[#0b1b2b] border border-[#5381A5]/30 bg-white/30 focus:border-[#5381A5] focus:ring-1 focus:ring-[#5381A5]/20 h-11 pl-10 pr-4 transition-all outline-none text-xs font-mono"
-                        value={formData.settings.apiKey || ''}
-                        onChange={(e) => setFormData({ 
-                          ...formData, 
-                          settings: { ...formData.settings, apiKey: e.target.value } 
-                        })}
-                      />
+                      <HoverTooltip
+                        title="API Key"
+                        description="Credential used to authenticate with the selected provider (stored in this agent config). Keep this secret."
+                      >
+                        <input 
+                          type="password"
+                          placeholder="sk-..."
+                          className="w-full rounded-xl text-[#0b1b2b] border border-[#5381A5]/30 bg-white/30 focus:border-[#5381A5] focus:ring-1 focus:ring-[#5381A5]/20 h-11 pl-10 pr-4 transition-all outline-none text-xs font-mono"
+                          value={formData.settings.apiKey || ''}
+                          onChange={(e) => setFormData({ 
+                            ...formData, 
+                            settings: { ...formData.settings, apiKey: e.target.value } 
+                          })}
+                        />
+                      </HoverTooltip>
                       <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[#5381A5] text-sm">key</span>
                     </div>
                   </div>
@@ -482,12 +510,17 @@ const SettingsView: React.FC<SettingsViewProps> = ({ twin, onSave, onCancel }) =
                         <span className="text-[#163247] text-[10px] font-black uppercase tracking-widest">Logic Variance</span>
                         <span className="text-xs font-mono text-[#5381A5] font-bold">{formData.settings.temperature.toFixed(2)}</span>
                       </div>
-                      <input 
-                        type="range" min="0" max="1.5" step="0.05"
-                        value={formData.settings.temperature}
-                        onChange={(e) => setFormData({ ...formData, settings: { ...formData.settings, temperature: parseFloat(e.target.value) } })}
-                        className="w-full h-1.5 bg-white/40 rounded-lg appearance-none cursor-pointer accent-[#5381A5]"
-                      />
+                      <HoverTooltip
+                        title="Logic Variance (Temperature)"
+                        description="Higher values increase creativity/variance; lower values make the agent more deterministic and policy-following."
+                      >
+                        <input 
+                          type="range" min="0" max="1.5" step="0.05"
+                          value={formData.settings.temperature}
+                          onChange={(e) => setFormData({ ...formData, settings: { ...formData.settings, temperature: parseFloat(e.target.value) } })}
+                          className="w-full h-1.5 bg-white/40 rounded-lg appearance-none cursor-pointer accent-[#5381A5]"
+                        />
+                      </HoverTooltip>
                    </div>
 
                    <div className="space-y-3">
@@ -495,12 +528,17 @@ const SettingsView: React.FC<SettingsViewProps> = ({ twin, onSave, onCancel }) =
                         <span className="text-[#163247] text-[10px] font-black uppercase tracking-widest">Context Shards</span>
                         <span className="text-xs font-mono text-[#5381A5] font-bold">{formData.settings.tokenLimit}K</span>
                       </div>
-                      <input 
-                        type="range" min="16" max="128" step="16"
-                        value={formData.settings.tokenLimit}
-                        onChange={(e) => setFormData({ ...formData, settings: { ...formData.settings, tokenLimit: parseInt(e.target.value) } })}
-                        className="w-full h-1.5 bg-white/40 rounded-lg appearance-none cursor-pointer accent-[#5381A5]"
-                      />
+                      <HoverTooltip
+                        title="Context Shards (Token Limit)"
+                        description="Maximum context window size used for planning. Higher limits improve recall but may increase latency/cost."
+                      >
+                        <input 
+                          type="range" min="16" max="128" step="16"
+                          value={formData.settings.tokenLimit}
+                          onChange={(e) => setFormData({ ...formData, settings: { ...formData.settings, tokenLimit: parseInt(e.target.value) } })}
+                          className="w-full h-1.5 bg-white/40 rounded-lg appearance-none cursor-pointer accent-[#5381A5]"
+                        />
+                      </HoverTooltip>
                    </div>
                 </div>
               </div>
@@ -519,49 +557,59 @@ const SettingsView: React.FC<SettingsViewProps> = ({ twin, onSave, onCancel }) =
                 {/* Global Defensive Policy Toggles */}
                 <div className="space-y-2">
                   <span className="text-[#163247] text-[9px] font-black uppercase tracking-widest mb-1 block">Defensive Policies</span>
-                  <button 
-                    onClick={handleToggleCodeGen}
-                    className={`w-full flex items-center justify-between p-3 rounded-xl border transition-all text-left ${
-                      formData.settings.aiCodeGenerationEnabled 
-                        ? 'bg-white/40 border-[#5381A5]/40 text-[#0b1b2b]' 
-                        : 'bg-white/20 border-[#5381A5]/20 text-[#163247] opacity-60'
-                    }`}
+                  <HoverTooltip
+                    title="AI Code Generation"
+                    description="Controls whether the agent is allowed to propose creating new tools (high privilege). Disable to prevent build requests."
                   >
-                     <div className="flex items-center gap-3">
-                       <span className={`material-symbols-outlined text-sm ${formData.settings.aiCodeGenerationEnabled ? 'text-[#5381A5]' : 'text-[#163247]'}`}>
-                         code
-                       </span>
-                       <span className="text-[11px] font-bold uppercase tracking-tight">AI Code Generation</span>
-                     </div>
-                     <div className={`w-8 h-4 rounded-full relative transition-colors ${formData.settings.aiCodeGenerationEnabled ? 'bg-[#5381A5]' : 'bg-white/40'}`}>
+                    <button 
+                      onClick={handleToggleCodeGen}
+                      className={`w-full flex items-center justify-between p-3 rounded-xl border transition-all text-left ${
+                        formData.settings.aiCodeGenerationEnabled 
+                          ? 'bg-white/40 border-[#5381A5]/40 text-[#0b1b2b]' 
+                          : 'bg-white/20 border-[#5381A5]/20 text-[#163247] opacity-60'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <span className={`material-symbols-outlined text-sm ${formData.settings.aiCodeGenerationEnabled ? 'text-[#5381A5]' : 'text-[#163247]'}`}>
+                          code
+                        </span>
+                        <span className="text-[11px] font-bold uppercase tracking-tight">AI Code Generation</span>
+                      </div>
+                      <div className={`w-8 h-4 rounded-full relative transition-colors ${formData.settings.aiCodeGenerationEnabled ? 'bg-[#5381A5]' : 'bg-white/40'}`}>
                         <div className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-all ${formData.settings.aiCodeGenerationEnabled ? 'right-0.5' : 'left-0.5'}`} />
-                     </div>
-                  </button>
+                      </div>
+                    </button>
+                  </HoverTooltip>
                 </div>
 
                 {/* Tactical Tools */}
                 <div className="space-y-2">
                   <span className="text-[#163247] text-[9px] font-black uppercase tracking-widest mb-1 block">Tactical Tools</span>
                   {AVAILABLE_TOOLS.map(tool => (
-                    <button 
+                    <HoverTooltip
                       key={tool.id}
-                      onClick={() => handleToggleTool(tool.id)}
-                      className={`flex items-center gap-4 p-3 rounded-xl border transition-all text-left group/tool ${
-                        formData.settings.toolAccess.includes(tool.id) 
-                          ? 'bg-white/40 border-[#5381A5]/40' 
-                          : 'bg-white/20 border-[#5381A5]/20 opacity-50 grayscale'
-                      }`}
+                      title={`Tool Permission: ${tool.name}`}
+                      description={`Enable/disable this tool for the agent. When enabled, the Orchestrator may request approval to execute it.`}
                     >
-                       <span className={`material-symbols-outlined text-sm ${formData.settings.toolAccess.includes(tool.id) ? 'text-[#5381A5]' : 'text-[#163247]'}`}>
-                         {tool.icon}
-                       </span>
-                       <div className="flex-1">
-                         <div className="text-[11px] font-bold text-[#0b1b2b] uppercase tracking-tight">{tool.name}</div>
-                       </div>
-                       <span className="material-symbols-outlined text-lg text-[#5381A5]">
-                         {formData.settings.toolAccess.includes(tool.id) ? 'check_circle' : 'circle'}
-                       </span>
-                    </button>
+                      <button 
+                        onClick={() => handleToggleTool(tool.id)}
+                        className={`flex items-center gap-4 p-3 rounded-xl border transition-all text-left group/tool ${
+                          formData.settings.toolAccess.includes(tool.id) 
+                            ? 'bg-white/40 border-[#5381A5]/40' 
+                            : 'bg-white/20 border-[#5381A5]/20 opacity-50 grayscale'
+                        }`}
+                      >
+                        <span className={`material-symbols-outlined text-sm ${formData.settings.toolAccess.includes(tool.id) ? 'text-[#5381A5]' : 'text-[#163247]'}`}>
+                          {tool.icon}
+                        </span>
+                        <div className="flex-1">
+                          <div className="text-[11px] font-bold text-[#0b1b2b] uppercase tracking-tight">{tool.name}</div>
+                        </div>
+                        <span className="material-symbols-outlined text-lg text-[#5381A5]">
+                          {formData.settings.toolAccess.includes(tool.id) ? 'check_circle' : 'circle'}
+                        </span>
+                      </button>
+                    </HoverTooltip>
                   ))}
                 </div>
               </div>

@@ -9,9 +9,11 @@ interface SidebarLeftProps {
   onSelectOrchestrator: () => void;
   onOpenCreateModal: () => void;
   onSelectSearch: () => void;
+  onSelectMemoryExplorer: () => void;
+  onSelectEvolution: () => void;
 }
 
-const SidebarLeft: React.FC<SidebarLeftProps> = ({ twins, activeTwinId, currentView, onSelectTwin, onSelectOrchestrator, onOpenCreateModal, onSelectSearch }) => {
+const SidebarLeft: React.FC<SidebarLeftProps> = ({ twins, activeTwinId, currentView, onSelectTwin, onSelectOrchestrator, onOpenCreateModal, onSelectSearch, onSelectMemoryExplorer, onSelectEvolution }) => {
   return (
     <aside className="w-64 bg-[#90C3EA] flex flex-col shrink-0 border-r border-[#5381A5]/30">
       <div className="p-4 border-b border-[#5381A5]/30 flex items-center gap-3">
@@ -62,6 +64,44 @@ const SidebarLeft: React.FC<SidebarLeftProps> = ({ twins, activeTwinId, currentV
               <div className="min-w-0">
                 <div className="text-xs font-bold uppercase tracking-wider">Search Archive</div>
                 <div className="text-[9px] text-[#163247] truncate">Global Intel scan</div>
+              </div>
+            </button>
+          </div>
+        </div>
+
+        <div>
+          <div className="text-[10px] font-bold text-[#163247] uppercase tracking-widest px-2 mb-2">System Admin</div>
+          <div className="space-y-1">
+            <button
+              onClick={onSelectMemoryExplorer}
+              className={`w-full flex items-center gap-3 p-3 rounded-xl transition-all text-left ${
+                currentView === 'memory-explorer' 
+                  ? 'bg-[#5381A5] text-white border border-[#5381A5]' 
+                  : 'text-[#0b1b2b] hover:bg-[#78A2C2] hover:text-[#0b1b2b] border border-transparent'
+              }`}
+            >
+              <div className="p-1.5 bg-white/40 rounded-lg">
+                <span className="material-symbols-outlined text-sm text-[#5381A5]">database</span>
+              </div>
+              <div className="min-w-0">
+                <div className="text-xs font-bold uppercase tracking-wider">Memory Explorer</div>
+                <div className="text-[9px] text-[#163247] truncate">Neural Archive</div>
+              </div>
+            </button>
+            <button
+              onClick={onSelectEvolution}
+              className={`w-full flex items-center gap-3 p-3 rounded-xl transition-all text-left ${
+                currentView === 'evolution' 
+                  ? 'bg-[#5381A5] text-white border border-[#5381A5]' 
+                  : 'text-[#0b1b2b] hover:bg-[#78A2C2] hover:text-[#0b1b2b] border border-transparent'
+              }`}
+            >
+              <div className="p-1.5 bg-white/40 rounded-lg">
+                <span className="material-symbols-outlined text-sm text-[#5381A5]">timeline</span>
+              </div>
+              <div className="min-w-0">
+                <div className="text-xs font-bold uppercase tracking-wider">Evolution</div>
+                <div className="text-[9px] text-[#163247] truncate">Prompt Timeline</div>
               </div>
             </button>
           </div>

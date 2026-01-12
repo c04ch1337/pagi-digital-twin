@@ -159,39 +159,66 @@ const SidebarRight: React.FC<SidebarRightProps> = ({ jobs, approvals, onApprove,
 
         {/* MIND - VECTOR VAULT & SEMANTIC SEARCH */}
         <section className="p-4 border-b border-[#5381A5]/20">
-          <div className="flex items-center gap-2 mb-4">
-             <div className="p-1.5 bg-white/40 text-[#5381A5] rounded">
+          <HoverTooltip
+            title="Mind (Vector Vault)"
+            description="Semantic memory storage + query surface for the active twin. Shows the current namespace health and provides a vector search UI."
+          >
+            <div className="flex items-center gap-2 mb-4 cursor-help">
+              <div className="p-1.5 bg-white/40 text-[#5381A5] rounded">
                 <ICONS.Brain />
               </div>
-             <h3 className="text-xs font-bold uppercase tracking-widest text-[#163247]">Mind (Vector Vault)</h3>
-          </div>
+              <h3 className="text-xs font-bold uppercase tracking-widest text-[#163247]">Mind (Vector Vault)</h3>
+            </div>
+          </HoverTooltip>
 
-          <div className="space-y-4">
-             {/* Namespace Status */}
-             <div className="p-3 bg-white/30 rounded-xl border border-[#5381A5]/30">
-                <div className="flex justify-between items-center mb-2">
-                  <div className="flex items-center gap-2">
-                    <span className="material-symbols-outlined text-[12px] text-[#5381A5]">database</span>
-                    <div className="text-[10px] font-bold text-[#0b1b2b] uppercase tracking-widest">{activeTwin.settings.memoryNamespace}</div>
+           <div className="space-y-4">
+              {/* Namespace Status */}
+              <HoverTooltip
+                title="Namespace Status"
+                description="Active memory namespace for this twin (Vector Vault). Shards indicate storage partitions; the bar approximates current load/pressure for the namespace."
+              >
+                <div className="p-3 bg-white/30 rounded-xl border border-[#5381A5]/30 cursor-help">
+                  <div className="flex justify-between items-center mb-2">
+                    <div className="flex items-center gap-2">
+                      <span className="material-symbols-outlined text-[12px] text-[#5381A5]">database</span>
+                      <div className="text-[10px] font-bold text-[#0b1b2b] uppercase tracking-widest">{activeTwin.settings.memoryNamespace}</div>
+                    </div>
+                    <span className="text-[9px] font-mono text-[#5381A5] font-bold">{memoryInfo?.shardCount || 0} Shards</span>
                   </div>
-                  <span className="text-[9px] font-mono text-[#5381A5] font-bold">{memoryInfo?.shardCount || 0} Shards</span>
+                  <div className="flex gap-1 h-1.5 mb-1">
+                    {Array.from({ length: 12 }).map((_, i) => (
+                      <div
+                        key={i}
+                        className={`flex-1 rounded-sm transition-all duration-300 ${
+                          i < Math.ceil((memoryInfo?.load || 0) / 8.33) ? 'bg-[#5381A5]' : 'bg-white/40'
+                        }`}
+                      />
+                    ))}
+                  </div>
                 </div>
-                <div className="flex gap-1 h-1.5 mb-1">
-                   {Array.from({length: 12}).map((_, i) => (
-                     <div key={i} className={`flex-1 rounded-sm transition-all duration-300 ${i < Math.ceil((memoryInfo?.load || 0) / 8.33) ? 'bg-[#5381A5]' : 'bg-white/40'}`} />
-                   ))}
-                </div>
-              </div>
+              </HoverTooltip>
 
-             {/* Neural Memory Search */}
-             <NeuralMemorySearch activeTwin={activeTwin} />
-          </div>
-        </section>
+              {/* Neural Memory Search */}
+              <HoverTooltip
+                title="Neural Memory Search"
+                description="Run a semantic (vector) query against the active namespace. Use keywords (e.g., agent id, risk level) to locate stored context quickly."
+              >
+                <div>
+                  <NeuralMemorySearch activeTwin={activeTwin} />
+                </div>
+              </HoverTooltip>
+           </div>
+         </section>
 
         {/* ACTIVE JOBS */}
         <section className="p-4">
            <div className="flex items-center gap-2 mb-4">
-              <span className="text-xs font-bold uppercase tracking-widest text-zinc-500">Mission Pipeline</span>
+              <HoverTooltip
+                title="Mission Pipeline"
+                description="Recent and active jobs emitted by the Orchestrator. Click a job to open logs and inspect actions taken."
+              >
+                <span className="text-xs font-bold uppercase tracking-widest text-zinc-500">Mission Pipeline</span>
+              </HoverTooltip>
            </div>
            
            <div className="space-y-3">
@@ -199,26 +226,31 @@ const SidebarRight: React.FC<SidebarRightProps> = ({ jobs, approvals, onApprove,
                 <div className="text-[10px] text-zinc-600 text-center py-4 italic">No tactical missions executing</div>
               ) : (
                 jobs.map(job => (
-                  <button 
-                    key={job.id} 
-                    onClick={() => onViewLogs(job.id)}
-                    className={`w-full text-left bg-zinc-900/40 p-2.5 rounded-xl border transition-all ${job.status === 'active' ? 'border-indigo-500/30' : 'border-zinc-800'} hover:bg-zinc-900`}
+                  <HoverTooltip
+                    key={job.id}
+                    title={`Job: ${job.name}`}
+                    description={`Status: ${job.status}. Progress: ${job.progress}%. Click to view logs for job_id=${job.id}.`}
                   >
-                     <div className="flex justify-between items-start mb-2">
+                    <button 
+                      onClick={() => onViewLogs(job.id)}
+                      className={`w-full text-left bg-zinc-900/40 p-2.5 rounded-xl border transition-all ${job.status === 'active' ? 'border-indigo-500/30' : 'border-zinc-800'} hover:bg-zinc-900`}
+                    >
+                      <div className="flex justify-between items-start mb-2">
                         <div className="min-w-0 flex-1">
-                           <div className="flex items-center gap-2 mb-0.5">
-                              <div className={`w-1.5 h-1.5 rounded-full ${getStatusBg(job.status)}`}></div>
-                              <span className="text-[10px] font-bold text-zinc-200 truncate">{job.name}</span>
-                           </div>
+                          <div className="flex items-center gap-2 mb-0.5">
+                            <div className={`w-1.5 h-1.5 rounded-full ${getStatusBg(job.status)}`}></div>
+                            <span className="text-[10px] font-bold text-zinc-200 truncate">{job.name}</span>
+                          </div>
                         </div>
                         <div className={`px-1.5 py-0.5 rounded text-[7px] font-black uppercase tracking-widest border border-current ${getStatusColor(job.status)} bg-current/5`}>
-                           {job.status}
+                          {job.status}
                         </div>
-                     </div>
-                     <div className="h-1 bg-zinc-950 rounded-full overflow-hidden">
+                      </div>
+                      <div className="h-1 bg-zinc-950 rounded-full overflow-hidden">
                         <div className={`h-full ${getStatusBg(job.status)} transition-all duration-500`} style={{ width: `${job.progress}%` }} />
-                     </div>
-                  </button>
+                      </div>
+                    </button>
+                  </HoverTooltip>
                 ))
               )}
            </div>

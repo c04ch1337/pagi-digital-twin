@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Twin } from '../types';
+import HoverTooltip from './HoverTooltip';
 
 interface MemoryResult {
   id: string;
@@ -141,28 +142,40 @@ const NeuralMemorySearch: React.FC<NeuralMemorySearchProps> = ({ activeTwin }) =
     <div className="space-y-3">
       {/* Search Input */}
       <form onSubmit={(e) => { e.preventDefault(); handleSearch(); }} className="relative">
-        <input
-          type="text"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          onKeyDown={handleKeyPress}
-          placeholder="Semantic memory query..."
-          className="w-full bg-white/30 border border-[#5381A5]/30 rounded-lg pl-8 pr-20 py-2 text-[12px] focus:ring-1 focus:ring-[#5381A5]/30 focus:border-[#5381A5]/60 outline-none transition-all placeholder-[#163247]/70 text-[#0b1b2b]"
-          disabled={isLoading}
-        />
+        <HoverTooltip
+          title="Semantic Query"
+          description={`Search the Vector Vault for meaning-based matches inside the active namespace: ${activeTwin.settings.memoryNamespace}. Press Enter to run.`}
+        >
+          <input
+            type="text"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={handleKeyPress}
+            placeholder="Semantic memory query..."
+            className="w-full bg-white/30 border border-[#5381A5]/30 rounded-lg pl-8 pr-20 py-2 text-[12px] focus:ring-1 focus:ring-[#5381A5]/30 focus:border-[#5381A5]/60 outline-none transition-all placeholder-[#163247]/70 text-[#0b1b2b]"
+            disabled={isLoading}
+          />
+        </HoverTooltip>
+
         <span className="material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-[#5381A5] text-[14px]">
           search
         </span>
         {isLoading && (
           <div className="absolute right-12 top-1/2 -translate-y-1/2 w-3 h-3 border border-[#5381A5] border-t-transparent rounded-full animate-spin"></div>
         )}
-        <button
-          type="submit"
-          disabled={isLoading || !query.trim()}
-          className="absolute right-2 top-1/2 -translate-y-1/2 px-2 py-1 bg-[#5381A5] hover:bg-[#437091] disabled:opacity-50 disabled:cursor-not-allowed text-white text-[10px] font-semibold rounded transition-all"
+
+        <HoverTooltip
+          title="Run Search"
+          description="Execute the semantic query against the active namespace and return the closest matching memory shards."
         >
-          Search
-        </button>
+          <button
+            type="submit"
+            disabled={isLoading || !query.trim()}
+            className="absolute right-2 top-1/2 -translate-y-1/2 px-2 py-1 bg-[#5381A5] hover:bg-[#437091] disabled:opacity-50 disabled:cursor-not-allowed text-white text-[10px] font-semibold rounded transition-all"
+          >
+            Search
+          </button>
+        </HoverTooltip>
       </form>
 
       {/* Error Message */}
@@ -173,7 +186,11 @@ const NeuralMemorySearch: React.FC<NeuralMemorySearchProps> = ({ activeTwin }) =
       )}
 
       {/* Results */}
-      <div className="space-y-2 max-h-64 overflow-y-auto custom-scrollbar">
+      <HoverTooltip
+        title="Results"
+        description="Memory hits returned from the semantic query. Risk level is a UI classification; similarity indicates approximate match confidence."
+      >
+        <div className="space-y-2 max-h-64 overflow-y-auto custom-scrollbar">
         {results.length === 0 && !isLoading && query ? (
           <div className="text-center py-4">
             <p className="text-[10px] text-[#163247] italic">No semantic matches found.</p>
@@ -223,7 +240,8 @@ const NeuralMemorySearch: React.FC<NeuralMemorySearchProps> = ({ activeTwin }) =
             </div>
           ))
         )}
-      </div>
+        </div>
+      </HoverTooltip>
 
       {/* Results Count */}
       {results.length > 0 && (

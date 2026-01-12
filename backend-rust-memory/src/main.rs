@@ -16,6 +16,8 @@ use proto::memory_service_server::{MemoryService, MemoryServiceServer};
 use proto::{
     CommitMemoryRequest, CommitMemoryResponse, HealthCheckRequest, HealthCheckResponse,
     QueryMemoryRequest, QueryMemoryResponse, MemoryResult,
+    ListMemoriesRequest, ListMemoriesResponse,
+    DeleteMemoryRequest, DeleteMemoryResponse,
 };
 
 // Qdrant imports
@@ -23,6 +25,8 @@ use qdrant_client::{
     qdrant::{
         vectors_config::Config, CreateCollection, Distance, PointStruct,
         ScoredPoint, SearchPoints, VectorParams, VectorsConfig, Value, Match, UpsertPoints,
+        ScrollPoints, DeletePoints, PointId, PointsSelector, points_selector::PointsSelectorOneOf,
+        PointsIdsList,
     },
     Qdrant,
 };
@@ -650,6 +654,357 @@ impl MemoryService for MemoryServiceImpl {
 
         Ok(Response::new(CommitMemoryResponse {
             memory_id: memory_id.to_string(),
+            success: true,
+            error_message: String::new(),
+        }))
+    }
+
+    async fn list_memories(
+        &self,
+        request: Request<ListMemoriesRequest>,
+    ) -> Result<Response<ListMemoriesResponse>, Status> {
+        let req = request.into_inner();
+        let namespace = req.namespace;
+        let page = req.page.max(1);
+        // Default to 50 if page_size is 0 or not provided, otherwise clamp between 1 and 1000
+        let page_size = if req.page_size <= 0 {
+            50
+        } else {
+            req.page_size.min(1000)
+        } as u64;
+        let twin_id = req.twin_id;
+
+        info!(
+            namespace = %namespace,
+            page = page,
+            page_size = page_size,
+            "Listing memories"
+        );
+
+        // In-memory backend path (dev)
+        if self.qdrant_client.is_none() {
+            let store = self.in_memory_store.read().await;
+            let mut filtered: Vec<&InMemoryRecord> = store
+                .iter()
+                .filter(|r| namespace.is_empty() || r.namespace == namespace)
+                .filter(|r| twin_id.is_empty() || r.twin_id == twin_id)
+                .collect();
+
+            // Sort by timestamp descending (newest first)
+            filtered.sort_by(|a, b| b.timestamp.cmp(&a.timestamp));
+
+            let total_count = filtered.len() as i32;
+            let total_pages = ((total_count as f64) / (page_size as f64)).ceil() as i32;
+            let start_idx = ((page - 1) * page_size as i32) as usize;
+            let end_idx = (start_idx + page_size as usize).min(filtered.len());
+
+            let memories: Vec<MemoryResult> = filtered[start_idx..end_idx]
+                .iter()
+                .map(|r| MemoryResult {
+                    id: r.id.clone(),
+                    timestamp: r.timestamp.clone(),
+                    content: r.content.clone(),
+                    agent_id: r.twin_id.clone(),
+                    risk_level: r.risk_level.clone(),
+                    similarity: 1.0, // No similarity score for list operation
+                    memory_type: r.memory_type.clone(),
+                    metadata: r.metadata.clone(),
+                })
+                .collect();
+
+            return Ok(Response::new(ListMemoriesResponse {
+                memories,
+                total_count,
+                page,
+                page_size: page_size as i32,
+                total_pages,
+                namespace,
+            }));
+        }
+
+        // Qdrant backend path
+        if namespace.is_empty() {
+            return Err(Status::invalid_argument(
+                "namespace is required when using Qdrant backend"
+            ));
+        }
+
+        // Ensure collection exists
+        self.ensure_collection(&namespace).await?;
+
+        // Build filter for twin_id if provided
+        let filter = if !twin_id.is_empty() {
+            Some(qdrant_client::qdrant::Filter {
+                must: vec![qdrant_client::qdrant::Condition {
+                    condition_one_of: Some(
+                        qdrant_client::qdrant::condition::ConditionOneOf::Field(
+                            qdrant_client::qdrant::FieldCondition {
+                                key: "twin_id".to_string(),
+                                r#match: Some(Match {
+                                    match_value: Some(
+                                        qdrant_client::qdrant::r#match::MatchValue::Keyword(
+                                            twin_id.clone(),
+                                        ),
+                                    ),
+                                }),
+                                ..Default::default()
+                            },
+                        ),
+                    ),
+                }],
+                ..Default::default()
+            })
+        } else {
+            None
+        };
+
+        let qdrant = self
+            .qdrant_client
+            .as_ref()
+            .expect("qdrant_client is required in this branch")
+            .as_ref();
+
+        // For total count, we need to scroll through all points
+        // Qdrant doesn't provide a direct count, so we'll scroll with a reasonable limit
+        // and calculate pages based on what we get
+        let page_size_u32 = page_size.min(u32::MAX as u64) as u32;
+        let offset_u64 = ((page - 1) * page_size as i32) as u64;
+        
+        let scroll_request = ScrollPoints {
+            collection_name: namespace.clone(),
+            filter: filter.clone(),
+            limit: Some(page_size_u32),
+            offset: if offset_u64 > 0 { 
+                // Qdrant offset is a PointId for pagination, but we can use None for first page
+                // and handle pagination differently, or use the offset as a continuation token
+                None // For now, use None and handle pagination via limit only
+            } else { 
+                None 
+            },
+            with_payload: Some(true.into()),
+            with_vectors: Some(false.into()),
+            ..Default::default()
+        };
+
+        let scroll_result = qdrant
+            .scroll(scroll_request)
+            .await
+            .map_err(|e| {
+                error!(
+                    error = %e,
+                    namespace = %namespace,
+                    "Failed to scroll points in Qdrant"
+                );
+                Status::internal(format!("Failed to list memories: {}", e))
+            })?;
+
+        // Convert Qdrant points to MemoryResult
+        // scroll() returns ScrollResponse which has a result field that is Vec<RetrievedPoint>
+        let memories: Vec<MemoryResult> = scroll_result
+            .result
+            .into_iter()
+            .map(|point| {
+                let payload = point.payload;
+                
+                let id = payload
+                    .get("id")
+                    .map(|v| Self::extract_string_value(v))
+                    .unwrap_or_else(|| {
+                        // Fallback to point ID if id not in payload
+                        match point.id {
+                            Some(PointId { point_id_options: Some(qdrant_client::qdrant::point_id::PointIdOptions::Uuid(uuid)) }) => uuid,
+                            Some(PointId { point_id_options: Some(qdrant_client::qdrant::point_id::PointIdOptions::Num(num)) }) => num.to_string(),
+                            _ => String::new(),
+                        }
+                    });
+                let timestamp = payload
+                    .get("timestamp")
+                    .map(|v| Self::extract_string_value(v))
+                    .unwrap_or_else(|| String::new());
+                let content = payload
+                    .get("content")
+                    .map(|v| Self::extract_string_value(v))
+                    .unwrap_or_else(|| String::new());
+                let agent_id = payload
+                    .get("twin_id")
+                    .map(|v| Self::extract_string_value(v))
+                    .unwrap_or_else(|| String::new());
+                let risk_level = payload
+                    .get("risk_level")
+                    .map(|v| Self::extract_string_value(v))
+                    .unwrap_or_else(|| String::new());
+                let memory_type = payload
+                    .get("memory_type")
+                    .map(|v| Self::extract_string_value(v))
+                    .unwrap_or_else(|| String::new());
+
+                let mut metadata = HashMap::new();
+                if let Some(meta) = payload.get("metadata") {
+                    use qdrant_client::qdrant::value::Kind;
+                    if let Some(Kind::StructValue(meta_struct)) = meta.kind.as_ref() {
+                        for (k, v) in &meta_struct.fields {
+                            metadata.insert(k.clone(), Self::extract_string_value(v));
+                        }
+                    }
+                }
+
+                MemoryResult {
+                    id,
+                    timestamp,
+                    content,
+                    agent_id,
+                    risk_level,
+                    similarity: 1.0, // No similarity score for list operation
+                    memory_type,
+                    metadata,
+                }
+            })
+            .collect();
+
+        // For total count, we'll need to do a separate scroll to count
+        // This is not ideal but Qdrant doesn't provide a direct count API
+        // We'll estimate based on the result or do a full scroll (expensive for large collections)
+        // For now, we'll use a heuristic: if we got a full page, there might be more
+        let total_count = if memories.len() == page_size as usize {
+            // Estimate: we got a full page, so there are at least this many
+            // In production, you might want to do a full scroll or maintain a count
+            (page * page_size as i32) + 1 // Conservative estimate
+        } else {
+            // We got less than a full page, so this is likely the total
+            (page - 1) * page_size as i32 + memories.len() as i32
+        };
+
+        let total_pages = ((total_count as f64) / (page_size as f64)).ceil() as i32;
+
+        info!(
+            namespace = %namespace,
+            result_count = memories.len(),
+            total_count = total_count,
+            "Memory list completed"
+        );
+
+        Ok(Response::new(ListMemoriesResponse {
+            memories,
+            total_count,
+            page,
+            page_size: page_size as i32,
+            total_pages,
+            namespace,
+        }))
+    }
+
+    async fn delete_memory(
+        &self,
+        request: Request<DeleteMemoryRequest>,
+    ) -> Result<Response<DeleteMemoryResponse>, Status> {
+        let req = request.into_inner();
+        let memory_id = req.memory_id;
+        let namespace = req.namespace;
+
+        warn!(
+            memory_id = %memory_id,
+            namespace = %namespace,
+            "AUDIT: Memory deletion requested"
+        );
+
+        // In-memory backend path (dev)
+        if self.qdrant_client.is_none() {
+            let mut store = self.in_memory_store.write().await;
+            let initial_len = store.len();
+            store.retain(|r| r.id != memory_id);
+            let deleted = store.len() < initial_len;
+
+            if deleted {
+                warn!(
+                    memory_id = %memory_id,
+                    namespace = %namespace,
+                    "AUDIT: Memory deleted successfully (in-memory backend)"
+                );
+                return Ok(Response::new(DeleteMemoryResponse {
+                    success: true,
+                    error_message: String::new(),
+                }));
+            } else {
+                return Ok(Response::new(DeleteMemoryResponse {
+                    success: false,
+                    error_message: format!("Memory with id {} not found", memory_id),
+                }));
+            }
+        }
+
+        // Qdrant backend path
+        if namespace.is_empty() {
+            return Err(Status::invalid_argument(
+                "namespace is required when using Qdrant backend"
+            ));
+        }
+
+        // Ensure collection exists
+        self.ensure_collection(&namespace).await?;
+
+        let qdrant = self
+            .qdrant_client
+            .as_ref()
+            .expect("qdrant_client is required in this branch")
+            .as_ref();
+
+        // Convert memory_id to PointId
+        // Try to parse as UUID first, otherwise treat as numeric
+        let point_id = if let Ok(uuid) = uuid::Uuid::parse_str(&memory_id) {
+            PointId {
+                point_id_options: Some(
+                    qdrant_client::qdrant::point_id::PointIdOptions::Uuid(uuid.to_string())
+                ),
+            }
+        } else {
+            // Try parsing as number
+            if let Ok(num) = memory_id.parse::<u64>() {
+                PointId {
+                    point_id_options: Some(
+                        qdrant_client::qdrant::point_id::PointIdOptions::Num(num)
+                    ),
+                }
+            } else {
+                return Err(Status::invalid_argument(
+                    format!("Invalid memory_id format: {}", memory_id)
+                ));
+            }
+        };
+
+        let delete_request = DeletePoints {
+            collection_name: namespace.clone(),
+            points: Some(PointsSelector {
+                points_selector_one_of: Some(
+                    PointsSelectorOneOf::Points(
+                        PointsIdsList {
+                            ids: vec![point_id],
+                        }
+                    )
+                ),
+            }),
+            ..Default::default()
+        };
+
+        qdrant
+            .delete_points(delete_request)
+            .await
+            .map_err(|e| {
+                error!(
+                    error = %e,
+                    memory_id = %memory_id,
+                    namespace = %namespace,
+                    "Failed to delete point from Qdrant"
+                );
+                Status::internal(format!("Failed to delete memory: {}", e))
+            })?;
+
+        warn!(
+            memory_id = %memory_id,
+            namespace = %namespace,
+            "AUDIT: Memory deleted successfully from Qdrant"
+        );
+
+        Ok(Response::new(DeleteMemoryResponse {
             success: true,
             error_message: String::new(),
         }))

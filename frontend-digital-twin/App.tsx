@@ -10,6 +10,8 @@ import JobLogsView from './components/JobLogsView';
 import CreateTwinModal from './components/CreateTwinModal';
 import SearchView from './components/SearchView';
 import CommandModal from './components/CommandModal';
+import MemoryExplorer from './pages/memory-explorer';
+import Evolution from './pages/evolution';
 import { executeJobLifecycle } from './services/orchestrator';
 import { usePagi } from './context/PagiContext';
 import { useTelemetry } from './context/TelemetryContext';
@@ -369,6 +371,13 @@ const App: React.FC = () => {
             onClose={() => setView('orchestrator')}
           />
         );
+      case 'memory-explorer':
+        return (
+          <MemoryExplorer 
+            activeTwin={activeTwin}
+            onClose={() => setView('orchestrator')}
+          />
+        );
       case 'chat':
       default:
         return (
@@ -396,6 +405,8 @@ const App: React.FC = () => {
           onSelectOrchestrator={() => setView('orchestrator')}
           onOpenCreateModal={() => setIsCreateModalOpen(true)}
           onSelectSearch={() => setView('search')}
+          onSelectMemoryExplorer={() => setView('memory-explorer')}
+          onSelectEvolution={() => setView('evolution')}
         />
       )}
 
