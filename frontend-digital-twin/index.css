@@ -21,6 +21,28 @@ body {
   overflow: hidden;
 }
 
+/*
+  Chat area background art
+  - Uses an inline SVG (text-only asset) so we don't need binary files.
+  - Rendered as a pseudo-element so it sits behind messages/input.
+  - Opacity set to 0.5 per request.
+*/
+.chat-area::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.5;
+
+  /* Recreates the provided blue "terrain" motif */
+  background-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D'http%3A//www.w3.org/2000/svg'%20viewBox%3D'0%200%20224%20195'%3E%3Crect%20width%3D'224'%20height%3D'195'%20fill%3D'%230B2E53'/%3E%3Cpath%20d%3D'M0%2012%20C34%2018%2063%206%2092%204%20C125%202%20152%2014%20184%2026%20C205%2034%20218%2036%20224%2036%20L224%20105%20C201%20104%20189%2094%20170%2088%20C143%2078%20120%2082%2098%2088%20C69%2096%2048%20106%2022%20100%20C12%2097%206%2093%200%2088%20Z'%20fill%3D'%230A66A7'/%3E%3Cpath%20d%3D'M0%2088%20C16%2098%2033%20102%2054%20100%20C78%2098%20102%2086%20126%2084%20C150%2082%20170%2091%20188%20102%20C204%20112%20214%20116%20224%20118%20L224%20195%20L0%20195%20Z'%20fill%3D'%23072849'/%3E%3Cpath%20d%3D'M0%2088%20C16%2098%2033%20102%2054%20100%20C78%2098%20102%2086%20126%2084%20C150%2082%20170%2091%20188%20102%20C204%20112%20214%20116%20224%20118'%20fill%3D'none'%20stroke%3D'%23061F34'%20stroke-width%3D'3'%20opacity%3D'0.9'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: center center;
+  /* Ensure the art is fully visible within the chat panel */
+  background-size: contain;
+}
+
 .font-display {
   font-family: 'Space Grotesk', sans-serif;
 }

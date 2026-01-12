@@ -4,16 +4,34 @@ package orchestrator_admin;
 
 service OrchestratorAdminService {
   rpc UpdateSystemPrompt(UpdateSystemPromptRequest) returns (UpdateSystemPromptResponse);
+  rpc GetPromptHistory(GetPromptHistoryRequest) returns (GetPromptHistoryResponse);
   rpc HealthCheck(HealthCheckRequest) returns (HealthCheckResponse);
 }
 
 message UpdateSystemPromptRequest {
   string new_prompt = 1;
+  string change_summary = 2;  // Optional summary of changes
 }
 
 message UpdateSystemPromptResponse {
   bool success = 1;
   string message = 2;
+}
+
+message GetPromptHistoryRequest {
+  // Empty for now, can be extended with filters
+}
+
+message PromptHistoryEntry {
+  string id = 1;
+  string timestamp = 2;
+  string previous_prompt = 3;
+  string new_prompt = 4;
+  string change_summary = 5;  // Optional
+}
+
+message GetPromptHistoryResponse {
+  repeated PromptHistoryEntry entries = 1;
 }
 
 message HealthCheckRequest {}

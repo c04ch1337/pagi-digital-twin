@@ -58,10 +58,10 @@ const ChatArea: React.FC<ChatAreaProps> = ({ messages, activeTwin, onSendMessage
   );
 
   return (
-    <div className="flex-1 flex flex-col bg-[#9EC9D9] relative">
+    <div className="chat-area flex-1 flex flex-col bg-[#9EC9D9] relative">
       <div 
         ref={scrollRef}
-        className="flex-1 overflow-y-auto p-4 md:p-8 space-y-6"
+        className="relative z-10 flex-1 overflow-y-auto p-4 md:p-8 space-y-6"
       >
         {messages.length === 0 && (
           <div className="h-full flex flex-col items-center justify-center text-center max-w-md mx-auto">
@@ -135,7 +135,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({ messages, activeTwin, onSendMessage
         )}
       </div>
 
-      <div className="p-4 md:p-6 bg-gradient-to-t from-[#90C3EA] via-[#90C3EA] to-transparent">
+      <div className="relative z-10 p-4 md:p-6 bg-gradient-to-t from-[#90C3EA] via-[#90C3EA] to-transparent">
         <div className="max-w-4xl mx-auto relative">
           <form 
             onSubmit={handleSubmit}
