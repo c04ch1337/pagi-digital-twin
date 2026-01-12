@@ -55,29 +55,29 @@ const SidebarRight: React.FC<SidebarRightProps> = ({ jobs, approvals, onApprove,
   };
 
   const Tooltip = ({ title, description }: { title: string, description: string }) => (
-    <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 w-48 p-2 bg-zinc-900 border border-zinc-800 rounded shadow-2xl pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity z-50 text-left">
-      <div className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest mb-1">{title}</div>
-      <div className="text-[9px] text-zinc-400 leading-tight">{description}</div>
-      <div className="absolute top-full left-1/2 -translate-x-1/2 border-8 border-transparent border-t-zinc-800"></div>
+    <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 w-48 p-2 bg-white/80 border border-[#5381A5]/30 rounded shadow-2xl pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity z-50 text-left">
+      <div className="text-[10px] font-bold text-[#5381A5] uppercase tracking-widest mb-1">{title}</div>
+      <div className="text-[9px] text-[#163247] leading-tight">{description}</div>
+      <div className="absolute top-full left-1/2 -translate-x-1/2 border-8 border-transparent border-t-[#5381A5]/30"></div>
     </div>
   );
 
   return (
-    <aside className="w-80 bg-zinc-950 border-l border-zinc-800/50 flex flex-col shrink-0 relative">
-      <div className="flex items-center h-14 border-b border-zinc-800/50">
-        <div className="flex-1 flex justify-center border-r border-zinc-800/50 py-3 text-zinc-400 hover:text-white transition-colors cursor-pointer group relative">
+    <aside className="w-80 bg-[#90C3EA] border-l border-[#5381A5]/30 flex flex-col shrink-0 relative">
+      <div className="flex items-center h-14 border-b border-[#5381A5]/30">
+        <div className="flex-1 flex justify-center border-r border-[#5381A5]/30 py-3 text-[#163247] hover:text-[#0b1b2b] transition-colors cursor-pointer group relative">
           <div className="flex flex-col items-center">
             <ICONS.Brain />
             <span className="text-[8px] uppercase font-bold mt-1 tracking-tighter opacity-0 group-hover:opacity-100 transition-opacity">Mind</span>
           </div>
         </div>
-        <div className="flex-1 flex justify-center border-r border-zinc-800/50 py-3 text-zinc-400 hover:text-white transition-colors cursor-pointer group relative">
+        <div className="flex-1 flex justify-center border-r border-[#5381A5]/30 py-3 text-[#163247] hover:text-[#0b1b2b] transition-colors cursor-pointer group relative">
           <div className="flex flex-col items-center">
             <ICONS.Heart />
             <span className="text-[8px] uppercase font-bold mt-1 tracking-tighter opacity-0 group-hover:opacity-100 transition-opacity">Heart</span>
           </div>
         </div>
-        <div className="flex-1 flex justify-center py-3 text-zinc-400 hover:text-white transition-colors cursor-pointer group relative">
+        <div className="flex-1 flex justify-center py-3 text-[#163247] hover:text-[#0b1b2b] transition-colors cursor-pointer group relative">
           <div className="flex flex-col items-center">
             <ICONS.Activity />
             <span className="text-[8px] uppercase font-bold mt-1 tracking-tighter opacity-0 group-hover:opacity-100 transition-opacity">Body</span>
@@ -87,64 +87,64 @@ const SidebarRight: React.FC<SidebarRightProps> = ({ jobs, approvals, onApprove,
 
       <div className="flex-1 overflow-y-auto custom-scrollbar">
         {/* BODY - SYSTEM TELEMETRY */}
-        <section className="p-4 border-b border-zinc-900">
+        <section className="p-4 border-b border-[#5381A5]/20">
           <div className="flex items-center justify-between mb-4">
              <div className="flex items-center gap-2">
-                <div className="p-1.5 bg-emerald-500/10 text-emerald-500 rounded">
+                <div className="p-1.5 bg-white/40 text-[#5381A5] rounded">
                    <ICONS.Activity />
                 </div>
-                <h3 className="text-xs font-bold uppercase tracking-widest text-zinc-500">Body (System)</h3>
+                <h3 className="text-xs font-bold uppercase tracking-widest text-[#163247]">Body (System)</h3>
              </div>
              <div className="flex items-center gap-2">
-               <span className={`w-1.5 h-1.5 rounded-full ${isTelemetryConnected ? 'bg-emerald-500 animate-pulse' : 'bg-zinc-600'}`}></span>
-               <span className="text-[10px] text-zinc-600 mono">
-                 {isTelemetryConnected ? 'LIVE' : 'OFFLINE'}
-               </span>
-             </div>
-          </div>
-          <div className="space-y-4">
-             <div className="bg-zinc-900/50 rounded-xl p-3 border border-zinc-800/50">
+               <span className={`w-1.5 h-1.5 rounded-full ${isTelemetryConnected ? 'bg-[#5381A5] animate-pulse' : 'bg-[#78A2C2]'}`}></span>
+               <span className="text-[10px] text-[#163247] mono">
+                  {isTelemetryConnected ? 'LIVE' : 'OFFLINE'}
+                </span>
+              </div>
+           </div>
+           <div className="space-y-4">
+             <div className="bg-white/40 rounded-xl p-3 border border-[#5381A5]/30">
                 <TelemetryCharts data={telemetry} />
              </div>
              
              <div className="grid grid-cols-2 gap-2">
-                <div className="bg-zinc-900/30 p-2 rounded-lg border border-zinc-800/50">
-                   <div className="text-[9px] font-bold text-zinc-500 mb-1 uppercase tracking-tighter">CPU LOAD</div>
-                   <div className="text-sm font-bold mono text-zinc-100">{latest.cpu}%</div>
+                <div className="bg-white/30 p-2 rounded-lg border border-[#5381A5]/30">
+                   <div className="text-[9px] font-bold text-[#163247] mb-1 uppercase tracking-tighter">CPU LOAD</div>
+                   <div className="text-sm font-bold mono text-[#0b1b2b]">{latest.cpu}%</div>
                 </div>
-                <div className="bg-zinc-900/30 p-2 rounded-lg border border-zinc-800/50">
-                   <div className="text-[9px] font-bold text-zinc-500 mb-1 uppercase tracking-tighter">RAM CORE</div>
-                   <div className="text-sm font-bold mono text-zinc-100">{latest.memory}%</div>
+                <div className="bg-white/30 p-2 rounded-lg border border-[#5381A5]/30">
+                   <div className="text-[9px] font-bold text-[#163247] mb-1 uppercase tracking-tighter">RAM CORE</div>
+                   <div className="text-sm font-bold mono text-[#0b1b2b]">{latest.memory}%</div>
                 </div>
-             </div>
-          </div>
-        </section>
+              </div>
+           </div>
+         </section>
 
         {/* MIND - VECTOR VAULT & SEMANTIC SEARCH */}
-        <section className="p-4 border-b border-zinc-900">
+        <section className="p-4 border-b border-[#5381A5]/20">
           <div className="flex items-center gap-2 mb-4">
-             <div className="p-1.5 bg-indigo-500/10 text-indigo-500 rounded">
+             <div className="p-1.5 bg-white/40 text-[#5381A5] rounded">
                 <ICONS.Brain />
-             </div>
-             <h3 className="text-xs font-bold uppercase tracking-widest text-zinc-500">Mind (Vector Vault)</h3>
+              </div>
+             <h3 className="text-xs font-bold uppercase tracking-widest text-[#163247]">Mind (Vector Vault)</h3>
           </div>
 
           <div className="space-y-4">
              {/* Namespace Status */}
-             <div className="p-3 bg-zinc-900/30 rounded-xl border border-zinc-800/50">
+             <div className="p-3 bg-white/30 rounded-xl border border-[#5381A5]/30">
                 <div className="flex justify-between items-center mb-2">
                   <div className="flex items-center gap-2">
-                    <span className="material-symbols-outlined text-[12px] text-indigo-500">database</span>
-                    <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">{activeTwin.settings.memoryNamespace}</div>
+                    <span className="material-symbols-outlined text-[12px] text-[#5381A5]">database</span>
+                    <div className="text-[10px] font-bold text-[#0b1b2b] uppercase tracking-widest">{activeTwin.settings.memoryNamespace}</div>
                   </div>
-                  <span className="text-[9px] font-mono text-indigo-400 font-bold">{memoryInfo?.shardCount || 0} Shards</span>
+                  <span className="text-[9px] font-mono text-[#5381A5] font-bold">{memoryInfo?.shardCount || 0} Shards</span>
                 </div>
                 <div className="flex gap-1 h-1.5 mb-1">
                    {Array.from({length: 12}).map((_, i) => (
-                     <div key={i} className={`flex-1 rounded-sm transition-all duration-300 ${i < Math.ceil((memoryInfo?.load || 0) / 8.33) ? 'bg-indigo-500' : 'bg-zinc-800'}`} />
+                     <div key={i} className={`flex-1 rounded-sm transition-all duration-300 ${i < Math.ceil((memoryInfo?.load || 0) / 8.33) ? 'bg-[#5381A5]' : 'bg-white/40'}`} />
                    ))}
                 </div>
-             </div>
+              </div>
 
              {/* Neural Memory Search */}
              <NeuralMemorySearch activeTwin={activeTwin} />

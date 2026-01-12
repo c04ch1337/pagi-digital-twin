@@ -30,7 +30,7 @@ const TACTICAL_BLUEPRINTS = [
     id: 'compliance',
     name: 'Policy Audit (JSON)',
     lang: 'json',
-    content: `{\n  "agent_designation": "Policy Auditor",\n  "frameworks": ["NIST 800-53", "ISO 27001"],\n  "strict_mode": true,\n  "audit_sequence": [\n    "Verify ACL integrity",\n    "Check AES-256 enforcement",\n    "Validate MFA logs"\n  ]\n}`
+    content: `{\n  "agent_designation": "Policy Auditor",\n  "frameworks": ["NIST 800-53", "ISO 27001"],\n  "strict_mode": true,\n  "audit_sequence": [\n    "Verify ACL integrity",\n    "Check TLS/mTLS configuration",\n    "Validate MFA logs"\n  ]\n}`
   }
 ];
 

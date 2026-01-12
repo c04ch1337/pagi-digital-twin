@@ -21,8 +21,8 @@ const TelemetryCharts: React.FC<TelemetryChartsProps> = ({ data }) => {
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
       return (
-        <div className="bg-zinc-900 border border-indigo-500/50 rounded-lg p-2 shadow-xl">
-          <p className="text-[10px] text-zinc-400 mb-1">{label}</p>
+        <div className="bg-white/90 border border-[#5381A5]/40 rounded-lg p-2 shadow-xl">
+          <p className="text-[10px] text-[#163247] mb-1">{label}</p>
           {payload.map((entry: any, index: number) => (
             <p key={index} className="text-xs font-semibold" style={{ color: entry.color }}>
               {entry.name}: {entry.value}%
@@ -70,27 +70,27 @@ const TelemetryCharts: React.FC<TelemetryChartsProps> = ({ data }) => {
             data={chartData} 
             margin={{ top: 2, right: 5, left: -15, bottom: 2 }}
           >
-            <CartesianGrid strokeDasharray="3 3" stroke="#27272a" opacity={0.3} />
+            <CartesianGrid strokeDasharray="3 3" stroke="#5381A5" opacity={0.18} />
             <XAxis 
               dataKey="time" 
               tickFormatter={formatXAxis}
-              stroke="#71717a" 
-              tick={{ fontSize: 9, fill: '#71717a' }}
+              stroke="#163247" 
+              tick={{ fontSize: 9, fill: '#163247' }}
               interval="preserveStartEnd"
               minTickGap={30}
             />
             <YAxis 
               unit="%" 
               domain={[0, 100]} 
-              stroke="#71717a" 
-              tick={{ fontSize: 9, fill: '#71717a' }}
+              stroke="#163247" 
+              tick={{ fontSize: 9, fill: '#163247' }}
               width={30}
             />
             <Tooltip content={<CustomTooltip />} />
             <Line 
               type="monotone" 
               dataKey="cpu" 
-              stroke="#6366f1" 
+              stroke="#5381A5" 
               strokeWidth={2} 
               dot={false}
               isAnimationActive={false}
@@ -113,27 +113,27 @@ const TelemetryCharts: React.FC<TelemetryChartsProps> = ({ data }) => {
             data={chartData} 
             margin={{ top: 2, right: 5, left: -15, bottom: 2 }}
           >
-            <CartesianGrid strokeDasharray="3 3" stroke="#27272a" opacity={0.3} />
+            <CartesianGrid strokeDasharray="3 3" stroke="#5381A5" opacity={0.18} />
             <XAxis 
               dataKey="time" 
               tickFormatter={formatXAxis}
-              stroke="#71717a" 
-              tick={{ fontSize: 9, fill: '#71717a' }}
+              stroke="#163247" 
+              tick={{ fontSize: 9, fill: '#163247' }}
               interval="preserveStartEnd"
               minTickGap={30}
             />
             <YAxis 
               unit="%" 
               domain={[0, 100]} 
-              stroke="#71717a" 
-              tick={{ fontSize: 9, fill: '#71717a' }}
+              stroke="#163247" 
+              tick={{ fontSize: 9, fill: '#163247' }}
               width={30}
             />
             <Tooltip content={<CustomTooltip />} />
             <Line 
               type="monotone" 
               dataKey="memory" 
-              stroke="#10b981" 
+              stroke="#78A2C2" 
               strokeWidth={2} 
               dot={false}
               isAnimationActive={false}
@@ -157,27 +157,27 @@ const TelemetryCharts: React.FC<TelemetryChartsProps> = ({ data }) => {
               data={chartData} 
               margin={{ top: 2, right: 5, left: -15, bottom: 2 }}
             >
-              <CartesianGrid strokeDasharray="3 3" stroke="#27272a" opacity={0.3} />
+              <CartesianGrid strokeDasharray="3 3" stroke="#5381A5" opacity={0.18} />
               <XAxis 
                 dataKey="time" 
                 tickFormatter={formatXAxis}
-                stroke="#71717a" 
-                tick={{ fontSize: 9, fill: '#71717a' }}
+                stroke="#163247" 
+                tick={{ fontSize: 9, fill: '#163247' }}
                 interval="preserveStartEnd"
                 minTickGap={30}
               />
               <YAxis 
                 unit="%" 
                 domain={[0, 100]} 
-                stroke="#71717a" 
-                tick={{ fontSize: 9, fill: '#71717a' }}
+                stroke="#163247" 
+                tick={{ fontSize: 9, fill: '#163247' }}
                 width={30}
               />
               <Tooltip content={<CustomTooltip />} />
               <Line 
                 type="monotone" 
                 dataKey="network" 
-                stroke="#06b6d4" 
+                stroke="#90C3EA" 
                 strokeWidth={2} 
                 dot={false}
                 isAnimationActive={false}

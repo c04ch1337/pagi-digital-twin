@@ -60,20 +60,20 @@ const OrchestratorHub: React.FC<OrchestratorHubProps> = ({ orchestrator, message
   const isCodeDisabled = !orchestrator.settings.aiCodeGenerationEnabled;
 
   return (
-    <div className="flex-1 flex flex-col bg-[#050507] overflow-hidden relative">
+    <div className="flex-1 flex flex-col bg-[#9EC9D9] overflow-hidden relative">
       {/* Background Tactical Grid */}
       <div className="absolute inset-0 opacity-[0.03] pointer-events-none" 
-           style={{ backgroundImage: 'linear-gradient(#4f46e5 1px, transparent 1px), linear-gradient(90deg, #4f46e5 1px, transparent 1px)', backgroundSize: '40px 40px' }} />
+           style={{ backgroundImage: 'linear-gradient(#5381A5 1px, transparent 1px), linear-gradient(90deg, #5381A5 1px, transparent 1px)', backgroundSize: '40px 40px' }} />
 
       <div className="flex-1 flex flex-col md:flex-row min-h-0">
         {/* Unified Command Chat */}
-        <div className="flex-1 flex flex-col border-r border-zinc-800/50">
-          <div className="p-4 border-b border-zinc-800/50 flex items-center justify-between bg-zinc-950/30">
+        <div className="flex-1 flex flex-col border-r border-[#5381A5]/30">
+          <div className="p-4 border-b border-[#5381A5]/30 flex items-center justify-between bg-[#90C3EA]">
              <div className="flex items-center gap-2">
-                <span className="material-symbols-outlined text-indigo-500">terminal</span>
-                <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">Direct Command Stream</span>
+                <span className="material-symbols-outlined text-[#5381A5]">terminal</span>
+                <span className="text-[10px] font-bold uppercase tracking-widest text-[#163247]">Direct Command Stream</span>
              </div>
-             <div className="text-[9px] text-zinc-600 font-mono">ENCRYPTION: AES-256-QUANTUM</div>
+             <div className="text-[9px] text-[#163247] font-mono">TRANSPORT: Unencrypted (Dev Mode)</div>
           </div>
           
           <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-4">
@@ -81,8 +81,8 @@ const OrchestratorHub: React.FC<OrchestratorHubProps> = ({ orchestrator, message
               <div key={msg.id} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
                 <div className={`max-w-[85%] p-3 rounded-xl border ${
                   msg.sender === 'user' 
-                    ? 'bg-zinc-900 border-zinc-800 text-zinc-200' 
-                    : 'bg-indigo-600/10 border-indigo-600/30 text-indigo-100'
+                    ? 'bg-white/70 border-[#5381A5]/30 text-[#0b1b2b]' 
+                    : 'bg-[#78A2C2] border-[#5381A5]/30 text-[#0b1b2b]'
                 }`}>
                   <div className="text-[9px] font-bold uppercase opacity-50 mb-1">{msg.sender}</div>
                   <div className="text-xs leading-relaxed">{msg.content}</div>
@@ -91,24 +91,24 @@ const OrchestratorHub: React.FC<OrchestratorHubProps> = ({ orchestrator, message
             ))}
             {orchestrator.status === TwinStatus.THINKING && (
               <div className="flex justify-start">
-                <div className="bg-zinc-900/50 border border-zinc-800 p-2 rounded-lg italic text-[10px] text-zinc-500">
+                <div className="bg-white/60 border border-[#5381A5]/30 p-2 rounded-lg italic text-[10px] text-[#163247]">
                   Orchestrator synthesizing mission parameters...
                 </div>
               </div>
             )}
           </div>
 
-          <div className="p-4 bg-zinc-950/50 border-t border-zinc-800/50">
+          <div className="p-4 bg-[#90C3EA] border-t border-[#5381A5]/30">
             <form onSubmit={handleSubmit} className="flex gap-2">
               <input 
                 value={input}
                 onChange={e => setInput(e.target.value)}
                 placeholder="Global directives or AI task prompt..."
-                className="flex-1 bg-zinc-900/50 border border-zinc-800 rounded-lg px-3 py-2 text-xs focus:ring-1 focus:ring-indigo-500/50"
+                className="flex-1 bg-white/70 border border-[#5381A5]/30 rounded-lg px-3 py-2 text-xs focus:ring-1 focus:ring-[#5381A5]/40"
               />
               <button 
                 type="submit"
-                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 rounded-lg text-xs font-bold transition-all"
+                className="px-4 py-2 bg-[#5381A5] hover:bg-[#78A2C2] rounded-lg text-xs font-bold transition-all text-white"
               >
                 Execute
               </button>
@@ -117,80 +117,80 @@ const OrchestratorHub: React.FC<OrchestratorHubProps> = ({ orchestrator, message
         </div>
 
         {/* Task Matrix & Generative Controls */}
-        <div className="w-full md:w-80 bg-zinc-950/20 p-4 space-y-4 overflow-y-auto">
+        <div className="w-full md:w-80 bg-[#90C3EA] p-4 space-y-4 overflow-y-auto">
           <div className="space-y-1">
-            <h3 className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest px-1">Generative Tasks</h3>
-            <p className="text-[9px] text-zinc-600 px-1 italic mb-4">Requires active instruction payload in chat</p>
+            <h3 className="text-[10px] font-bold text-[#163247] uppercase tracking-widest px-1">Generative Tasks</h3>
+            <p className="text-[9px] text-[#163247] px-1 italic mb-4">Requires active instruction payload in chat</p>
           </div>
 
           <div className="grid grid-cols-1 gap-3">
-             <button 
-                onClick={() => handleGenTask('image')}
-                disabled={isGenerating || !input.trim()}
-                className="group relative bg-zinc-900 border border-zinc-800 p-4 rounded-2xl text-left hover:border-indigo-500/50 transition-all overflow-hidden disabled:opacity-50"
-             >
+              <button 
+                 onClick={() => handleGenTask('image')}
+                 disabled={isGenerating || !input.trim()}
+                 className="group relative bg-white/60 border border-[#5381A5]/30 p-4 rounded-2xl text-left hover:border-[#5381A5] transition-all overflow-hidden disabled:opacity-50"
+              >
                 <div className="absolute top-0 right-0 p-2 opacity-10 group-hover:opacity-30 transition-opacity">
                   <span className="material-symbols-outlined text-4xl">image</span>
                 </div>
                 <div className="relative z-10">
-                  <div className="text-xs font-bold text-zinc-200">Generate Visual Evidence</div>
-                  <div className="text-[9px] text-zinc-500 mt-1 leading-tight">Gemini 2.5 Flash • 1K Tactical Visuals</div>
+                  <div className="text-xs font-bold text-[#0b1b2b]">Generate Visual Evidence</div>
+                  <div className="text-[9px] text-[#163247] mt-1 leading-tight">Gemini 2.5 Flash • 1K Tactical Visuals</div>
                 </div>
-             </button>
+              </button>
 
-             <button 
-                onClick={() => handleGenTask('video')}
-                disabled={isGenerating || !input.trim()}
-                className="group relative bg-zinc-900 border border-zinc-800 p-4 rounded-2xl text-left hover:border-indigo-500/50 transition-all overflow-hidden disabled:opacity-50"
-             >
+              <button 
+                 onClick={() => handleGenTask('video')}
+                 disabled={isGenerating || !input.trim()}
+                 className="group relative bg-white/60 border border-[#5381A5]/30 p-4 rounded-2xl text-left hover:border-[#5381A5] transition-all overflow-hidden disabled:opacity-50"
+              >
                 <div className="absolute top-0 right-0 p-2 opacity-10 group-hover:opacity-30 transition-opacity">
                   <span className="material-symbols-outlined text-4xl">movie</span>
                 </div>
                 <div className="relative z-10">
-                  <div className="text-xs font-bold text-zinc-200">Reconstruct Scenario</div>
-                  <div className="text-[9px] text-zinc-500 mt-1 leading-tight">Veo 3.1 • Deep Video Synthesis</div>
+                  <div className="text-xs font-bold text-[#0b1b2b]">Reconstruct Scenario</div>
+                  <div className="text-[9px] text-[#163247] mt-1 leading-tight">Veo 3.1 • Deep Video Synthesis</div>
                 </div>
-             </button>
+              </button>
 
-             <button 
-                onClick={() => handleGenTask('code')}
-                disabled={isGenerating || !input.trim() || isCodeDisabled}
-                className={`group relative bg-zinc-900 border p-4 rounded-2xl text-left transition-all overflow-hidden disabled:opacity-50 ${isCodeDisabled ? 'border-zinc-800 opacity-40 cursor-not-allowed' : 'border-zinc-800 hover:border-indigo-500/50'}`}
-             >
+              <button 
+                 onClick={() => handleGenTask('code')}
+                 disabled={isGenerating || !input.trim() || isCodeDisabled}
+                 className={`group relative bg-white/60 border p-4 rounded-2xl text-left transition-all overflow-hidden disabled:opacity-50 ${isCodeDisabled ? 'border-[#5381A5]/30 opacity-40 cursor-not-allowed' : 'border-[#5381A5]/30 hover:border-[#5381A5]'}`}
+              >
                 <div className="absolute top-0 right-0 p-2 opacity-10 group-hover:opacity-30 transition-opacity">
                   <span className="material-symbols-outlined text-4xl">{isCodeDisabled ? 'lock' : 'code'}</span>
                 </div>
                 <div className="relative z-10">
-                  <div className={`text-xs font-bold ${isCodeDisabled ? 'text-zinc-500' : 'text-zinc-200'}`}>
+                  <div className={`text-xs font-bold ${isCodeDisabled ? 'text-[#163247]' : 'text-[#0b1b2b]'}`}>
                     Synthesize Patch {isCodeDisabled && '(Locked)'}
                   </div>
-                  <div className="text-[9px] text-zinc-500 mt-1 leading-tight">
+                  <div className="text-[9px] text-[#163247] mt-1 leading-tight">
                     {isCodeDisabled ? 'Policy: AI Code Generation Disabled' : 'Gemini 3 Pro • Advanced Logic'}
                   </div>
                 </div>
-             </button>
+              </button>
           </div>
 
-          <div className="pt-6 border-t border-zinc-800/50">
-             <div className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-3">Global Mission Status</div>
-             <div className="bg-zinc-900/40 p-3 rounded-xl border border-zinc-800/30 space-y-4">
+          <div className="pt-6 border-t border-[#5381A5]/30">
+             <div className="text-[10px] font-bold text-[#163247] uppercase tracking-widest mb-3">Global Mission Status</div>
+             <div className="bg-white/50 p-3 rounded-xl border border-[#5381A5]/30 space-y-4">
                 <div className="space-y-2">
-                   <div className="flex justify-between text-[9px] text-zinc-400">
+                   <div className="flex justify-between text-[9px] text-[#163247]">
                       <span>Neural Sync</span>
-                      <span className="text-indigo-400">98%</span>
-                   </div>
-                   <div className="h-1 bg-zinc-800 rounded-full overflow-hidden">
-                      <div className="h-full bg-indigo-500 w-[98%]" />
-                   </div>
+                      <span className="text-[#5381A5]">98%</span>
+                    </div>
+                   <div className="h-1 bg-white/50 rounded-full overflow-hidden">
+                      <div className="h-full bg-[#5381A5] w-[98%]" />
+                    </div>
                 </div>
                 <div className="space-y-2">
-                   <div className="flex justify-between text-[9px] text-zinc-400">
+                   <div className="flex justify-between text-[9px] text-[#163247]">
                       <span>Threat Suppression</span>
-                      <span className="text-emerald-400">72%</span>
-                   </div>
-                   <div className="h-1 bg-zinc-800 rounded-full overflow-hidden">
-                      <div className="h-full bg-emerald-500 w-[72%]" />
-                   </div>
+                      <span className="text-[#78A2C2]">72%</span>
+                    </div>
+                   <div className="h-1 bg-white/50 rounded-full overflow-hidden">
+                      <div className="h-full bg-[#78A2C2] w-[72%]" />
+                    </div>
                 </div>
              </div>
           </div>
@@ -198,10 +198,10 @@ const OrchestratorHub: React.FC<OrchestratorHubProps> = ({ orchestrator, message
       </div>
 
       {isGenerating && (
-        <div className="absolute inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center">
+        <div className="absolute inset-0 bg-black/20 backdrop-blur-sm z-50 flex items-center justify-center">
           <div className="flex flex-col items-center gap-4">
-             <div className="w-12 h-12 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin" />
-             <div className="text-xs font-bold text-indigo-400 animate-pulse tracking-widest">SYNTHESIZING TACTICAL ASSET...</div>
+             <div className="w-12 h-12 border-4 border-[#5381A5] border-t-transparent rounded-full animate-spin" />
+             <div className="text-xs font-bold text-[#5381A5] animate-pulse tracking-widest">SYNTHESIZING TACTICAL ASSET...</div>
           </div>
         </div>
       )}

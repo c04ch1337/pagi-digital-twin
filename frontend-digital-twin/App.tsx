@@ -383,7 +383,7 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="flex h-screen bg-[#09090b] text-zinc-100 overflow-hidden">
+    <div className="flex h-screen bg-[#9EC9D9] text-[#0b1b2b] overflow-hidden">
       {isSidebarLeftOpen && (
         <SidebarLeft 
           twins={twins} 
@@ -399,18 +399,18 @@ const App: React.FC = () => {
         />
       )}
 
-      <main className="flex-1 flex flex-col relative min-w-0 border-x border-zinc-800/50">
-        <header className="h-14 border-b border-zinc-800/50 flex items-center justify-between px-4 bg-zinc-950/50 backdrop-blur-md sticky top-0 z-10">
+      <main className="flex-1 flex flex-col relative min-w-0 border-x border-[#5381A5]/30">
+        <header className="h-14 border-b border-[#5381A5]/30 flex items-center justify-between px-4 bg-[#90C3EA] sticky top-0 z-10">
           <div className="flex items-center gap-3">
             <button 
               onClick={() => setIsSidebarLeftOpen(!isSidebarLeftOpen)}
-              className="p-1.5 hover:bg-zinc-800 rounded-md transition-colors"
+              className="p-1.5 hover:bg-[#78A2C2] rounded-md transition-colors"
             >
               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
             </button>
             <div className="flex items-center gap-2">
-              <span className={`w-2 h-2 rounded-full ${view === 'orchestrator' ? 'bg-indigo-500' : view === 'logs' ? 'bg-cyan-500' : view === 'search' ? 'bg-indigo-400' : 'bg-emerald-500'} animate-pulse`}></span>
-              <h1 className="font-semibold text-sm tracking-tight text-zinc-200">
+              <span className={`w-2 h-2 rounded-full ${view === 'orchestrator' ? 'bg-[#5381A5]' : view === 'logs' ? 'bg-[#78A2C2]' : view === 'search' ? 'bg-[#5381A5]' : 'bg-[#78A2C2]'} animate-pulse`}></span>
+              <h1 className="font-semibold text-sm tracking-tight text-[#0b1b2b]">
                 {view === 'orchestrator' ? 'Command Center' : view === 'logs' ? 'System Logs' : view === 'search' ? 'Neural Index Search' : 'Tactical Agent'}
               </h1>
             </div>
@@ -420,7 +420,7 @@ const App: React.FC = () => {
               <button 
                 onClick={() => setView(view === 'chat' ? 'settings' : 'chat')}
                 className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                  view === 'settings' ? 'bg-indigo-600 text-white' : 'bg-zinc-900 text-zinc-400 hover:text-white'
+                  view === 'settings' ? 'bg-[#5381A5] text-white' : 'bg-[#78A2C2] text-[#0b1b2b] hover:bg-[#5381A5] hover:text-white'
                 }`}
               >
                 <span className="material-symbols-outlined text-sm">{view === 'chat' ? 'settings' : 'chat_bubble'}</span>
@@ -429,7 +429,7 @@ const App: React.FC = () => {
             )}
             <button 
               onClick={() => setIsSidebarRightOpen(!isSidebarRightOpen)}
-              className="p-1.5 hover:bg-zinc-800 rounded-md transition-colors"
+              className="p-1.5 hover:bg-[#78A2C2] rounded-md transition-colors"
             >
               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M15 3v18"/></svg>
             </button>
