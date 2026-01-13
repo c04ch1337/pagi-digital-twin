@@ -25,6 +25,11 @@ export interface ChatRequest {
   user_id: string; // Matches path param /ws/chat/:user_id
   timestamp: string; // ISO 8601 datetime string (DateTime<Utc>)
   message: string;
+  /**
+   * True when the operator is actively recording and/or screensharing.
+   * Used by the Orchestrator to reason about multi-modal context.
+   */
+  media_active?: boolean;
 }
 
 // --- 2. Response to Frontend (Agent Output) ---

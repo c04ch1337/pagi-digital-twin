@@ -37,6 +37,8 @@ struct ChatRequest {
     #[serde(default)]
     timestamp: Option<String>,
     message: String,
+    #[serde(default)]
+    media_active: bool,
 }
 
 #[derive(Debug, Serialize)]
@@ -73,6 +75,8 @@ struct OrchestratorRequest {
     twin_id: String,
     session_id: String,
     namespace: Option<String>,
+    #[serde(default)]
+    media_active: bool,
 }
 
 #[derive(Debug, Deserialize)]
@@ -212,6 +216,7 @@ async fn handle_socket(mut socket: WebSocket, user_id: String, state: Arc<AppSta
                     twin_id: chat_request.user_id.clone(),
                     session_id: chat_request.session_id.clone(),
                     namespace: None, // Could be extracted from metadata if needed
+                    media_active: chat_request.media_active,
                 };
 
                 // Proxy to Orchestrator HTTP endpoint

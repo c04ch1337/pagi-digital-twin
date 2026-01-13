@@ -147,11 +147,13 @@ export const PagiProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const sendChatRequest = useCallback((message: string) => {
     if (clientRef.current && isConnected && sessionId) {
+      const mediaActive = localStorage.getItem('pagi_media_active') === 'true';
       const request: ChatRequest = {
         session_id: sessionId,
         user_id: userId,
         timestamp: new Date().toISOString(),
         message: message,
+        media_active: mediaActive,
       };
       
       const sent = clientRef.current.sendRequest(request);

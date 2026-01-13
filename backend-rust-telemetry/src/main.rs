@@ -1,11 +1,12 @@
 use axum::{
+    extract::Query,
     extract::{Multipart, State},
     response::sse::{Event, KeepAlive, Sse},
     routing::{get, post},
     Json, Router,
 };
 use futures_core::stream::Stream;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::{
     convert::Infallible,
     env,
@@ -165,6 +166,102 @@ struct MediaUploadResponse {
     stored_path: String,
 }
 
+#[derive(Debug, Deserialize)]
+struct MediaListQuery {
+    #[serde(default)]
+    twin_id: String,
+    #[serde(default)]
+    limit: Option<usize>,
+}
+
+#[derive(Debug, Serialize)]
+struct MediaListItem {
+    filename: String,
+    size_bytes: u64,
+    stored_path: String,
+    ts_ms: Option<u128>,
+}
+
+#[derive(Debug, Serialize)]
+struct MediaListResponse {
+    recordings: Vec<MediaListItem>,
+}
+
+async fn media_list_handler(
+    State(state): State<Arc<AppState>>,
+    Query(q): Query<MediaListQuery>,
+) -> Result<Json<MediaListResponse>, (axum::http::StatusCode, String)> {
+    let requested_twin = q.twin_id.trim().to_string();
+    let requested_twin = if requested_twin.is_empty() {
+        None
+    } else {
+        Some(sanitize_id(&requested_twin))
+    };
+
+    let limit = q.limit.unwrap_or(100).clamp(1, 1000);
+    let media_dir = state.storage_dir.join("media");
+
+    let mut items: Vec<MediaListItem> = Vec::new();
+
+    if tokio::fs::metadata(&media_dir).await.is_err() {
+        return Ok(Json(MediaListResponse { recordings: vec![] }));
+    }
+
+    let mut rd = tokio::fs::read_dir(&media_dir)
+        .await
+        .map_err(|e| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, format!("read_dir failed: {e}")))?;
+
+    while let Some(entry) = rd
+        .next_entry()
+        .await
+        .map_err(|e| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, format!("read_dir entry failed: {e}")))?
+    {
+        let path = entry.path();
+        if !path.is_file() {
+            continue;
+        }
+
+        let filename = match path.file_name().and_then(|v| v.to_str()) {
+            Some(v) => v.to_string(),
+            None => continue,
+        };
+
+        if let Some(twin) = &requested_twin {
+            let prefix = format!("rec_{twin}_");
+            if !filename.starts_with(&prefix) {
+                continue;
+            }
+        }
+
+        let size_bytes = match tokio::fs::metadata(&path).await {
+            Ok(m) => m.len(),
+            Err(_) => 0,
+        };
+
+        // Parse ts_ms from `rec_<twin>_<ts>.ext`
+        let ts_ms = filename
+            .rsplit_once('.')
+            .and_then(|(base, _ext)| base.rsplit_once('_').map(|(_, ts)| ts))
+            .and_then(|ts| ts.parse::<u128>().ok());
+
+        items.push(MediaListItem {
+            filename: filename.clone(),
+            size_bytes,
+            stored_path: path.to_string_lossy().to_string(),
+            ts_ms,
+        });
+
+        if items.len() >= limit {
+            break;
+        }
+    }
+
+    // Sort newest-first when we can parse timestamps.
+    items.sort_by(|a, b| b.ts_ms.cmp(&a.ts_ms));
+
+    Ok(Json(MediaListResponse { recordings: items }))
+}
+
 async fn media_upload_handler(
     State(state): State<Arc<AppState>>,
     mut multipart: Multipart,
@@ -297,6 +394,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let app = Router::new()
         .route("/v1/telemetry/stream", get(sse_stream))
         .route("/v1/media/upload", post(media_upload_handler))
+        .route("/v1/media/list", get(media_list_handler))
         .with_state(state);
     let addr = SocketAddr::from(([0, 0, 0, 0], port));
 

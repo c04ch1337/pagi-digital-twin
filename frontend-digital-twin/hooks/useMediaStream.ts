@@ -298,6 +298,17 @@ export function useMediaStream() {
     syncPreviewStream();
   }, [syncPreviewStream]);
 
+  // Expose media activity to the chat layer (Gateway/Orchestrator context).
+  // We treat "media active" as: recording OR screensharing.
+  React.useEffect(() => {
+    try {
+      const active = isRecording || screenEnabled;
+      localStorage.setItem('pagi_media_active', active ? 'true' : 'false');
+    } catch {
+      // ignore
+    }
+  }, [isRecording, screenEnabled]);
+
   // If we disable both mic+camera, clean up user media tracks.
   React.useEffect(() => {
     const user = userStreamRef.current;

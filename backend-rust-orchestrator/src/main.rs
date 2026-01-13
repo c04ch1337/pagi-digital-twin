@@ -301,6 +301,8 @@ struct ChatRequest {
     twin_id: String,
     session_id: String,
     namespace: Option<String>,
+    #[serde(default)]
+    media_active: bool,
 }
 
 #[derive(Debug, Serialize)]
@@ -440,6 +442,9 @@ struct AppState {
     openrouter_api_key: String,
     openrouter_model: String,
 
+    // Telemetry service (media recordings)
+    telemetry_url: String,
+
     // Self-improvement / persona prompt
     system_prompt: SystemPromptManager,
 }
@@ -481,6 +486,13 @@ pub enum LLMAction {
         tool_name: String,
         tool_code: String,
     },
+    #[serde(rename = "ActionListRecordings")]
+    ActionListRecordings {
+        #[serde(default)]
+        twin_id: Option<String>,
+        #[serde(default)]
+        limit: Option<u32>,
+    },
     #[serde(rename = "ActionSelfImprove")]
     ActionSelfImprove {
         new_prompt: String,
@@ -492,6 +504,13 @@ pub enum LLMAction {
 /// This mirrors the assumptions in [`tests/e2e_test_script.md`](tests/e2e_test_script.md:1).
 fn llm_plan_mock(user_message: &str) -> LLMAction {
     let msg = user_message.to_lowercase();
+
+    if msg.contains("list") && msg.contains("record") {
+        return LLMAction::ActionListRecordings {
+            twin_id: None,
+            limit: Some(20),
+        };
+    }
 
     // Tool signals
     if msg.contains("write") && msg.contains("file") {
@@ -580,6 +599,7 @@ async fn llm_plan_openrouter(
     user_message: &str,
     twin_id: &str,
     state: &AppState,
+    media_active: bool,
 ) -> Result<(LLMAction, String), String> {
     info!(
         user_message = %user_message,
@@ -595,7 +615,10 @@ async fn llm_plan_openrouter(
     } else {
         template
     };
-    let system_prompt = base.replace("{twin_id}", twin_id);
+    let mut system_prompt = base.replace("{twin_id}", twin_id);
+    if media_active {
+        system_prompt.push_str("\n\n[CONTEXT] media_active=true. The operator is currently recording and/or screensharing. You may use ActionListRecordings to discover recent stored recordings in the Telemetry Service.\n");
+    }
 
     // Build the API request body
     let payload = json!({
@@ -663,6 +686,21 @@ async fn llm_plan_openrouter(
         .map_err(|e| format!("Failed to parse LLM JSON response: {}. Raw content: {}", e, content))?;
 
     Ok((llm_action, content.to_string()))
+}
+
+#[derive(Debug, Deserialize)]
+struct TelemetryMediaListItem {
+    filename: String,
+    size_bytes: u64,
+    stored_path: String,
+    #[serde(default)]
+    ts_ms: Option<u128>,
+}
+
+#[derive(Debug, Deserialize)]
+struct TelemetryMediaListResponse {
+    #[serde(default)]
+    recordings: Vec<TelemetryMediaListItem>,
 }
 
 // --- Orchestrator Logic ---
@@ -956,7 +994,7 @@ async fn handle_chat_request(
     // IMPORTANT: Do not silently fall back to the mock planner when OpenRouter fails.
     // That produces an "echo" response (`I understand you said: ...`) and masks the real issue.
     let (action, raw_decision): (LLMAction, String) = if state.llm_provider == "openrouter" {
-        match llm_plan_openrouter(&request.message, &request.twin_id, &state).await {
+        match llm_plan_openrouter(&request.message, &request.twin_id, &state, request.media_active).await {
             Ok((action, raw)) => (action, raw),
             Err(e) => {
                 error!(job_id = %job_id, error = %e, "LLM planning failed");
@@ -1126,6 +1164,61 @@ async fn handle_chat_request(
             }));
 
             raw_orchestrator_decision = Some(raw_decision);
+        }
+
+        LLMAction::ActionListRecordings { twin_id, limit } => {
+            let twin = twin_id.unwrap_or_else(|| request.twin_id.clone());
+            let limit = limit.unwrap_or(20).clamp(1, 200);
+
+            let list_url = format!("{}/v1/media/list", state.telemetry_url.trim_end_matches('/'));
+            info!(job_id = %job_id, url = %list_url, twin_id = %twin, limit = limit, "Listing recordings via telemetry");
+
+            let resp = state
+                .http_client
+                .get(&list_url)
+                .query(&[("twin_id", twin.as_str()), ("limit", &limit.to_string())])
+                .send()
+                .await;
+
+            match resp {
+                Ok(r) if r.status().is_success() => {
+                    let parsed: TelemetryMediaListResponse = r
+                        .json()
+                        .await
+                        .map_err(|e| {
+                            error!(job_id = %job_id, error = %e, "Failed to parse telemetry media list");
+                            StatusCode::BAD_GATEWAY
+                        })?;
+
+                    actions_taken.push("list_recordings".to_string());
+
+                    if parsed.recordings.is_empty() {
+                        response_message = format!("No recordings found for twin_id='{}'.", twin);
+                    } else {
+                        let mut lines: Vec<String> = Vec::new();
+                        for rec in parsed.recordings.iter().take(limit as usize) {
+                            lines.push(format!("- {} ({} bytes) [{}]", rec.filename, rec.size_bytes, rec.stored_path));
+                        }
+                        response_message = format!("Recent recordings for twin_id='{}':\n{}", twin, lines.join("\n"));
+                    }
+
+                    raw_orchestrator_decision = Some(raw_decision);
+                }
+                Ok(r) => {
+                    let status = r.status();
+                    let body = r.text().await.unwrap_or_default();
+                    error!(job_id = %job_id, status = %status, body = %body, "Telemetry media list failed");
+                    response_message = format!("Telemetry media list failed (status={}).", status);
+                    actions_taken.push("list_recordings_failed".to_string());
+                    raw_orchestrator_decision = Some(raw_decision);
+                }
+                Err(e) => {
+                    error!(job_id = %job_id, error = %e, "Telemetry media list request failed");
+                    response_message = format!("Telemetry media list request failed: {}", e);
+                    actions_taken.push("list_recordings_failed".to_string());
+                    raw_orchestrator_decision = Some(raw_decision);
+                }
+            }
         }
 
         LLMAction::ActionSelfImprove { new_prompt } => {
@@ -1341,6 +1434,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let tools_grpc_addr = env::var("TOOLS_GRPC_ADDR")
         .unwrap_or_else(|_| "http://127.0.0.1:50054".to_string());
 
+    let telemetry_url = env::var("TELEMETRY_URL")
+        .unwrap_or_else(|_| "http://127.0.0.1:8183".to_string());
+    let telemetry_url = telemetry_url.trim().to_string();
+
     let http_port_raw = env::var("ORCHESTRATOR_HTTP_PORT").unwrap_or_else(|_| "8182".to_string());
     let http_port = http_port_raw.trim().parse::<u16>().unwrap_or_else(|e| {
         warn!(
@@ -1368,6 +1465,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     info!(
         memory_addr = %memory_grpc_addr,
         tools_addr = %tools_grpc_addr,
+        telemetry_url = %telemetry_url,
         http_port = http_port,
         llm_provider = %llm_provider,
         "Initializing Orchestrator"
@@ -1438,6 +1536,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         openrouter_url,
         openrouter_api_key,
         openrouter_model,
+        telemetry_url,
         system_prompt,
     };
 
