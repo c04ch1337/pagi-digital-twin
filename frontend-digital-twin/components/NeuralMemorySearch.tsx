@@ -21,42 +21,6 @@ const NeuralMemorySearch: React.FC<NeuralMemorySearchProps> = ({ activeTwin }) =
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Mock results for demonstration (will be replaced with API call)
-  const mockResults: MemoryResult[] = [
-    { 
-      id: "mem-001", 
-      timestamp: new Date(Date.now() - 3600000).toISOString(), 
-      content: "Observed brute-force attempt on SSH port 22; failed to block due to policy.", 
-      agent_id: "sentinel", 
-      risk_level: "High",
-      similarity: 0.92
-    },
-    { 
-      id: "mem-002", 
-      timestamp: new Date(Date.now() - 7200000).toISOString(), 
-      content: "Configuration backup job completed successfully.", 
-      agent_id: "aegis", 
-      risk_level: "Low",
-      similarity: 0.78
-    },
-    { 
-      id: "mem-003", 
-      timestamp: new Date(Date.now() - 10800000).toISOString(), 
-      content: "User logged into system 'dev-server-01' using MFA.", 
-      agent_id: "trace", 
-      risk_level: "Medium",
-      similarity: 0.85
-    },
-    { 
-      id: "mem-004", 
-      timestamp: new Date(Date.now() - 14400000).toISOString(), 
-      content: "Critical vulnerability detected in package manager; patch applied immediately.", 
-      agent_id: "sentinel", 
-      risk_level: "Critical",
-      similarity: 0.95
-    },
-  ];
-
   const handleSearch = async () => {
     if (!query.trim()) {
       setResults([]);
@@ -69,6 +33,9 @@ const NeuralMemorySearch: React.FC<NeuralMemorySearchProps> = ({ activeTwin }) =
 
     try {
       // TODO: Replace with actual API call when backend is ready
+      console.log(`[NeuralMemorySearch] Searching memory for twin '${activeTwin.id}' (${activeTwin.settings.memoryNamespace}) with query: "${query}"`);
+
+      // TODO: Implement actual API call
       // const apiUrl = import.meta.env.VITE_MEMORY_API_URL || 'http://127.0.0.1:8181/v1/memory/query';
       // const response = await fetch(apiUrl, {
       //   method: 'POST',
@@ -88,22 +55,8 @@ const NeuralMemorySearch: React.FC<NeuralMemorySearchProps> = ({ activeTwin }) =
       // const data = await response.json();
       // setResults(data.results || []);
 
-      // Mock implementation for now
-      console.log(`[NeuralMemorySearch] Searching memory for twin '${activeTwin.id}' (${activeTwin.settings.memoryNamespace}) with query: "${query}"`);
-
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 800));
-
-      // Filter mock results based on query (simple text matching)
-      const queryLower = query.toLowerCase();
-      const filtered = mockResults.filter(r => 
-        r.content.toLowerCase().includes(queryLower) || 
-        r.risk_level.toLowerCase() === queryLower ||
-        r.agent_id.toLowerCase().includes(queryLower)
-      );
-
-      // If no exact matches, return all results (simulating semantic similarity)
-      setResults(filtered.length > 0 ? filtered : mockResults.slice(0, 3));
+      // No mock data - return empty results until API is implemented
+      setResults([]);
     } catch (err) {
       console.error('[NeuralMemorySearch] Search error:', err);
       setError(err instanceof Error ? err.message : 'Failed to search memory');
@@ -122,18 +75,18 @@ const NeuralMemorySearch: React.FC<NeuralMemorySearchProps> = ({ activeTwin }) =
   // Helper to map risk levels to colors
   const getRiskColor = (level: MemoryResult['risk_level']): string => {
     switch (level) {
-      case 'Critical': return 'text-rose-500';
-      case 'High': return 'text-orange-500';
-      case 'Medium': return 'text-amber-500';
-      default: return 'text-zinc-400';
+      case 'Critical': return 'text-[#163247]';
+      case 'High': return 'text-[#5381A5]';
+      case 'Medium': return 'text-[#78A2C2]';
+      default: return 'text-[#163247]';
     }
   };
 
   const getRiskBg = (level: MemoryResult['risk_level']): string => {
     switch (level) {
-      case 'Critical': return 'bg-rose-500/10 border-rose-500/30';
-      case 'High': return 'bg-orange-500/10 border-orange-500/30';
-      case 'Medium': return 'bg-amber-500/10 border-amber-500/30';
+      case 'Critical': return 'bg-[#163247]/10 border-[#163247]/30';
+      case 'High': return 'bg-[#5381A5]/10 border-[#5381A5]/30';
+      case 'Medium': return 'bg-[#78A2C2]/10 border-[#78A2C2]/30';
       default: return 'bg-white/30 border-[#5381A5]/25';
     }
   };

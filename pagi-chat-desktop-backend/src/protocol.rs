@@ -49,6 +49,15 @@ pub enum AgentCommand {
     #[serde(rename = "show_memory_page")]
     ShowMemoryPage { memory_id: Uuid, query: String },
 
+    #[serde(rename = "create_project_chat")]
+    CreateProjectChat {
+        project_name: String,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        project_id: Option<String>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        chat_title: Option<String>,
+    },
+
     #[serde(rename = "prompt_for_config")]
     PromptForConfig { config_key: String, prompt: String },
 

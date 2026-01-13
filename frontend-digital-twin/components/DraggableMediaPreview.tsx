@@ -89,7 +89,7 @@ export default function DraggableMediaPreview({ stream, activeVideoSource }: Pro
     >
       <div className="flex items-center justify-between px-2 py-1 text-[10px] uppercase tracking-wide text-white/80">
         <span>{label}</span>
-        <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+        <span className="h-1.5 w-1.5 rounded-full bg-[#5381A5]" />
       </div>
 
       <video

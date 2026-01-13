@@ -18,21 +18,32 @@ const Evolution: React.FC<EvolutionProps> = ({ onClose }) => {
   const [restoringId, setRestoringId] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
-  // NOTE: The original orchestrator instance may already be running on 8182.
-  // We default to 8185 for dev so we can run a second instance without killing the first.
-  const orchestratorUrl = import.meta.env.VITE_ORCHESTRATOR_URL || 'http://127.0.0.1:8185';
+  // Use gateway URL (which proxies to orchestrator)
+  const gatewayUrl = import.meta.env.VITE_GATEWAY_URL || 'http://127.0.0.1:8181';
+  const orchestratorUrl = import.meta.env.VITE_ORCHESTRATOR_URL || 'http://127.0.0.1:8182';
 
   const loadHistory = async () => {
     setLoading(true);
     setError(null);
 
     try {
-      const response = await fetch(`${orchestratorUrl}/v1/prompt/history`, {
+      // Try gateway proxy first, then fallback to orchestrator direct
+      let response = await fetch(`${gatewayUrl}/api/prompt/history`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
         },
       });
+
+      // If gateway doesn't have the route, try orchestrator directly
+      if (!response.ok && response.status === 404) {
+        response = await fetch(`${orchestratorUrl}/v1/prompt/history`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+      }
 
       if (!response.ok) {
         throw new Error(`Failed to load history: ${response.statusText}`);
@@ -61,7 +72,8 @@ const Evolution: React.FC<EvolutionProps> = ({ onClose }) => {
     setError(null);
 
     try {
-      const response = await fetch(`${orchestratorUrl}/v1/prompt/restore`, {
+      // Try gateway proxy first, then fallback to orchestrator direct
+      let response = await fetch(`${gatewayUrl}/api/prompt/restore`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -70,6 +82,19 @@ const Evolution: React.FC<EvolutionProps> = ({ onClose }) => {
           entry_id: entryId,
         }),
       });
+
+      // If gateway doesn't have the route, try orchestrator directly
+      if (!response.ok && response.status === 404) {
+        response = await fetch(`${orchestratorUrl}/v1/prompt/restore`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            entry_id: entryId,
+          }),
+        });
+      }
 
       if (!response.ok) {
         throw new Error(`Failed to restore prompt: ${response.statusText}`);
@@ -149,7 +174,7 @@ const Evolution: React.FC<EvolutionProps> = ({ onClose }) => {
         </div>
 
         {error && (
-          <div className="mt-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
+          <div className="mt-4 p-3 bg-white/60 border border-[#5381A5]/30 text-[#163247] rounded">
             {error}
           </div>
         )}
@@ -197,7 +222,7 @@ const Evolution: React.FC<EvolutionProps> = ({ onClose }) => {
                       <button
                         onClick={() => handleRestore(entry.id)}
                         disabled={restoringId === entry.id}
-                        className="px-4 py-2 bg-emerald-500 text-white rounded text-sm hover:bg-emerald-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="px-4 py-2 bg-[#5381A5] text-white rounded text-sm hover:bg-[#3d6a8a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         {restoringId === entry.id ? 'Restoring...' : 'Restore'}
                       </button>

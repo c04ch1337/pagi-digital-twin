@@ -6,6 +6,7 @@ import NeuralMemorySearch from './NeuralMemorySearch';
 import HoverTooltip from './HoverTooltip';
 import { fetchNamespaceMetrics, MemoryStatus } from '../services/memory';
 import { useTelemetry } from '../context/TelemetryContext';
+import { fetchSyncMetrics } from '../services/systemService';
 
 interface SidebarRightProps {
   jobs: Job[];
@@ -20,6 +21,7 @@ const SidebarRight: React.FC<SidebarRightProps> = ({ jobs, approvals, onApprove,
   // Get telemetry data from context (SSE stream)
   const { telemetry, isConnected: isTelemetryConnected } = useTelemetry();
   const [memoryInfo, setMemoryInfo] = useState<MemoryStatus | null>(null);
+  const [neuralSync, setNeuralSync] = useState<number>(100);
 
   const latest = telemetry.length > 0 ? telemetry[telemetry.length - 1] : { cpu: 0, memory: 0, network: 0, gpu: 0, timestamp: '' };
 
@@ -93,24 +95,41 @@ const SidebarRight: React.FC<SidebarRightProps> = ({ jobs, approvals, onApprove,
     return () => clearInterval(interval);
   }, [activeTwin.settings.memoryNamespace]);
 
+  // Fetch Neural Sync metrics periodically
+  useEffect(() => {
+    const updateSyncMetrics = async () => {
+      try {
+        const metrics = await fetchSyncMetrics();
+        setNeuralSync(Math.round(metrics.neural_sync));
+      } catch (error) {
+        console.error('[SidebarRight] Failed to fetch sync metrics:', error);
+        // On error, keep the last known value or default to 100
+      }
+    };
+
+    updateSyncMetrics();
+    const interval = setInterval(updateSyncMetrics, 5000); // Update every 5 seconds
+    return () => clearInterval(interval);
+  }, []);
+
 
   const getStatusColor = (status: Job['status']) => {
     switch (status) {
-      case 'completed': return 'text-emerald-400';
-      case 'failed': return 'text-rose-400';
-      case 'active': return 'text-indigo-400';
-      case 'pending': return 'text-amber-400';
-      default: return 'text-zinc-500';
+      case 'completed': return 'text-[#5381A5]';
+      case 'failed': return 'text-[#163247]';
+      case 'active': return 'text-[#5381A5]';
+      case 'pending': return 'text-[#78A2C2]';
+      default: return 'text-[#163247]';
     }
   };
 
   const getStatusBg = (status: Job['status']) => {
     switch (status) {
-      case 'completed': return 'bg-emerald-500';
-      case 'failed': return 'bg-rose-500';
-      case 'active': return 'bg-indigo-500';
-      case 'pending': return 'bg-amber-500';
-      default: return 'bg-zinc-500';
+      case 'completed': return 'bg-[#5381A5]';
+      case 'failed': return 'bg-[#163247]';
+      case 'active': return 'bg-[#5381A5]';
+      case 'pending': return 'bg-[#78A2C2]';
+      default: return 'bg-[#163247]';
     }
   };
 
@@ -291,10 +310,10 @@ const SidebarRight: React.FC<SidebarRightProps> = ({ jobs, approvals, onApprove,
               <div className="space-y-2 cursor-help">
                 <div className="flex justify-between text-[9px] text-[#163247]">
                   <span>Neural Sync</span>
-                  <span className="text-[#5381A5] font-mono font-bold">98%</span>
+                  <span className="text-[#5381A5] font-mono font-bold">{neuralSync}%</span>
                 </div>
                 <div className="h-1 bg-white/50 rounded-full overflow-hidden" title="Neural Sync progress bar">
-                  <div className="h-full bg-[#5381A5] w-[98%]" />
+                  <div className="h-full bg-[#5381A5] transition-all duration-500" style={{ width: `${neuralSync}%` }} />
                 </div>
               </div>
             </HoverTooltip>

@@ -22,6 +22,99 @@ const DEFAULT_SYSTEM_PROMPT_TEMPLATE: &str = include_str!("../config/system_prom
 // P50: Analyst System Prompt for transcript summarization
 const ANALYST_SYSTEM_PROMPT: &str = "Summarize the following transcript into 3 sentences. Identify key decisions and action items. Output strictly as JSON: { \"summary\": \"...\", \"decisions\": [], \"tasks\": [] }.";
 
+fn truncate_for_log(s: &str, max: usize) -> String {
+    if s.len() <= max {
+        return s.to_string();
+    }
+    format!("{}…(truncated)", &s[..max])
+}
+
+/// OpenRouter is mostly OpenAI-compatible, but different upstream models/providers can return:
+/// - choices[0].message.content as a string
+/// - choices[0].message.content as an array of parts
+/// - choices[0].text
+/// - choices[0].delta.content (stream-style payloads)
+/// - error object with HTTP 200
+fn extract_openrouter_content(api_response: &serde_json::Value) -> Result<String, String> {
+    if let Some(err) = api_response.get("error") {
+        // Some gateways/providers return error bodies with HTTP 200.
+        return Err(format!(
+            "OpenRouter returned an error object: {}",
+            truncate_for_log(&err.to_string(), 8_000)
+        ));
+    }
+
+    let choice0 = api_response
+        .get("choices")
+        .and_then(|choices| choices.as_array())
+        .and_then(|arr| arr.first());
+
+    // 1) OpenAI-style: choices[0].message.content
+    if let Some(content) = choice0
+        .and_then(|c| c.get("message"))
+        .and_then(|m| m.get("content"))
+    {
+        if let Some(s) = content.as_str() {
+            return Ok(s.to_string());
+        }
+
+        // Some models return content as an array of parts.
+        if let Some(parts) = content.as_array() {
+            let mut out = String::new();
+            for p in parts {
+                if let Some(s) = p.as_str() {
+                    out.push_str(s);
+                    continue;
+                }
+                if let Some(s) = p.get("text").and_then(|t| t.as_str()) {
+                    out.push_str(s);
+                    continue;
+                }
+                // If it's some other JSON object part, stringify it.
+                if p.is_object() {
+                    out.push_str(&p.to_string());
+                }
+            }
+            if !out.trim().is_empty() {
+                return Ok(out);
+            }
+        }
+
+        // If content is an object (rare), stringify it.
+        if content.is_object() {
+            return Ok(content.to_string());
+        }
+    }
+
+    // 2) Non-chat completions: choices[0].text
+    if let Some(text) = choice0.and_then(|c| c.get("text")).and_then(|t| t.as_str()) {
+        return Ok(text.to_string());
+    }
+
+    // 3) Stream-style: choices[0].delta.content
+    if let Some(delta) = choice0
+        .and_then(|c| c.get("delta"))
+        .and_then(|d| d.get("content"))
+        .and_then(|t| t.as_str())
+    {
+        return Ok(delta.to_string());
+    }
+
+    Err(format!(
+        "Failed to extract content from OpenRouter response. Raw JSON: {}",
+        truncate_for_log(&api_response.to_string(), 8_000)
+    ))
+}
+
+fn extract_first_json_object(s: &str) -> Option<&str> {
+    let start = s.find('{')?;
+    let end = s.rfind('}')?;
+    if end <= start {
+        return None;
+    }
+    Some(&s[start..=end])
+}
+
 fn load_dotenv() {
     // We often run services from their crate directories (e.g. `cd backend-rust-orchestrator && cargo run`).
     // In that case, the repo-root `.env` won't be found if we only look at the current working directory.
@@ -321,6 +414,8 @@ struct ChatRequest {
     namespace: Option<String>,
     #[serde(default)]
     media_active: bool,
+    #[serde(default)]
+    user_name: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -459,6 +554,12 @@ struct HealthResponse {
     service: &'static str,
     status: &'static str,
     version: &'static str,
+}
+
+#[derive(Debug, Serialize)]
+struct SyncMetricsResponse {
+    neural_sync: f32,
+    services: HashMap<String, String>,
 }
 
 // --- Job Management ---
@@ -736,6 +837,66 @@ fn maybe_handle_builtin(user_message: &str) -> Option<LLMAction> {
     None
 }
 
+fn parse_create_project_chat(user_message: &str) -> Option<String> {
+    // Examples we want to catch:
+    // - "Creating chats under Project Alpha"
+    // - "Create chat under Project Alpha"
+    // - "Create chats under: Project Alpha"
+    let msg = user_message.trim();
+    if msg.is_empty() {
+        return None;
+    }
+
+    let lower = msg.to_lowercase();
+    let needles = [
+        "creating chats under",
+        "create chats under",
+        "creating chat under",
+        "create chat under",
+        "create chats under:",
+        "create chat under:",
+        "creating chats under:",
+        "creating chat under:",
+    ];
+
+    for needle in needles {
+        if let Some(idx) = lower.find(needle) {
+            let after = msg[idx + needle.len()..].trim();
+            let after = after.trim_matches(|c: char| c == ':' || c == '-' || c.is_whitespace());
+            let after = after.trim_matches(|c: char| c == '.' || c == '!' || c == '?' || c == '"');
+            if after.is_empty() {
+                return None;
+            }
+            return Some(after.to_string());
+        }
+    }
+
+    None
+}
+
+#[cfg(test)]
+mod tests {
+    use super::parse_create_project_chat;
+
+    #[test]
+    fn parse_create_project_chat_variants() {
+        assert_eq!(
+            parse_create_project_chat("Creating chats under Project Alpha"),
+            Some("Project Alpha".to_string())
+        );
+        assert_eq!(
+            parse_create_project_chat("create chat under: Project Alpha"),
+            Some("Project Alpha".to_string())
+        );
+        assert_eq!(
+            parse_create_project_chat("Create chats under   Neural Sync  "),
+            Some("Neural Sync".to_string())
+        );
+        assert_eq!(parse_create_project_chat("create chats under"), None);
+        assert_eq!(parse_create_project_chat(""), None);
+    }
+}
+
 fn is_system_query(user_message: &str) -> bool {
     let msg = user_message.to_lowercase();
     let system_keywords = [
@@ -757,6 +918,7 @@ pub async fn llm_plan_openrouter(
     twin_id: &str,
     state: &AppState,
     media_active: bool,
+    user_name: Option<&str>,
 ) -> Result<(LLMAction, String), String> {
     info!(
         user_message = %user_message,
@@ -765,7 +927,7 @@ pub async fn llm_plan_openrouter(
     );
 
     // Always use the current, live system prompt template.
-    // The template may include "{twin_id}" which will be substituted here.
+    // The template may include "{twin_id}" and "{user_name}" which will be substituted here.
     let template = state.system_prompt.get_template().await;
     let base = if template.trim().is_empty() {
         DEFAULT_SYSTEM_PROMPT_TEMPLATE.to_string()
@@ -773,6 +935,11 @@ pub async fn llm_plan_openrouter(
         template
     };
     let mut system_prompt = base.replace("{twin_id}", twin_id);
+    
+    // Replace user_name placeholder (default to "ROOT ADMIN" if not provided)
+    let user_display_name = user_name.unwrap_or("ROOT ADMIN");
+    system_prompt = system_prompt.replace("{user_name}", user_display_name);
+    
     if media_active {
         system_prompt.push_str("\n\n[CONTEXT: MULTI-MODAL ACTIVE]\n");
         system_prompt.push_str("media_active=true - The operator is currently recording voice/video and/or sharing their screen in real-time.\n");
@@ -828,26 +995,37 @@ pub async fn llm_plan_openrouter(
         .await
         .map_err(|e| format!("Failed to parse OpenRouter response: {}", e))?;
 
-    // Extract the content from the response
-    let content = api_response
-        .get("choices")
-        .and_then(|choices| choices.as_array())
-        .and_then(|arr| arr.first())
-        .and_then(|choice| choice.get("message"))
-        .and_then(|msg| msg.get("content"))
-        .and_then(|c| c.as_str())
-        .ok_or_else(|| "Failed to extract content from OpenRouter response".to_string())?;
+    let content = extract_openrouter_content(&api_response)?;
 
     info!(
         content = %content,
         "Received LLM response from OpenRouter"
     );
 
-    // Parse the structured JSON into LLMAction
-    let llm_action: LLMAction = serde_json::from_str(content)
-        .map_err(|e| format!("Failed to parse LLM JSON response: {}. Raw content: {}", e, content))?;
-
-    Ok((llm_action, content.to_string()))
+    // Parse the structured JSON into LLMAction.
+    // Some OpenRouter upstream models ignore `response_format` and return plain text.
+    // In that case we degrade gracefully to an ActionResponse rather than failing the whole request.
+    match serde_json::from_str::<LLMAction>(&content).or_else(|e1| {
+        if let Some(snippet) = extract_first_json_object(&content) {
+            serde_json::from_str::<LLMAction>(snippet)
+        } else {
+            Err(e1)
+        }
+    }) {
+        Ok(action) => Ok((action, content.to_string())),
+        Err(e) => {
+            warn!(
+                error = %e,
+                content = %truncate_for_log(&content, 2_000),
+                "Planner returned non-JSON; falling back to ActionResponse"
+            );
+            let fallback = LLMAction::ActionResponse {
+                content: content.clone(),
+            };
+            let raw = serde_json::to_string(&fallback).unwrap_or_else(|_| "{}".to_string());
+            Ok((fallback, raw))
+        }
+    }
 }
 
 async fn openrouter_chat_json(
@@ -899,14 +1077,7 @@ async fn openrouter_chat_json(
         .await
         .map_err(|e| format!("Failed to parse OpenRouter response: {}", e))?;
 
-    let content = api_response
-        .get("choices")
-        .and_then(|choices| choices.as_array())
-        .and_then(|arr| arr.first())
-        .and_then(|choice| choice.get("message"))
-        .and_then(|msg| msg.get("content"))
-        .and_then(|c| c.as_str())
-        .ok_or_else(|| "Failed to extract content from OpenRouter response".to_string())?;
+    let content = extract_openrouter_content(&api_response)?;
 
     Ok(content.to_string())
 }
@@ -1274,6 +1445,39 @@ async fn handle_chat_request(
         queue.insert(job_id.to_string(), job.clone());
     }
 
+    // Project chat creation is a UI-level action (client switches session_id).
+    // We handle it deterministically here so it works regardless of the LLM model's JSON compliance.
+    if let Some(project_name) = parse_create_project_chat(&request.message) {
+        let issued_command = json!({
+            "command": "create_project_chat",
+            "project_name": project_name,
+        });
+
+        {
+            let mut queue = state.job_queue.write().await;
+            if let Some(job) = queue.get_mut(&job_id.to_string()) {
+                job.status = "completed".to_string();
+                job.progress = 100;
+                job.logs.push("Job completed (create_project_chat builtin)".to_string());
+            }
+        }
+
+        return Ok(ResponseJson(ChatResponse {
+            response: "Creating a new chat under that project.".to_string(),
+            job_id: Some(job_id.to_string()),
+            actions_taken: vec!["create_project_chat".to_string()],
+            status: "completed".to_string(),
+            issued_command: Some(issued_command),
+            raw_orchestrator_decision: Some(
+                json!({
+                    "action_type": "ActionResponse",
+                    "details": {"content": "create_project_chat"}
+                })
+                .to_string(),
+            ),
+        }));
+    }
+
     // Built-in handlers (bypass LLM planning entirely for certain queries)
     if let Some(action) = maybe_handle_builtin(&request.message) {
         let raw = serde_json::to_string(&action).unwrap_or_default();
@@ -1328,7 +1532,7 @@ async fn handle_chat_request(
         let raw = serde_json::to_string(&forced).unwrap_or_else(|_| "{}".to_string());
         (forced, raw)
     } else if state.llm_provider == "openrouter" {
-        match llm_plan_openrouter(&request.message, &request.twin_id, &state, request.media_active).await {
+        match llm_plan_openrouter(&request.message, &request.twin_id, &state, request.media_active, request.user_name.as_deref()).await {
             Ok((action, raw)) => (action, raw),
             Err(e) => {
                 error!(job_id = %job_id, error = %e, "LLM planning failed");
@@ -1904,35 +2108,31 @@ Be concise but comprehensive. Focus on actionable insights that would be valuabl
         }
     };
 
-    // Extract the content from the response
-    let content = match api_response
-        .get("choices")
-        .and_then(|choices| choices.as_array())
-        .and_then(|arr| arr.first())
-        .and_then(|choice| choice.get("message"))
-        .and_then(|msg| msg.get("content"))
-        .and_then(|c| c.as_str())
-    {
-        Some(c) => c,
-        None => {
-            error!("Failed to extract content from OpenRouter response");
+    let content = match extract_openrouter_content(&api_response) {
+        Ok(c) => c,
+        Err(e) => {
+            error!(error = %e, "Failed to extract content from OpenRouter response");
             return ResponseJson(SummarizeTranscriptResponse {
                 success: false,
                 insights: None,
-                error: Some("Failed to extract content from OpenRouter response".to_string()),
+                error: Some(e),
             });
         }
     };
 
     // Parse the structured JSON into TranscriptInsights
-    let insights: TranscriptInsights = match serde_json::from_str(content) {
+    let insights: TranscriptInsights = match serde_json::from_str(&content) {
         Ok(i) => i,
         Err(e) => {
             error!(error = %e, content = %content, "Failed to parse insights JSON");
             return ResponseJson(SummarizeTranscriptResponse {
                 success: false,
                 insights: None,
-                error: Some(format!("Failed to parse insights JSON: {}. Raw content: {}", e, content)),
+                error: Some(format!(
+                    "Failed to parse insights JSON: {}. Raw content: {}",
+                    e,
+                    truncate_for_log(&content, 8_000)
+                )),
             });
         }
     };
@@ -1999,6 +2199,31 @@ async fn handle_system_snapshot() -> Result<ResponseJson<tools::SystemSnapshot>,
             Err(StatusCode::INTERNAL_SERVER_ERROR)
         }
     }
+}
+
+/// Sync metrics endpoint handler
+async fn handle_sync_metrics(
+    State(state): State<AppState>,
+) -> Result<ResponseJson<SyncMetricsResponse>, StatusCode> {
+    let neural_sync = state.health_manager.calculate_neural_sync().await;
+    let all_health = state.health_manager.get_all_service_health().await;
+    
+    let services: HashMap<String, String> = all_health
+        .into_iter()
+        .map(|(name, health)| {
+            let status_str = match health.status {
+                health::ServiceStatus::Online => "online".to_string(),
+                health::ServiceStatus::Offline => "offline".to_string(),
+                health::ServiceStatus::Repairing => "repairing".to_string(),
+            };
+            (name, status_str)
+        })
+        .collect();
+
+    Ok(ResponseJson(SyncMetricsResponse {
+        neural_sync,
+        services,
+    }))
 }
 
 #[tokio::main]
@@ -2168,6 +2393,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/v1/prompt/history", get(handle_prompt_history))
         .route("/v1/prompt/restore", post(handle_prompt_restore))
         .route("/api/system/snapshot", get(handle_system_snapshot))
+        .route("/api/system/sync-metrics", get(handle_sync_metrics))
         .layer(cors)
         .with_state((*state).clone());
 

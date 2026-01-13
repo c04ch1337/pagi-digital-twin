@@ -25,7 +25,14 @@ export interface SystemSnapshot {
   top_processes: ProcessSnapshot[];
 }
 
-const ORCHESTRATOR_URL = import.meta.env.VITE_ORCHESTRATOR_URL || 'http://127.0.0.1:8182';
+// Prefer calling the Gateway (8181) and let it proxy to the Orchestrator.
+// This avoids CORS/config drift across multiple frontend services.
+//
+// Override via:
+// - VITE_GATEWAY_URL (recommended) e.g. http://127.0.0.1:8181
+// - VITE_ORCHESTRATOR_URL (advanced) e.g. http://127.0.0.1:8182
+const GATEWAY_URL = import.meta.env.VITE_GATEWAY_URL || 'http://127.0.0.1:8181';
+const ORCHESTRATOR_URL = import.meta.env.VITE_ORCHESTRATOR_URL || GATEWAY_URL;
 
 /**
  * Fetches the current system snapshot from the orchestrator
@@ -33,8 +40,11 @@ const ORCHESTRATOR_URL = import.meta.env.VITE_ORCHESTRATOR_URL || 'http://127.0.
 export async function fetchSystemSnapshot(): Promise<SystemSnapshot> {
   const response = await fetch(`${ORCHESTRATOR_URL}/api/system/snapshot`, {
     method: 'GET',
+    // IMPORTANT: Do NOT set `Content-Type: application/json` on a GET.
+    // That header is not "simple" and forces a CORS preflight (OPTIONS).
+    // The gateway/orchestrator path should be a simple GET.
     headers: {
-      'Content-Type': 'application/json',
+      Accept: 'application/json',
     },
   });
 

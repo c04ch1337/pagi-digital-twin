@@ -61,9 +61,11 @@ impl MemoryServiceImpl {
         dotenvy::dotenv().ok();
 
         let memory_backend = env::var("MEMORY_BACKEND").unwrap_or_else(|_| "qdrant".to_string());
+        // Default: allow dev-mode startup even when Qdrant isn't available.
+        // Set QDRANT_REQUIRED=true to force a hard failure if Qdrant can't be reached.
         let allow_in_memory_fallback = env::var("QDRANT_REQUIRED")
             .map(|v| v.to_lowercase() != "true")
-            .unwrap_or(false);
+            .unwrap_or(true);
 
         // Get Qdrant URL from environment
         let qdrant_url = env::var("QDRANT_URL")

@@ -83,6 +83,31 @@ fn ext_from_mime_or_name(mime: &str, filename: &str) -> Option<&'static str> {
     None
 }
 
+fn asset_ext_from_mime_or_name(mime: &str, filename: &str) -> Option<&'static str> {
+    let name = filename.to_ascii_lowercase();
+    if name.ends_with(".svg") {
+        return Some("svg");
+    }
+    if name.ends_with(".png") {
+        return Some("png");
+    }
+    if name.ends_with(".jpg") || name.ends_with(".jpeg") {
+        return Some("jpg");
+    }
+
+    let mime = mime.to_ascii_lowercase();
+    if mime.contains("svg") {
+        return Some("svg");
+    }
+    if mime.contains("png") {
+        return Some("png");
+    }
+    if mime.contains("jpeg") || mime.contains("jpg") {
+        return Some("jpg");
+    }
+    None
+}
+
 async fn sse_stream(
     State(state): State<Arc<AppState>>,
 ) -> Sse<impl Stream<Item = Result<Event, Infallible>>> {
@@ -790,10 +815,24 @@ async fn internal_asset_upload_handler(
 
         if name == "file" {
             let asset_type_val = asset_type.as_deref().unwrap_or("logo");
+
+            // Determine output extension for logo based on upload.
+            let upload_mime = field.content_type().map(|v| v.to_string()).unwrap_or_default();
+            let upload_name = field.file_name().unwrap_or("");
+            let logo_ext = asset_ext_from_mime_or_name(&upload_mime, upload_name).unwrap_or("svg");
             
             // Determine filename based on asset type
             let filename = match asset_type_val {
-                "logo" => "custom-logo.svg",
+                "logo" => {
+                    // Preserve the real format so the browser receives the correct Content-Type.
+                    // Example: custom-logo.png, custom-logo.jpg, custom-logo.svg
+                    // (The frontend will probe common candidates on load.)
+                    match logo_ext {
+                        "png" => "custom-logo.png",
+                        "jpg" => "custom-logo.jpg",
+                        _ => "custom-logo.svg",
+                    }
+                }
                 "favicon" => "custom-favicon.ico",
                 "favicon-png" => "custom-favicon-32.png",
                 _ => return Err((
@@ -806,6 +845,23 @@ async fn internal_asset_upload_handler(
             tokio::fs::create_dir_all(assets_dir)
                 .await
                 .map_err(|e| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, format!("mkdir failed: {e}")))?;
+
+            // Ensure only ONE logo variant exists at a time.
+            // Older versions stored non-SVG bytes under `custom-logo.svg`, which then breaks rendering.
+            if asset_type_val == "logo" {
+                let candidates = [
+                    "custom-logo.svg",
+                    "custom-logo.png",
+                    "custom-logo.jpg",
+                    "custom-logo.jpeg",
+                ];
+                for name in candidates {
+                    if name == filename {
+                        continue;
+                    }
+                    let _ = tokio::fs::remove_file(assets_dir.join(name)).await;
+                }
+            }
 
             let stored_path_buf = assets_dir.join(&filename);
             let mut f = tokio::fs::File::create(&stored_path_buf)
@@ -987,4 +1043,3 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     axum::serve(listener, app).await?;
     Ok(())
 }
-

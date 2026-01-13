@@ -86,7 +86,7 @@ const SearchView: React.FC<SearchViewProps> = ({ messages, jobs, twins, onNaviga
             </div>
           ) : totalResults === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 text-center">
-              <h3 className="text-rose-700 font-bold uppercase tracking-widest text-sm mb-2">No Matches Found</h3>
+              <h3 className="text-[#163247] font-bold uppercase tracking-widest text-sm mb-2">No Matches Found</h3>
               <p className="text-[#163247] text-xs">The query payload yielded zero results across active namespaces.</p>
             </div>
           ) : (
@@ -136,8 +136,8 @@ const SearchView: React.FC<SearchViewProps> = ({ messages, jobs, twins, onNaviga
                           <div className="flex items-center gap-3">
                             <span className="text-[10px] font-bold text-[#0b1b2b] uppercase tracking-widest">{job.name}</span>
                             <span className={`text-[8px] px-1.5 py-0.5 rounded border uppercase font-bold tracking-tighter shrink-0 ${
-                              log.level === 'error' ? 'text-rose-700 border-rose-600/30 bg-rose-600/10' : 
-                              log.level === 'warn' ? 'text-amber-700 border-amber-600/30 bg-amber-600/10' : 
+                              log.level === 'error' ? 'text-[#163247] border-[#163247]/30 bg-[#163247]/10' : 
+                              log.level === 'warn' ? 'text-[#5381A5] border-[#5381A5]/30 bg-[#5381A5]/10' : 
                               'text-[#163247] border-[#5381A5]/25 bg-white/30'
                             }`}>
                               {log.level}

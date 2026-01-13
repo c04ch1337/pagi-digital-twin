@@ -50,15 +50,23 @@ export function usePagiSession() {
   /**
    * Creates a new session (useful for "New Chat" functionality)
    */
-  const createNewSession = () => {
+  const switchToSession = (nextSessionId: string) => {
+    const trimmed = nextSessionId.trim();
+    if (!trimmed) return;
+    localStorage.setItem('pagi_session_id', trimmed);
+    setSessionId(trimmed);
+  };
+
+  const createNewSession = (): string => {
     const newSessionId = crypto.randomUUID();
-    localStorage.setItem('pagi_session_id', newSessionId);
-    setSessionId(newSessionId);
+    switchToSession(newSessionId);
+    return newSessionId;
   };
 
   return {
     userId,
     sessionId,
     createNewSession,
+    switchToSession,
   };
 }

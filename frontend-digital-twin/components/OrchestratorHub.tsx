@@ -38,7 +38,7 @@ const OrchestratorHub: React.FC<OrchestratorHubProps> = ({ orchestrator, message
           <div className="p-4 border-b border-[#5381A5]/30 flex items-center justify-between bg-[#90C3EA]">
              <div className="flex items-center gap-2">
                 <span className="material-symbols-outlined text-[#5381A5]">terminal</span>
-                <span className="text-[10px] font-bold uppercase tracking-widest text-[#163247]">Direct Command Stream</span>
+                <span className="text-[10px] font-bold uppercase tracking-widest text-[#163247]">Powered by Phoenix AGI (PAGI OS v0.1)</span>
              </div>
              <div className="text-[9px] text-[#163247] font-mono">TRANSPORT: Unencrypted (Dev Mode)</div>
           </div>
@@ -59,7 +59,7 @@ const OrchestratorHub: React.FC<OrchestratorHubProps> = ({ orchestrator, message
             {orchestrator.status === TwinStatus.THINKING && (
               <div className="flex justify-start">
                 <div className="bg-white/60 border border-[#5381A5]/30 p-2 rounded-lg italic text-[10px] text-[#163247]">
-                  Orchestrator synthesizing mission parameters...
+                  The Blue Flame synthesizing mission parameters...
                 </div>
               </div>
             )}

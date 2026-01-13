@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Twin, TwinStatus, AppView } from '../types';
-import { getCustomLogoUrl, checkAssetExists } from '../services/assetService';
+import { getAssetUrl, checkAssetExists } from '../services/assetService';
+import { getUserName } from '../utils/userName';
 
 interface SidebarLeftProps {
   twins: Twin[];
@@ -13,23 +14,76 @@ interface SidebarLeftProps {
   onSelectMemoryExplorer: () => void;
   onSelectEvolution: () => void;
   onSelectSystemStatus: () => void;
+  projects: { id: string; name: string }[];
+  onSelectProject?: (projectId: string) => void;
+  onCreateProject: (name: string) => void;
+  onRenameProject: (projectId: string, name: string) => void;
+  onDeleteProject: (projectId: string) => void;
+  onSelectRootAdminSettings?: () => void;
 }
 
-const SidebarLeft: React.FC<SidebarLeftProps> = ({ twins, activeTwinId, currentView, onSelectTwin, onSelectOrchestrator, onOpenCreateModal, onSelectSearch, onSelectMemoryExplorer, onSelectEvolution, onSelectSystemStatus }) => {
+const SidebarLeft: React.FC<SidebarLeftProps> = ({ twins, activeTwinId, currentView, onSelectTwin, onSelectOrchestrator, onOpenCreateModal, onSelectSearch, onSelectMemoryExplorer, onSelectEvolution, onSelectSystemStatus, projects, onSelectProject, onCreateProject, onRenameProject, onDeleteProject, onSelectRootAdminSettings }) => {
   const [logoUrl, setLogoUrl] = useState('/ferrellgas-agi-badge.svg');
+  const [userName, setUserName] = useState(getUserName());
 
   useEffect(() => {
-    // Try to load custom logo, fallback to default
+    // Try to load custom logo (supports svg/png/jpg), fallback to default.
     const loadCustomLogo = async () => {
-      const customLogoUrl = getCustomLogoUrl();
-      const exists = await checkAssetExists(customLogoUrl);
-      if (exists) {
-        setLogoUrl(customLogoUrl);
+      const candidates = [
+        'custom-logo.png',
+        'custom-logo.jpg',
+        'custom-logo.jpeg',
+        'custom-logo.svg',
+      ];
+
+      for (const filename of candidates) {
+        const url = getAssetUrl(filename);
+        // eslint-disable-next-line no-await-in-loop
+        const exists = await checkAssetExists(url);
+        if (exists) {
+          setLogoUrl(`${url}?v=${Date.now()}`);
+          return;
+        }
+      }
+
+      setLogoUrl('/ferrellgas-agi-badge.svg');
+    };
+
+    const handleLogoChanged = (e: CustomEvent) => {
+      const url = (e.detail?.url as string | undefined) || '';
+      if (url) {
+        setLogoUrl(url);
       } else {
-        setLogoUrl('/ferrellgas-agi-badge.svg');
+        loadCustomLogo();
       }
     };
+
     loadCustomLogo();
+    window.addEventListener('logoChanged', handleLogoChanged as EventListener);
+    window.addEventListener('focus', loadCustomLogo);
+    return () => {
+      window.removeEventListener('logoChanged', handleLogoChanged as EventListener);
+      window.removeEventListener('focus', loadCustomLogo);
+    };
+  }, []);
+
+  // Listen for user name changes
+  useEffect(() => {
+    const handleStorageChange = () => {
+      setUserName(getUserName());
+    };
+    const handleUserNameChanged = (e: CustomEvent) => {
+      setUserName(getUserName());
+    };
+    window.addEventListener('storage', handleStorageChange);
+    window.addEventListener('userNameChanged', handleUserNameChanged as EventListener);
+    // Also check on focus in case it changed in another tab
+    window.addEventListener('focus', handleStorageChange);
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('userNameChanged', handleUserNameChanged as EventListener);
+      window.removeEventListener('focus', handleStorageChange);
+    };
   }, []);
 
   return (
@@ -66,7 +120,7 @@ const SidebarLeft: React.FC<SidebarLeftProps> = ({ twins, activeTwinId, currentV
               </div>
               <div className="min-w-0">
                 <div className="text-xs font-bold uppercase tracking-wider">Ops Center</div>
-                <div className="text-[9px] text-[#163247] truncate">Orchestrator Hub</div>
+                <div className="text-[9px] text-[#163247] truncate">The Blue Flame</div>
               </div>
             </button>
             <button
@@ -156,8 +210,8 @@ const SidebarLeft: React.FC<SidebarLeftProps> = ({ twins, activeTwinId, currentV
                 <div className="relative shrink-0 mt-0.5">
                   <img src={twin.avatar} alt={twin.name} className="w-10 h-10 rounded-xl border border-[#5381A5]/30 object-cover" />
                   <span className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-[#90C3EA] ${
-                    twin.status === TwinStatus.THINKING ? 'bg-amber-500 animate-pulse' :
-                    twin.status === TwinStatus.IDLE ? 'bg-emerald-500' : 'bg-zinc-600'
+                    twin.status === TwinStatus.THINKING ? 'bg-[#78A2C2] animate-pulse' :
+                    twin.status === TwinStatus.IDLE ? 'bg-[#5381A5]' : 'bg-[#163247]'
                   }`} />
                 </div>
                 <div className="min-w-0 flex-1 flex flex-col gap-0.5">
@@ -186,16 +240,65 @@ const SidebarLeft: React.FC<SidebarLeftProps> = ({ twins, activeTwinId, currentV
         <div>
           <div className="text-[10px] font-bold text-[#163247] uppercase tracking-widest px-2 mb-2">Active Projects</div>
           <div className="space-y-1">
-            <button className="w-full flex items-center gap-3 p-2 rounded-lg text-left text-[#0b1b2b] hover:bg-[#78A2C2]">
-              <div className="w-4 h-4 rounded-sm bg-white/40 border border-[#5381A5]/30" />
-              <span className="text-xs">Project Alpha</span>
-            </button>
-            <button className="w-full flex items-center gap-3 p-2 rounded-lg text-left text-[#0b1b2b] hover:bg-[#78A2C2]">
-              <div className="w-4 h-4 rounded-sm bg-white/40 border border-[#5381A5]/30" />
-              <span className="text-xs">Neural Sync</span>
-            </button>
+            {projects.map((project) => (
+              <div
+                key={project.id}
+                className="w-full flex items-center gap-2 p-2 rounded-lg text-left text-[#0b1b2b] hover:bg-[#78A2C2] transition-colors"
+                role="button"
+                tabIndex={0}
+                onClick={() => onSelectProject?.(project.id)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    onSelectProject?.(project.id);
+                  }
+                }}
+                title={project.id}
+              >
+                <div className="w-4 h-4 rounded-sm bg-white/40 border border-[#5381A5]/30 shrink-0" />
+                <span className="text-xs flex-1 min-w-0 truncate">{project.name}</span>
+
+                <button
+                  type="button"
+                  className="p-1 rounded-md hover:bg-white/30 text-[#163247]"
+                  title="Rename Project"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const nextName = window.prompt('Rename project', project.name);
+                    if (!nextName) return;
+                    const trimmed = nextName.trim();
+                    if (!trimmed) return;
+                    onRenameProject(project.id, trimmed);
+                  }}
+                >
+                  <span className="material-symbols-outlined text-[14px]">edit</span>
+                </button>
+
+                <button
+                  type="button"
+                  className="p-1 rounded-md hover:bg-white/30 text-[#163247]"
+                  title="Delete Project"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const ok = window.confirm(`Delete project “${project.name}”?`);
+                    if (!ok) return;
+                    onDeleteProject(project.id);
+                  }}
+                >
+                  <span className="material-symbols-outlined text-[14px]">delete</span>
+                </button>
+              </div>
+            ))}
             
-            <button className="w-full flex items-center gap-3 p-2 rounded-lg text-left text-[#163247] hover:bg-[#78A2C2] border border-dashed border-[#5381A5]/30 mt-2">
+            <button 
+              onClick={() => {
+                const name = window.prompt('New project name');
+                if (!name) return;
+                const trimmed = name.trim();
+                if (!trimmed) return;
+                onCreateProject(trimmed);
+              }}
+              className="w-full flex items-center gap-3 p-2 rounded-lg text-left text-[#163247] hover:bg-[#78A2C2] border border-dashed border-[#5381A5]/30 mt-2 transition-colors"
+            >
               <div className="w-4 h-4 flex items-center justify-center rounded-sm bg-white/40 border border-[#5381A5]/30">
                 <span className="material-symbols-outlined text-[10px]">add</span>
               </div>
@@ -209,10 +312,16 @@ const SidebarLeft: React.FC<SidebarLeftProps> = ({ twins, activeTwinId, currentV
         <div className="flex items-center gap-3 p-2 bg-white/30 rounded-xl border border-[#5381A5]/30">
            <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-[#78A2C2] to-[#5381A5] border border-[#5381A5]/30" />
            <div className="flex-1 min-w-0">
-              <div className="text-[10px] font-black uppercase tracking-tight truncate">Root Admin</div>
+              <div className="text-[10px] font-black uppercase tracking-tight truncate">
+                {userName}
+              </div>
               <div className="text-[9px] text-[#163247] font-bold uppercase tracking-widest truncate">Authorized</div>
            </div>
-           <button className="text-[#163247] hover:text-[#5381A5] transition-colors">
+           <button 
+             onClick={() => onSelectRootAdminSettings?.()}
+             className="text-[#163247] hover:text-[#5381A5] transition-colors"
+             title="Root Admin Settings"
+           >
               <span className="material-symbols-outlined text-sm">settings</span>
            </button>
         </div>

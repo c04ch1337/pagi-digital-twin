@@ -32,7 +32,7 @@ impl PolicyConfig {
     fn new() -> Self {
         let mut allowed_commands = HashMap::new();
         
-        // Aegis Command (orchestrator) - can run anything
+        // The Blue Flame (orchestrator) - can run anything
         allowed_commands.insert("twin-aegis".to_string(), vec!["*".to_string()]);
         
         // Sentinel Script - can run file operations and analysis tools

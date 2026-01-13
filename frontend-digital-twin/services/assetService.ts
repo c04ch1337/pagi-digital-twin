@@ -3,7 +3,16 @@
  * Handles uploading and retrieving custom branding assets (logo, favicon)
  */
 
-const GATEWAY_URL = import.meta.env.VITE_GATEWAY_URL || 'http://127.0.0.1:8181';
+function getGatewayUrl(): string {
+  // Allow runtime overrides from RootAdminSettings without requiring a rebuild.
+  const runtime = (globalThis as any).__GATEWAY_URL__ as string | undefined;
+  if (runtime && runtime.trim()) return runtime.trim();
+
+  const stored = globalThis.localStorage?.getItem('root_admin_gateway_url');
+  if (stored && stored.trim()) return stored.trim();
+
+  return import.meta.env.VITE_GATEWAY_URL || 'http://127.0.0.1:8181';
+}
 
 export interface AssetUploadResponse {
   ok: boolean;
@@ -19,10 +28,12 @@ export async function uploadAsset(
   assetType: 'logo' | 'favicon' | 'favicon-png'
 ): Promise<AssetUploadResponse> {
   const formData = new FormData();
-  formData.append('file', file);
+  // IMPORTANT: backend-rust-telemetry's multipart parser may encounter fields in-order.
+  // Ensure `asset_type` is sent BEFORE `file` so the backend doesn't default to "logo".
   formData.append('asset_type', assetType);
+  formData.append('file', file);
 
-  const response = await fetch(`${GATEWAY_URL}/api/assets/upload`, {
+  const response = await fetch(`${getGatewayUrl()}/api/assets/upload`, {
     method: 'POST',
     body: formData,
   });
@@ -39,7 +50,7 @@ export async function uploadAsset(
  * Get the URL for a custom asset
  */
 export function getAssetUrl(filename: string): string {
-  return `${GATEWAY_URL}/api/assets/${filename}`;
+  return `${getGatewayUrl()}/api/assets/${filename}`;
 }
 
 /**

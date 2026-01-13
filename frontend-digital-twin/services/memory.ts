@@ -14,12 +14,7 @@ export interface MemoryStatus {
 }
 
 // Global in-memory vault for tactical data
-const memoryVault: Record<string, VectorShard[]> = {
-  'threat_intel_v24': [
-    { id: 's1', text: 'Indicator of Compromise (IOC) detected: C2 beaconing to 185.x.x.x identified in outbound firewall logs.', timestamp: new Date(Date.now() - 3600000) },
-    { id: 's2', text: 'Policy Alert: Administrative accounts must use MFA for all lateral RDP sessions.', timestamp: new Date(Date.now() - 7200000) }
-  ]
-};
+const memoryVault: Record<string, VectorShard[]> = {};
 
 /**
  * Commits a new tactical shard to the vector vault.

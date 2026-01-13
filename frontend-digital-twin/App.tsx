@@ -15,6 +15,7 @@ import MemoryExplorer from './pages/memory-explorer';
 import Evolution from './pages/evolution';
 import MediaGallery from './pages/MediaGallery';
 import SystemMonitor from './components/SystemMonitor';
+import RootAdminSettings from './components/RootAdminSettings';
 import { executeJobLifecycle } from './services/orchestrator';
 import { usePagi } from './context/PagiContext';
 import { useTelemetry } from './context/TelemetryContext';
@@ -24,7 +25,14 @@ import { ChatResponse, CompleteMessage, AgentCommand, ChatRequest } from './type
 
 const App: React.FC = () => {
   // Get WebSocket context
-  const { sendChatRequest, messages: protocolMessages, isConnected } = usePagi();
+  const {
+    sendChatRequest,
+    messages: protocolMessages,
+    isConnected,
+    sessionId,
+    createNewSession,
+    switchToSession,
+  } = usePagi();
   // Get Telemetry context
   const { telemetry, isConnected: isTelemetryConnected } = useTelemetry();
   
@@ -42,10 +50,104 @@ const App: React.FC = () => {
   const [commandMessageId, setCommandMessageId] = useState<string | null>(null);
   const [activeDecisionTrace, setActiveDecisionTrace] = useState<string | null>(null);
 
+  interface Project {
+    id: string;
+    name: string;
+  }
+
+  const DEFAULT_PROJECTS: Project[] = [
+    { id: 'project-alpha', name: 'Project Alpha' },
+    { id: 'neural-sync', name: 'Neural Sync' },
+  ];
+
+  const [projects, setProjects] = useState<Project[]>(() => {
+    try {
+      const raw = localStorage.getItem('pagi_projects');
+      if (!raw) return DEFAULT_PROJECTS;
+      const parsed = JSON.parse(raw) as unknown;
+      if (!Array.isArray(parsed)) return DEFAULT_PROJECTS;
+      const sanitized: Project[] = parsed
+        .filter((p: any) => p && typeof p.id === 'string' && typeof p.name === 'string')
+        .map((p: any) => ({ id: String(p.id), name: String(p.name) }));
+      return sanitized.length > 0 ? sanitized : DEFAULT_PROJECTS;
+    } catch {
+      return DEFAULT_PROJECTS;
+    }
+  });
+
+  const [activeProjectId, setActiveProjectId] = useState<string | null>(() => {
+    try {
+      return localStorage.getItem('pagi_active_project_id');
+    } catch {
+      return null;
+    }
+  });
+
+  // Persist active project
+  useEffect(() => {
+    try {
+      if (activeProjectId) localStorage.setItem('pagi_active_project_id', activeProjectId);
+      else localStorage.removeItem('pagi_active_project_id');
+    } catch {
+      // ignore
+    }
+  }, [activeProjectId]);
+
+  type ProjectSessionMap = Record<string, string>; // projectId -> sessionId
+
+  const loadProjectSessionMap = (): ProjectSessionMap => {
+    try {
+      const raw = localStorage.getItem('pagi_project_sessions');
+      if (!raw) return {};
+      const parsed = JSON.parse(raw);
+      if (!parsed || typeof parsed !== 'object') return {};
+      const out: ProjectSessionMap = {};
+      for (const [k, v] of Object.entries(parsed)) {
+        if (typeof k === 'string' && typeof v === 'string' && v.trim()) out[k] = v;
+      }
+      return out;
+    } catch {
+      return {};
+    }
+  };
+
+  const saveProjectSessionMap = (m: ProjectSessionMap) => {
+    try {
+      localStorage.setItem('pagi_project_sessions', JSON.stringify(m));
+    } catch {
+      // ignore
+    }
+  };
+
+  const normalizeProjectName = (name: string) => name.trim().replace(/\s+/g, ' ');
+
+  const ensureProjectByName = (projectNameRaw: string, projectIdHint?: string): Project => {
+    const projectName = normalizeProjectName(projectNameRaw);
+    const existingById = projectIdHint ? projects.find(p => p.id === projectIdHint) : undefined;
+    if (existingById) return existingById;
+
+    const existingByName = projects.find(p => p.name.toLowerCase() === projectName.toLowerCase());
+    if (existingByName) return existingByName;
+
+    const id = projectIdHint && projectIdHint.trim().length > 0 ? projectIdHint.trim() : `project-${crypto.randomUUID()}`;
+    const created = { id, name: projectName };
+    setProjects(prev => [...prev, created]);
+    return created;
+  };
+
   // Update favicon links on mount
   useEffect(() => {
     updateFaviconLinks();
   }, []);
+
+  // Persist projects list
+  useEffect(() => {
+    try {
+      localStorage.setItem('pagi_projects', JSON.stringify(projects));
+    } catch {
+      // ignore (storage full / blocked)
+    }
+  }, [projects]);
 
   // Notify orchestrator when gallery is open (for context awareness)
   useEffect(() => {
@@ -63,6 +165,12 @@ const App: React.FC = () => {
   // re-opens repeatedly for the same command.
   const handledIssuedCommandIdsRef = React.useRef<Set<string>>(new Set());
 
+  // When switching sessions, clear the in-memory UI transcript and reset command de-dupe.
+  useEffect(() => {
+    setMessages([]);
+    handledIssuedCommandIdsRef.current = new Set();
+  }, [sessionId]);
+
   const activeTwin = twins.find(t => t.id === activeTwinId) || twins[0];
   const orchestrator = twins.find(t => t.isOrchestrator) || twins[0];
   const selectedJob = jobs.find(j => j.id === selectedJobId);
@@ -75,6 +183,18 @@ const App: React.FC = () => {
     console.log('[App] Agent command received:', command);
 
     switch (command.command) {
+      case 'create_project_chat': {
+        const project = ensureProjectByName(command.project_name, command.project_id);
+        setActiveProjectId(project.id);
+        setView('orchestrator');
+
+        const newSessionId = createNewSession();
+        const map = loadProjectSessionMap();
+        map[project.id] = newSessionId;
+        saveProjectSessionMap(map);
+        break;
+      }
+
       case 'show_memory_page':
         // Show modal for memory page request
         setActiveCommand(command);
@@ -96,7 +216,7 @@ const App: React.FC = () => {
         setActiveDecisionTrace(response.raw_orchestrator_decision ?? null);
         break;
     }
-  }, []);
+  }, [createNewSession, ensureProjectByName, loadProjectSessionMap, saveProjectSessionMap]);
 
 
   // Convert protocol messages to UI messages
@@ -166,11 +286,21 @@ const App: React.FC = () => {
 
     // Send response back to backend
     // Format: Send a follow-up message indicating the command was executed
-    const responseMessage = command.command === 'prompt_for_config'
-      ? `[CONFIG_RESPONSE] ${command.config_key}: ${value}`
-      : command.command === 'execute_tool'
-      ? `[TOOL_EXECUTED] ${command.tool_name} - ${value}`
-      : `[MEMORY_SHOWN] ${command.memory_id}`;
+    let responseMessage = '';
+    switch (command.command) {
+      case 'prompt_for_config':
+        responseMessage = `[CONFIG_RESPONSE] ${command.config_key}: ${value}`;
+        break;
+      case 'execute_tool':
+        responseMessage = `[TOOL_EXECUTED] ${command.tool_name} - ${value}`;
+        break;
+      case 'show_memory_page':
+        responseMessage = `[MEMORY_SHOWN] ${command.memory_id}`;
+        break;
+      case 'create_project_chat':
+        // This command is handled immediately on receipt and should not surface in the modal.
+        return;
+    }
 
     sendChatRequest(responseMessage);
 
@@ -223,11 +353,21 @@ const App: React.FC = () => {
     console.log('[App] Command denied:', activeCommand.command);
 
     // Send denial response back to backend
-    const denialMessage = activeCommand.command === 'prompt_for_config'
-      ? `[CONFIG_DENIED] ${activeCommand.config_key}`
-      : activeCommand.command === 'execute_tool'
-      ? `[TOOL_DENIED] ${activeCommand.tool_name}`
-      : `[MEMORY_DENIED] ${activeCommand.memory_id}`;
+    let denialMessage = '';
+    switch (activeCommand.command) {
+      case 'prompt_for_config':
+        denialMessage = `[CONFIG_DENIED] ${activeCommand.config_key}`;
+        break;
+      case 'execute_tool':
+        denialMessage = `[TOOL_DENIED] ${activeCommand.tool_name}`;
+        break;
+      case 'show_memory_page':
+        denialMessage = `[MEMORY_DENIED] ${activeCommand.memory_id}`;
+        break;
+      case 'create_project_chat':
+        // Should not be deniable.
+        return;
+    }
 
     sendChatRequest(denialMessage);
 
@@ -416,6 +556,12 @@ const App: React.FC = () => {
             onClose={() => setView('orchestrator')}
           />
         );
+      case 'root-admin-settings':
+        return (
+          <RootAdminSettings 
+            onClose={() => setView('orchestrator')}
+          />
+        );
       case 'chat':
       default:
         return (
@@ -424,6 +570,7 @@ const App: React.FC = () => {
             activeTwin={activeTwin}
             onSendMessage={handleSendMessage}
             onRunTool={handleRunTool}
+            onOpenSettings={() => setView('settings')}
           />
         );
     }
@@ -446,6 +593,37 @@ const App: React.FC = () => {
           onSelectMemoryExplorer={() => setView('memory-explorer')}
           onSelectEvolution={() => setView('evolution')}
           onSelectSystemStatus={() => setView('system-status')}
+          projects={projects}
+          onSelectProject={(projectId) => {
+            // Navigate to orchestrator view for project context and switch to the project's session.
+            setView('orchestrator');
+            setActiveProjectId(projectId);
+
+            const map = loadProjectSessionMap();
+            const projectSession = map[projectId];
+            if (projectSession) {
+              switchToSession(projectSession);
+            } else {
+              const newSessionId = createNewSession();
+              map[projectId] = newSessionId;
+              saveProjectSessionMap(map);
+            }
+          }}
+          onCreateProject={(name) => {
+            const trimmed = name.trim();
+            if (!trimmed) return;
+            const id = `project-${crypto.randomUUID()}`;
+            setProjects((prev) => [...prev, { id, name: trimmed }]);
+          }}
+          onRenameProject={(projectId, name) => {
+            const trimmed = name.trim();
+            if (!trimmed) return;
+            setProjects((prev) => prev.map((p) => (p.id === projectId ? { ...p, name: trimmed } : p)));
+          }}
+          onDeleteProject={(projectId) => {
+            setProjects((prev) => prev.filter((p) => p.id !== projectId));
+          }}
+          onSelectRootAdminSettings={() => setView('root-admin-settings')}
         />
       )}
 
@@ -475,6 +653,8 @@ const App: React.FC = () => {
                   ? 'Neural Archive'
                   : view === 'system-status'
                   ? 'System Status'
+                  : view === 'root-admin-settings'
+                  ? 'Root Admin Settings'
                   : 'Tactical Agent'}
               </h1>
             </div>

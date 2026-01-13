@@ -1035,9 +1035,9 @@ The right sidebar provides real-time monitoring and system information:
 
 **Features:**
 - **Direct Command Stream:**
-  - Chat interface for sending global directives to the orchestrator
-  - Displays conversation history with the orchestrator agent
-  - Shows "thinking" status when orchestrator is processing
+  - Chat interface for sending global directives to The Blue Flame (orchestrator)
+  - Displays conversation history with The Blue Flame
+  - Shows "thinking" status when The Blue Flame is processing
   - *Use Case:* Security operations center issues global lockdown commands
   - *Use Case:* System administrators coordinate multi-agent workflows
 
@@ -1842,6 +1842,162 @@ curl -X POST http://localhost:8001/api/v1/execute_tool \
 |--------|----------|-------------|--------------|----------|
 | `GET` | `/health` | Health check | - | `{service, status, version}` |
 | `GET` | `/memory/latest` | Get latest memory | - | Memory data |
+
+---
+
+### Rust Memory Service (gRPC :50052)
+
+The Rust Memory Service provides persistent vector storage for the Neural Archive. All operations are performed via gRPC.
+
+#### Memory Commitment Examples
+
+**1. Corporate Leadership Knowledge (RAGSource)**
+
+```bash
+grpcurl -plaintext -d '{
+  "content": "James E. Ferrell serves as Chairman of Ferrellgas. He transformed the company from a small-town shop into one of the nation'\''s leading propane suppliers with over 4,000 employee-owners.",
+  "namespace": "corporate_context",
+  "twin_id": "twin-aegis",
+  "memory_type": "RAGSource",
+  "risk_level": "Low",
+  "metadata": {
+    "source": "leadership_kb",
+    "priority": "high",
+    "person": "James E. Ferrell"
+  }
+}' localhost:50052 memory.MemoryService/CommitMemory
+```
+
+**2. Threat Intelligence Indicator (Episodic)**
+
+```bash
+grpcurl -plaintext -d '{
+  "content": "Indicator of Compromise (IOC) detected: C2 beaconing to 185.x.x.x identified in outbound firewall logs. Timestamp: 2024-01-15 14:32:00 UTC",
+  "namespace": "threat_intel_v24",
+  "twin_id": "twin-sentinel",
+  "memory_type": "Episodic",
+  "risk_level": "High",
+  "metadata": {
+    "ioc_type": "c2_beacon",
+    "ip_address": "185.x.x.x",
+    "detection_method": "firewall_logs"
+  }
+}' localhost:50052 memory.MemoryService/CommitMemory
+```
+
+**3. Security Policy Alert (Semantic)**
+
+```bash
+grpcurl -plaintext -d '{
+  "content": "Policy Alert: Administrative accounts must use MFA for all lateral RDP sessions. This policy was updated on 2024-01-10 and applies to all domain controllers.",
+  "namespace": "threat_intel_v24",
+  "twin_id": "twin-aegis",
+  "memory_type": "Semantic",
+  "risk_level": "Medium",
+  "metadata": {
+    "policy_type": "authentication",
+    "enforcement_date": "2024-01-10"
+  }
+}' localhost:50052 memory.MemoryService/CommitMemory
+```
+
+**4. Transcript Summary (RAGSource)**
+
+```bash
+grpcurl -plaintext -d '{
+  "content": "Summary: Security analyst reviewed network logs and identified suspicious patterns.\n\nKey Decisions:\n1. Escalated to incident response team\n2. Isolated affected systems\n\nFollow-up Tasks:\n1. Deep packet inspection required\n2. Update firewall rules",
+  "namespace": "insights",
+  "twin_id": "twin-aegis",
+  "memory_type": "RAGSource",
+  "risk_level": "Medium",
+  "metadata": {
+    "source": "transcript_summary",
+    "session_id": "session-12345"
+  }
+}' localhost:50052 memory.MemoryService/CommitMemory
+```
+
+**5. Incident Response Action (Episodic)**
+
+```bash
+grpcurl -plaintext -d '{
+  "content": "Incident Response Action: Malware analysis completed on suspicious binary. Hash: abc123def456. Verdict: Trojan variant. Remediation: File quarantined and system isolated.",
+  "namespace": "incident_response",
+  "twin_id": "twin-sentinel",
+  "memory_type": "Episodic",
+  "risk_level": "Critical",
+  "metadata": {
+    "action_type": "malware_analysis",
+    "file_hash": "abc123def456",
+    "verdict": "trojan"
+  }
+}' localhost:50052 memory.MemoryService/CommitMemory
+```
+
+#### Memory Query Examples
+
+**Query Threat Intelligence:**
+
+```bash
+grpcurl -plaintext -d '{
+  "query": "recent C2 beaconing activity",
+  "namespace": "threat_intel_v24",
+  "twin_id": "twin-sentinel",
+  "top_k": 10
+}' localhost:50052 memory.MemoryService/QueryMemory
+```
+
+**Query Corporate Context:**
+
+```bash
+grpcurl -plaintext -d '{
+  "query": "CEO IT background and leadership",
+  "namespace": "corporate_context",
+  "twin_id": "twin-aegis",
+  "top_k": 5
+}' localhost:50052 memory.MemoryService/QueryMemory
+```
+
+#### Memory Types
+
+- **`Episodic`**: Direct user conversations/events (e.g., incident reports, user interactions)
+- **`Semantic`**: Facts/concepts derived from reflection (e.g., policies, procedures, knowledge)
+- **`RAGSource`**: External documents/knowledge sources (e.g., transcripts, documents, KBs)
+- **`Reflection`**: Output from reflection steps (e.g., analysis summaries, insights)
+
+#### Risk Levels
+
+- **`Low`**: Routine information, standard operations
+- **`Medium`**: Important but not urgent, policy updates
+- **`High`**: Security concerns, active threats
+- **`Critical`**: Immediate action required, active incidents
+
+#### Namespaces
+
+Namespaces organize memories by domain:
+- `threat_intel_v24` - Threat intelligence and security indicators
+- `corporate_context` - Leadership, company history, organizational knowledge
+- `insights` - Transcript summaries, analysis outputs
+- `incident_response` - Incident tracking and remediation actions
+- `system_config` - System configuration and changes
+
+#### Bulk Memory Ingestion
+
+For bulk loading knowledge bases, use the example ingestion script:
+
+```bash
+# Ingest leadership knowledge base
+cd backend-rust-orchestrator
+cargo run --example ingest_leadership_kb
+```
+
+This script demonstrates how to:
+- Connect to the Memory Service via gRPC
+- Chunk large documents into semantic pieces
+- Commit multiple memory blocks with metadata
+- Handle errors and track ingestion progress
+
+See [`backend-rust-orchestrator/examples/ingest_leadership_kb.rs`](backend-rust-orchestrator/examples/ingest_leadership_kb.rs) for the complete implementation.
 
 ---
 

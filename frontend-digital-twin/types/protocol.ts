@@ -9,6 +9,18 @@ export type AgentCommand =
       query: string;
     }
   | {
+      /**
+       * Create (or select) a project and start a new chat session under it.
+       * This is handled fully client-side by switching `session_id`.
+       */
+      command: 'create_project_chat';
+      project_name: string;
+      /** Optional stable id if the backend already knows the project id. */
+      project_id?: string;
+      /** Optional display title for the new chat. */
+      chat_title?: string;
+    }
+  | {
       command: 'prompt_for_config';
       config_key: string;
       prompt: string;
@@ -30,6 +42,11 @@ export interface ChatRequest {
    * Used by the Orchestrator to reason about multi-modal context.
    */
   media_active?: boolean;
+  /**
+   * User's display name for personalized addressing.
+   * If not provided, defaults to "ROOT ADMIN".
+   */
+  user_name?: string;
 }
 
 // --- 2. Response to Frontend (Agent Output) ---

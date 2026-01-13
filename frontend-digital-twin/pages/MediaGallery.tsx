@@ -282,30 +282,30 @@ export default function MediaGallery({ onClose }: MediaGalleryProps) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-[#0b1b2b] text-white">
+    <div className="fixed inset-0 z-50 flex flex-col bg-[#0b1b2b] text-[#9EC9D9]">
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-white/10 px-6 py-4">
+      <div className="flex items-center justify-between border-b border-[#5381A5]/30 px-6 py-4 bg-[#163247]">
         <div className="flex-1">
-          <h1 className="text-2xl font-semibold">Neural Archive</h1>
-          <p className="text-sm text-white/60 mt-1">Browse and manage recorded sessions</p>
+          <h1 className="text-2xl font-semibold text-[#90C3EA]">Neural Archive</h1>
+          <p className="text-sm text-[#78A2C2] mt-1">Browse and manage recorded sessions</p>
         </div>
         
         {/* Search Bar */}
         <div className="flex items-center gap-2 mx-4">
           <div className="relative">
-            <Search size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-white/40" />
+            <Search size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-[#78A2C2]" />
             <input
               type="text"
               placeholder="Search transcripts..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
-              className="bg-white/5 border border-white/10 rounded-lg px-10 py-2 text-sm text-white placeholder-white/40 focus:outline-none focus:border-white/20 w-64"
+              className="bg-[#0b1b2b] border border-[#5381A5]/30 rounded-lg px-10 py-2 text-sm text-[#9EC9D9] placeholder-[#78A2C2] focus:outline-none focus:border-[#5381A5] w-64"
             />
           </div>
           <button
             onClick={handleSearch}
-            className="px-4 py-2 bg-[#5381A5] hover:bg-[#78A2C2] rounded-lg text-sm transition-colors"
+            className="px-4 py-2 bg-[#5381A5] hover:bg-[#78A2C2] rounded-lg text-sm transition-colors text-white"
           >
             Search
           </button>
@@ -313,7 +313,7 @@ export default function MediaGallery({ onClose }: MediaGalleryProps) {
 
         <button
           onClick={onClose}
-          className="rounded-full p-2 hover:bg-white/10 transition-colors"
+          className="rounded-full p-2 hover:bg-[#5381A5]/30 transition-colors text-[#90C3EA]"
           title="Close gallery"
         >
           <X size={20} />
@@ -329,11 +329,11 @@ export default function MediaGallery({ onClose }: MediaGalleryProps) {
         )}
 
         {error && (
-          <div className="bg-red-500/20 border border-red-500/50 rounded-lg p-4 mb-4">
-            <p className="text-red-200">{error}</p>
+          <div className="bg-white/10 border border-[#5381A5]/30 rounded-lg p-4 mb-4">
+            <p className="text-[#90C3EA]">{error}</p>
             <button
               onClick={loadRecordings}
-              className="mt-2 text-sm text-red-100 hover:text-red-50 underline"
+              className="mt-2 text-sm text-[#90C3EA] hover:text-[#78A2C2] underline"
             >
               Retry
             </button>
@@ -341,7 +341,7 @@ export default function MediaGallery({ onClose }: MediaGalleryProps) {
         )}
 
         {!loading && !error && recordings.length === 0 && (
-          <div className="flex flex-col items-center justify-center h-64 text-white/60">
+          <div className="flex flex-col items-center justify-center h-64 text-[#78A2C2]">
             <Calendar size={48} className="mb-4 opacity-50" />
             <p>No recordings found</p>
             <p className="text-sm mt-2">Start recording to create entries in the Neural Archive</p>
@@ -352,7 +352,7 @@ export default function MediaGallery({ onClose }: MediaGalleryProps) {
           <>
             {/* Toast Notification */}
             {toastMessage && (
-              <div className="fixed top-4 right-4 z-70 bg-[#5381A5] text-white px-4 py-3 rounded-lg shadow-lg animate-in slide-in-from-top">
+              <div className="fixed top-4 right-4 z-70 bg-[#5381A5] text-white px-4 py-3 rounded-lg shadow-lg animate-in slide-in-from-top border border-[#5381A5]/30">
                 {toastMessage}
               </div>
             )}
@@ -360,7 +360,7 @@ export default function MediaGallery({ onClose }: MediaGalleryProps) {
             {/* Video/Transcript/Insights Modal */}
             {(selectedVideo || selectedTranscript !== null) && (
               <div
-                className="fixed inset-0 z-60 bg-black/90 flex items-center justify-center p-8"
+                className="fixed inset-0 z-60 bg-[#0b1b2b]/90 flex items-center justify-center p-8"
                 onClick={() => {
                   setSelectedVideo(null);
                   setSelectedVideoFilename(null);
@@ -370,9 +370,9 @@ export default function MediaGallery({ onClose }: MediaGalleryProps) {
                   setActiveTab('video');
                 }}
               >
-                <div className="relative max-w-6xl w-full bg-[#0b1b2b] rounded-lg border border-white/10 p-6 max-h-[90vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+                <div className="relative max-w-6xl w-full bg-[#163247] rounded-lg border border-[#5381A5]/30 p-6 max-h-[90vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
                   <div className="flex items-center justify-between mb-4">
-                    <h2 className="text-xl font-semibold">Recording Details</h2>
+                    <h2 className="text-xl font-semibold text-[#90C3EA]">Recording Details</h2>
                     <button
                       onClick={() => {
                         setSelectedVideo(null);
@@ -382,14 +382,14 @@ export default function MediaGallery({ onClose }: MediaGalleryProps) {
                         setSelectedInsights(null);
                         setActiveTab('video');
                       }}
-                      className="text-white/60 hover:text-white transition-colors"
+                      className="text-[#78A2C2] hover:text-[#90C3EA] transition-colors"
                     >
                       <X size={20} />
                     </button>
                   </div>
 
                   {/* Tabs */}
-                  <div className="flex gap-2 mb-4 border-b border-white/10">
+                  <div className="flex gap-2 mb-4 border-b border-[#5381A5]/30">
                     <button
                       onClick={() => {
                         setActiveTab('video');
@@ -401,7 +401,7 @@ export default function MediaGallery({ onClose }: MediaGalleryProps) {
                       className={`px-4 py-2 text-sm font-medium transition-colors ${
                         activeTab === 'video'
                           ? 'text-[#5381A5] border-b-2 border-[#5381A5]'
-                          : 'text-white/60 hover:text-white/80'
+                          : 'text-[#78A2C2] hover:text-[#90C3EA]'
                       }`}
                     >
                       Video
@@ -418,7 +418,7 @@ export default function MediaGallery({ onClose }: MediaGalleryProps) {
                       className={`px-4 py-2 text-sm font-medium transition-colors ${
                         activeTab === 'transcript'
                           ? 'text-[#5381A5] border-b-2 border-[#5381A5]'
-                          : 'text-white/60 hover:text-white/80'
+                          : 'text-[#78A2C2] hover:text-[#90C3EA]'
                       }`}
                     >
                       Transcript
@@ -435,7 +435,7 @@ export default function MediaGallery({ onClose }: MediaGalleryProps) {
                       className={`px-4 py-2 text-sm font-medium transition-colors ${
                         activeTab === 'insights'
                           ? 'text-[#5381A5] border-b-2 border-[#5381A5]'
-                          : 'text-white/60 hover:text-white/80'
+                          : 'text-[#78A2C2] hover:text-[#90C3EA]'
                       }`}
                     >
                       Insights
@@ -458,13 +458,13 @@ export default function MediaGallery({ onClose }: MediaGalleryProps) {
                     )}
 
                     {activeTab === 'transcript' && (
-                      <div className="text-white/80 whitespace-pre-wrap font-mono text-sm leading-relaxed">
+                      <div className="text-[#90C3EA] whitespace-pre-wrap font-mono text-sm leading-relaxed">
                         {transcriptLoading ? (
-                          <div className="text-white/60 text-center py-8">Loading transcript...</div>
+                          <div className="text-[#78A2C2] text-center py-8">Loading transcript...</div>
                         ) : selectedTranscript ? (
                           selectedTranscript
                         ) : (
-                          <div className="text-white/60 text-center py-8">No transcript available</div>
+                          <div className="text-[#78A2C2] text-center py-8">No transcript available</div>
                         )}
                       </div>
                     )}
@@ -472,21 +472,21 @@ export default function MediaGallery({ onClose }: MediaGalleryProps) {
                     {activeTab === 'insights' && (
                       <div className="space-y-6">
                         {insightsLoading && (
-                          <div className="text-white/60 text-center py-8">Loading insights...</div>
+                          <div className="text-[#78A2C2] text-center py-8">Loading insights...</div>
                         )}
                         
                         {!insightsLoading && selectedInsights && (
                           <>
                             <div>
                               <h3 className="text-lg font-semibold mb-2 text-[#5381A5]">Summary</h3>
-                              <p className="text-white/80 leading-relaxed">{selectedInsights.summary}</p>
+                              <p className="text-[#90C3EA] leading-relaxed">{selectedInsights.summary}</p>
                             </div>
 
                             <div>
                               <h3 className="text-lg font-semibold mb-2 text-[#5381A5]">Key Decisions</h3>
                               <ul className="space-y-2">
                                 {selectedInsights.key_decisions.map((decision, idx) => (
-                                  <li key={idx} className="flex items-start gap-2 text-white/80">
+                                  <li key={idx} className="flex items-start gap-2 text-[#90C3EA]">
                                     <span className="text-[#5381A5] mt-1">•</span>
                                     <span>{decision}</span>
                                   </li>
@@ -498,7 +498,7 @@ export default function MediaGallery({ onClose }: MediaGalleryProps) {
                               <h3 className="text-lg font-semibold mb-2 text-[#5381A5]">Follow-up Tasks</h3>
                               <ul className="space-y-2">
                                 {selectedInsights.follow_up_tasks.map((task, idx) => (
-                                  <li key={idx} className="flex items-start gap-2 text-white/80">
+                                  <li key={idx} className="flex items-start gap-2 text-[#90C3EA]">
                                     <input type="checkbox" className="mt-1" />
                                     <span>{task}</span>
                                   </li>
@@ -509,7 +509,7 @@ export default function MediaGallery({ onClose }: MediaGalleryProps) {
                         )}
 
                         {!insightsLoading && !selectedInsights && (
-                          <div className="text-white/60 text-center py-8">
+                          <div className="text-[#78A2C2] text-center py-8">
                             Insights not available yet. Summarization may still be processing.
                           </div>
                         )}
@@ -531,15 +531,15 @@ export default function MediaGallery({ onClose }: MediaGalleryProps) {
                 return (
                   <div
                     key={recording.filename}
-                    className={`group relative bg-white/5 border rounded-lg overflow-hidden transition-all ${
+                    className={`group relative bg-[#0b1b2b] border rounded-lg overflow-hidden transition-all ${
                       isHighlighted 
                         ? 'border-[#5381A5] bg-[#5381A5]/20 shadow-lg shadow-[#5381A5]/20' 
-                        : 'border-white/10 hover:border-white/20'
+                        : 'border-[#5381A5]/30 hover:border-[#5381A5]/50'
                     }`}
                   >
                     {/* Thumbnail/Preview */}
                     <div
-                      className="aspect-video bg-black/40 flex items-center justify-center cursor-pointer"
+                      className="aspect-video bg-[#163247] flex items-center justify-center cursor-pointer"
                       onClick={() => {
                         setSelectedVideo(recording.filename);
                         setSelectedVideoFilename(recording.filename);
@@ -554,15 +554,15 @@ export default function MediaGallery({ onClose }: MediaGalleryProps) {
                       }}
                     >
                       <div className="text-center">
-                        <Play size={32} className="mx-auto mb-2 text-white/60 group-hover:text-white/80 transition-colors" />
-                        <span className="text-xs text-white/40">Click to play</span>
+                        <Play size={32} className="mx-auto mb-2 text-[#78A2C2] group-hover:text-[#90C3EA] transition-colors" />
+                        <span className="text-xs text-[#78A2C2]">Click to play</span>
                       </div>
                     </div>
 
                     {/* Info */}
                     <div className="p-3">
                       <div className="flex items-start justify-between mb-2">
-                        <div className="flex items-center gap-1.5 text-xs text-white/60">
+                        <div className="flex items-center gap-1.5 text-xs text-[#78A2C2]">
                           <User size={12} />
                           <span className="truncate">{twinId}</span>
                         </div>
@@ -596,7 +596,7 @@ export default function MediaGallery({ onClose }: MediaGalleryProps) {
                               className="p-1 hover:bg-[#5381A5]/20 rounded transition-colors disabled:opacity-50"
                               title="Show insights"
                             >
-                              <Lightbulb size={14} className="text-yellow-400" />
+                              <Lightbulb size={14} className="text-[#78A2C2]" />
                             </button>
                           )}
                           <button
@@ -605,26 +605,26 @@ export default function MediaGallery({ onClose }: MediaGalleryProps) {
                               handleDelete(recording.filename);
                             }}
                             disabled={isDeleting}
-                            className="p-1 hover:bg-red-500/20 rounded transition-colors disabled:opacity-50"
+                            className="p-1 hover:bg-[#163247]/50 rounded transition-colors disabled:opacity-50"
                             title="Delete recording"
                           >
-                            <Trash2 size={14} className="text-red-400" />
+                            <Trash2 size={14} className="text-[#78A2C2]" />
                           </button>
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-1.5 text-xs text-white/50 mb-1">
+                      <div className="flex items-center gap-1.5 text-xs text-[#78A2C2] mb-1">
                         <Calendar size={12} />
                         <span className="truncate">{timestamp}</span>
                       </div>
 
-                      <div className="text-xs text-white/40 mb-2">
+                      <div className="text-xs text-[#78A2C2] mb-2">
                         {formatFileSize(recording.size_bytes)}
                       </div>
 
                       {/* Summary Preview - First Sentence */}
                       {recording.has_summary && summaries.has(recording.filename) && (
-                        <div className="mt-2 p-2 bg-white/5 rounded text-xs text-white/70 line-clamp-2">
+                        <div className="mt-2 p-2 bg-[#0b1b2b] rounded text-xs text-[#90C3EA] line-clamp-2">
                           {(() => {
                             const summary = summaries.get(recording.filename)?.summary || '';
                             // Extract first sentence (ending with . ! or ?)
@@ -640,8 +640,8 @@ export default function MediaGallery({ onClose }: MediaGalleryProps) {
 
                     {/* Loading overlay for delete */}
                     {isDeleting && (
-                      <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
-                        <div className="text-sm text-white/80">Deleting...</div>
+                      <div className="absolute inset-0 bg-[#0b1b2b]/60 flex items-center justify-center">
+                        <div className="text-sm text-[#90C3EA]">Deleting...</div>
                       </div>
                     )}
                   </div>

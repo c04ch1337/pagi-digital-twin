@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
 import { PAGIClient } from '../services/pagiClient';
 import { ChatRequest, ChatResponse, CompleteMessage, MessageChunk, StatusUpdate } from '../types/protocol';
 import { usePagiSession } from '../hooks/usePagiSession';
+import { getUserName } from '../utils/userName';
 
 // --- Define Context State ---
 interface PagiContextType {
@@ -11,14 +12,15 @@ interface PagiContextType {
   sendChatRequest: (message: string) => void;
   currentUserId: string;
   sessionId: string;
-  createNewSession: () => void;
+  createNewSession: () => string;
+  switchToSession: (sessionId: string) => void;
 }
 
 const PagiContext = createContext<PagiContextType | undefined>(undefined);
 
 // --- Provider Component ---
 export const PagiProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { userId, sessionId, createNewSession } = usePagiSession();
+  const { userId, sessionId, createNewSession, switchToSession } = usePagiSession();
   const [client, setClient] = useState<PAGIClient | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const [messages, setMessages] = useState<ChatResponse[]>([]);
@@ -125,6 +127,10 @@ export const PagiProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     if (prevSessionIdRef.current !== sessionId && clientRef.current && userId) {
       console.log('[PagiContext] Session changed, reconnecting...');
+
+      // Clear the in-memory transcript so the UI starts clean for the new session.
+      setMessages([]);
+
       // Disconnect old client
       clientRef.current.disconnect();
       clientRef.current = null;
@@ -148,17 +154,19 @@ export const PagiProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const sendChatRequest = useCallback((message: string) => {
     if (clientRef.current && isConnected && sessionId) {
       const mediaActive = localStorage.getItem('pagi_media_active') === 'true';
+      const userName = getUserName(); // Get user name from localStorage
       const request: ChatRequest = {
         session_id: sessionId,
         user_id: userId,
         timestamp: new Date().toISOString(),
         message: message,
         media_active: mediaActive,
+        user_name: userName !== 'ROOT ADMIN' ? userName : undefined, // Only send if not default
       };
       
       const sent = clientRef.current.sendRequest(request);
       if (sent) {
-        console.log('[PagiContext] Sent chat request:', message);
+        console.log('[PagiContext] Sent chat request:', message, 'from user:', userName);
         // Note: We don't add user message to messages here because
         // the backend will echo it back or we can add it in the UI component
       } else {
@@ -183,7 +191,8 @@ export const PagiProvider: React.FC<{ children: React.ReactNode }> = ({ children
     currentUserId: userId,
     sessionId,
     createNewSession,
-  }), [isConnected, messages, sendChatRequest, userId, sessionId, createNewSession]);
+    switchToSession,
+  }), [isConnected, messages, sendChatRequest, userId, sessionId, createNewSession, switchToSession]);
 
   return (
     <PagiContext.Provider value={value}>

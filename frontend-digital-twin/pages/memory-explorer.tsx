@@ -86,16 +86,17 @@ const MemoryExplorer: React.FC<MemoryExplorerProps> = ({ activeTwin, onClose }) 
     content: '',
   });
 
-  // NOTE: The original orchestrator instance may already be running on 8182.
-  // We default to 8185 for dev so we can run a second instance without killing the first.
-  const orchestratorUrl = import.meta.env.VITE_ORCHESTRATOR_URL || 'http://127.0.0.1:8185';
+  // Use gateway URL (which proxies to orchestrator)
+  const gatewayUrl = import.meta.env.VITE_GATEWAY_URL || 'http://127.0.0.1:8181';
+  const orchestratorUrl = import.meta.env.VITE_ORCHESTRATOR_URL || 'http://127.0.0.1:8182';
 
   const loadMemories = useCallback(async () => {
     setLoading(true);
     setError(null);
 
     try {
-      const response = await fetch(`${orchestratorUrl}/v1/memory/list`, {
+      // Try gateway proxy first, then fallback to orchestrator direct
+      let response = await fetch(`${gatewayUrl}/api/memory/list`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -107,6 +108,22 @@ const MemoryExplorer: React.FC<MemoryExplorerProps> = ({ activeTwin, onClose }) 
           twin_id: activeTwin?.id || '',
         }),
       });
+
+      // If gateway doesn't have the route, try orchestrator directly
+      if (!response.ok && response.status === 404) {
+        response = await fetch(`${orchestratorUrl}/v1/memory/list`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            namespace: namespace.trim() || '',
+            page,
+            page_size: pageSize,
+            twin_id: activeTwin?.id || '',
+          }),
+        });
+      }
 
       if (!response.ok) {
         throw new Error(`Failed to load memories: ${response.statusText}`);
@@ -123,7 +140,7 @@ const MemoryExplorer: React.FC<MemoryExplorerProps> = ({ activeTwin, onClose }) 
     } finally {
       setLoading(false);
     }
-  }, [namespace, page, pageSize, activeTwin?.id, orchestratorUrl]);
+  }, [namespace, page, pageSize, activeTwin?.id, gatewayUrl, orchestratorUrl]);
 
   const handleDeleteClick = (memoryId: string, content: string) => {
     setDeleteModal({
@@ -146,7 +163,8 @@ const MemoryExplorer: React.FC<MemoryExplorerProps> = ({ activeTwin, onClose }) 
     setDeleteModal({ isOpen: false, memoryId: '', content: '' });
 
     try {
-      const response = await fetch(`${orchestratorUrl}/v1/memory/delete`, {
+      // Try gateway proxy first, then fallback to orchestrator direct
+      let response = await fetch(`${gatewayUrl}/api/memory/delete`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -156,6 +174,20 @@ const MemoryExplorer: React.FC<MemoryExplorerProps> = ({ activeTwin, onClose }) 
           namespace: namespace.trim(),
         }),
       });
+
+      // If gateway doesn't have the route, try orchestrator directly
+      if (!response.ok && response.status === 404) {
+        response = await fetch(`${orchestratorUrl}/v1/memory/delete`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            memory_id: memoryId,
+            namespace: namespace.trim(),
+          }),
+        });
+      }
 
       if (!response.ok) {
         throw new Error(`Failed to delete memory: ${response.statusText}`);
@@ -271,7 +303,7 @@ const MemoryExplorer: React.FC<MemoryExplorerProps> = ({ activeTwin, onClose }) 
         </div>
 
         {error && (
-          <div className="mt-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
+          <div className="mt-4 p-3 bg-white/60 border border-[#5381A5]/30 text-[#163247] rounded">
             {error}
           </div>
         )}

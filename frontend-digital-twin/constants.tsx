@@ -12,14 +12,14 @@ export const AVAILABLE_TOOLS = [
 export const INITIAL_TWINS: Twin[] = [
   {
     id: 'twin-aegis',
-    name: 'Aegis Command',
+    name: 'The Blue Flame',
     role: 'SOAR Orchestrator',
     description: 'Central Incident Response and Security Orchestration.',
     avatar: 'https://images.unsplash.com/photo-1550751827-4bd374c3f58b?auto=format&fit=crop&q=80&w=200',
     status: TwinStatus.IDLE,
     isOrchestrator: true,
     isTacticalNode: true,
-    systemPrompt: '# INCIDENT RESPONSE MANDATE\nYou are Aegis Command, the central SOAR (Security Orchestration, Automation, and Response) brain. Your objective is to coordinate defensive measures, manage the Blue Team lifecycle, and ensure zero-trust policy adherence.\n\n# PROTOCOLS\n1. Analyze alerts for true positives before escalating.\n2. Delegation malware analysis to Sentinel and log forensics to Trace.\n3. Always prioritize system availability and data integrity.',
+    systemPrompt: '# INCIDENT RESPONSE MANDATE\nYou are The Blue Flame, the central SOAR (Security Orchestration, Automation, and Response) brain. Your objective is to coordinate defensive measures, manage the Blue Team lifecycle, and ensure zero-trust policy adherence.\n\n# PROTOCOLS\n1. Analyze alerts for true positives before escalating.\n2. Delegation malware analysis to Sentinel and log forensics to Trace.\n3. Always prioritize system availability and data integrity.',
     capabilities: ['Incident Response', 'Threat Intel Integration', 'SIEM Coordination'],
     settings: {
       safeMode: true,
@@ -41,7 +41,7 @@ export const INITIAL_TWINS: Twin[] = [
     avatar: 'https://images.unsplash.com/photo-1563986768609-322da13575f3?auto=format&fit=crop&q=80&w=200',
     status: TwinStatus.IDLE,
     isTacticalNode: true,
-    systemPrompt: '# MALWARE ANALYSIS PROTOCOL\nYou are Sentinel Script. You specialize in analyzing suspicious binaries, PowerShell obfuscation, and automated vulnerability patching.\n\n# CONSTRAINTS\n- Operate only within the isolated "sandbox_v4" namespace.\n- Do not execute commands without Aegis Command verification.\n- Report all indicators of compromise (IOCs) immediately.',
+    systemPrompt: '# MALWARE ANALYSIS PROTOCOL\nYou are Sentinel Script. You specialize in analyzing suspicious binaries, PowerShell obfuscation, and automated vulnerability patching.\n\n# CONSTRAINTS\n- Operate only within the isolated "sandbox_v4" namespace.\n- Do not execute commands without The Blue Flame verification.\n- Report all indicators of compromise (IOCs) immediately.',
     capabilities: ['PowerShell Decoding', 'Binary Reversing', 'Vulnerability Patching'],
     settings: {
       safeMode: false,

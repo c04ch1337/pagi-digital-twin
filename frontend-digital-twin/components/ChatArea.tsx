@@ -8,9 +8,10 @@ interface ChatAreaProps {
   activeTwin: Twin;
   onSendMessage: (text: string) => void;
   onRunTool: (toolId: string) => void;
+  onOpenSettings?: () => void;
 }
 
-const ChatArea: React.FC<ChatAreaProps> = ({ messages, activeTwin, onSendMessage, onRunTool }) => {
+const ChatArea: React.FC<ChatAreaProps> = ({ messages, activeTwin, onSendMessage, onRunTool, onOpenSettings }) => {
   const [input, setInput] = useState('');
   const [isToolMenuOpen, setIsToolMenuOpen] = useState(false);
   const [saveStatus, setSaveStatus] = useState<Record<string, boolean>>({});
@@ -70,7 +71,18 @@ const ChatArea: React.FC<ChatAreaProps> = ({ messages, activeTwin, onSendMessage
              </div>
              <h2 className="text-xl font-bold text-[#0b1b2b] mb-2">Initialize {activeTwin.name}</h2>
              <p className="text-[#163247] text-sm">
-                This agent is active as a <span className="text-[#5381A5] font-medium">{activeTwin.role}</span>. 
+                This agent is active as a{' '}
+                {onOpenSettings ? (
+                  <button
+                    onClick={onOpenSettings}
+                    className="text-[#5381A5] font-medium hover:text-[#437091] hover:underline transition-colors cursor-pointer"
+                    title="Click to configure agent settings"
+                  >
+                    {activeTwin.role}
+                  </button>
+                ) : (
+                  <span className="text-[#5381A5] font-medium">{activeTwin.role}</span>
+                )}. 
                 State the security objective to begin tactical orchestration.
              </p>
            </div>

@@ -110,6 +110,27 @@ impl HealthManager {
         health_map.get(service_name).map(|h| h.status.clone())
     }
 
+    /// Get a snapshot of all tracked service health.
+    pub async fn get_all_service_health(&self) -> HashMap<String, ServiceHealth> {
+        self.service_health.read().await.clone()
+    }
+
+    /// Compute an aggregate "neural sync" score from tracked service health.
+    ///
+    /// Current heuristic: percentage of services that are Online.
+    pub async fn calculate_neural_sync(&self) -> f32 {
+        let health_map = self.service_health.read().await;
+        if health_map.is_empty() {
+            return 100.0;
+        }
+        let total = health_map.len() as f32;
+        let online = health_map
+            .values()
+            .filter(|h| h.status == ServiceStatus::Online)
+            .count() as f32;
+        (online / total) * 100.0
+    }
+
     /// Trigger repair task for a service
     async fn trigger_repair(&self, service_name: String, state: &Arc<AppState>) {
         // Check if repair is already in progress
@@ -216,7 +237,7 @@ Report your actions and findings. Execute the necessary repair steps immediately
         // rather than going through the full LLM planning (which requires UI approval)
         let action = if state.llm_provider == "openrouter" {
             // Try to use LLM, but if it fails, fall back to direct repair
-            match crate::llm_plan_openrouter(&repair_prompt, "system", state, false).await {
+            match crate::llm_plan_openrouter(&repair_prompt, "system", state, false, None).await {
                 Ok((action, _)) => action,
                 Err(e) => {
                     warn!(error = %e, "LLM planning failed, using direct repair");

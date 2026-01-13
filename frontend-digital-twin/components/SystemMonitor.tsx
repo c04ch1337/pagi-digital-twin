@@ -228,11 +228,13 @@ const SystemMonitor: React.FC<SystemMonitorProps> = ({ onClose }) => {
                   <div className="text-2xl font-bold" style={{ color: getUsageColor(ramPercent) }}>
                     {ramPercent.toFixed(1)}%
                   </div>
-                  <div className="text-[9px] text-[#163247] opacity-60 mt-1">
-                    {formatBytes(snapshot.memory.used_kib)} / {formatBytes(snapshot.memory.total_kib)}
-                  </div>
                 </div>
               </div>
+            </div>
+
+            {/* Keep the raw numbers OUTSIDE the circular gauge to prevent overlap on smaller widths */}
+            <div className="mt-2 text-[10px] text-[#163247] opacity-70 text-center leading-tight break-words">
+              {formatBytes(snapshot.memory.used_kib)} / {formatBytes(snapshot.memory.total_kib)}
             </div>
           </div>
         </div>
