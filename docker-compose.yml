@@ -220,7 +220,7 @@ services:
       - ORCHESTRATOR_HTTP_PORT=${ORCHESTRATOR_HTTP_PORT:-8182}
       - MEMORY_GRPC_ADDR=http://rust-memory-service:50052
       - TOOLS_GRPC_ADDR=http://rust-tools-service:50054
-      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY:-}
       - OPENROUTER_MODEL=${OPENROUTER_MODEL:-google/gemini-2.0-flash-exp}
       - OPENROUTER_URL=${OPENROUTER_URL:-https://openrouter.ai/api/v1/chat/completions}
       - LOG_LEVEL=${LOG_LEVEL:-info}

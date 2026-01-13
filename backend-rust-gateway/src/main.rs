@@ -1,12 +1,12 @@
 use axum::{
-    body::{Body, Bytes},
+    body::Body,
     extract::{
         ws::{Message, WebSocket, WebSocketUpgrade},
-        Path, State,
+        Path, Query, Request, State,
     },
     http::HeaderMap,
     response::IntoResponse,
-    routing::{get, post},
+    routing::{delete, get, post},
     Router,
 };
 use axum::http::{header, HeaderValue, StatusCode};
@@ -20,6 +20,7 @@ use tokio::sync::{broadcast, Mutex};
 use tracing::{info, error, warn};
 use uuid::Uuid;
 use futures::StreamExt;
+use percent_encoding::{utf8_percent_encode, NON_ALPHANUMERIC};
 
 // --- Shared State ---
 struct AppState {
@@ -405,23 +406,37 @@ async fn media_upload_options() -> impl IntoResponse {
 async fn media_upload_proxy_handler(
     State(state): State<Arc<AppState>>,
     headers: HeaderMap,
-    body: Bytes,
+    body: Body,
 ) -> impl IntoResponse {
     let telemetry_endpoint = format!(
-        "{}/v1/media/upload",
+        "{}/internal/media/store",
         state.telemetry_url.trim_end_matches('/')
     );
 
-    info!(endpoint = %telemetry_endpoint, size_bytes = body.len(), "Proxying media upload to telemetry");
+    // Stateless proxy: do not buffer the request body.
+    // We forward the multipart stream as-is so telemetry can parse & store it.
+    let byte_stream = body.into_data_stream().map(|chunk| {
+        chunk.map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))
+    });
 
-    let mut req = state.http_client.post(&telemetry_endpoint);
+    let mut req = state
+        .http_client
+        .post(&telemetry_endpoint)
+        .body(reqwest::Body::wrap_stream(byte_stream));
 
     // Forward Content-Type (multipart boundary) so telemetry can parse the form.
     if let Some(ct) = headers.get(header::CONTENT_TYPE).cloned() {
         req = req.header(header::CONTENT_TYPE, ct);
     }
 
-    let upstream = req.body(body.to_vec()).send().await;
+    // Forward content-length when present (optional, but can help upstream).
+    if let Some(cl) = headers.get(header::CONTENT_LENGTH).cloned() {
+        req = req.header(header::CONTENT_LENGTH, cl);
+    }
+
+    info!(endpoint = %telemetry_endpoint, "Proxying streamed multipart upload to telemetry");
+
+    let upstream = req.send().await;
 
     match upstream {
         Ok(r) => {
@@ -438,6 +453,242 @@ async fn media_upload_proxy_handler(
         }
         Err(e) => {
             error!(error = %e, endpoint = %telemetry_endpoint, "Failed to proxy media upload");
+            let mut resp = Response::new(Body::from("Telemetry service unavailable"));
+            *resp.status_mut() = StatusCode::BAD_GATEWAY;
+            resp.headers_mut().insert(
+                header::ACCESS_CONTROL_ALLOW_ORIGIN,
+                HeaderValue::from_static("*"),
+            );
+            resp
+        }
+    }
+}
+
+// --- Media Gallery Proxy Handlers ---
+
+async fn media_list_proxy_handler(
+    State(state): State<Arc<AppState>>,
+    Query(params): Query<HashMap<String, String>>,
+) -> impl IntoResponse {
+    let telemetry_endpoint = format!(
+        "{}/internal/media/list",
+        state.telemetry_url.trim_end_matches('/')
+    );
+
+    // Build query string from params
+    let mut query_parts = Vec::new();
+    if let Some(twin_id) = params.get("twin_id") {
+        query_parts.push(format!("twin_id={}", utf8_percent_encode(twin_id, NON_ALPHANUMERIC)));
+    }
+    if let Some(limit) = params.get("limit") {
+        query_parts.push(format!("limit={}", utf8_percent_encode(limit, NON_ALPHANUMERIC)));
+    }
+    let query_string = if query_parts.is_empty() {
+        String::new()
+    } else {
+        format!("?{}", query_parts.join("&"))
+    };
+
+    let endpoint = format!("{}{}", telemetry_endpoint, query_string);
+
+    match state.http_client.get(&endpoint).send().await {
+        Ok(r) => {
+            let status = r.status();
+            let bytes = r.bytes().await.unwrap_or_default();
+
+            let mut resp = Response::new(Body::from(bytes));
+            *resp.status_mut() = status;
+            resp.headers_mut().insert(
+                header::CONTENT_TYPE,
+                HeaderValue::from_static("application/json"),
+            );
+            resp.headers_mut().insert(
+                header::ACCESS_CONTROL_ALLOW_ORIGIN,
+                HeaderValue::from_static("*"),
+            );
+            resp
+        }
+        Err(e) => {
+            error!(error = %e, endpoint = %endpoint, "Failed to proxy media list");
+            let mut resp = Response::new(Body::from("Telemetry service unavailable"));
+            *resp.status_mut() = StatusCode::BAD_GATEWAY;
+            resp.headers_mut().insert(
+                header::ACCESS_CONTROL_ALLOW_ORIGIN,
+                HeaderValue::from_static("*"),
+            );
+            resp
+        }
+    }
+}
+
+async fn media_view_proxy_handler(
+    State(state): State<Arc<AppState>>,
+    Path(filename): Path<String>,
+    request: Request,
+) -> impl IntoResponse {
+    let telemetry_endpoint = format!(
+        "{}/internal/media/view/{}",
+        state.telemetry_url.trim_end_matches('/'),
+        utf8_percent_encode(&filename, NON_ALPHANUMERIC)
+    );
+
+    // Forward Range header if present for video scrubbing
+    let mut req = state.http_client.get(&telemetry_endpoint);
+    if let Some(range) = request.headers().get(header::RANGE) {
+        req = req.header(header::RANGE, range);
+    }
+
+    match req.send().await {
+        Ok(r) => {
+            let status = r.status();
+            let headers = r.headers().clone();
+            let bytes = r.bytes().await.unwrap_or_default();
+
+            let mut resp = Response::new(Body::from(bytes));
+            *resp.status_mut() = status;
+            
+            // Forward important headers for video playback
+            if let Some(content_type) = headers.get(header::CONTENT_TYPE) {
+                resp.headers_mut().insert(header::CONTENT_TYPE, content_type.clone());
+            }
+            if let Some(content_length) = headers.get(header::CONTENT_LENGTH) {
+                resp.headers_mut().insert(header::CONTENT_LENGTH, content_length.clone());
+            }
+            if let Some(accept_ranges) = headers.get(header::ACCEPT_RANGES) {
+                resp.headers_mut().insert(header::ACCEPT_RANGES, accept_ranges.clone());
+            }
+            if let Some(content_range) = headers.get(header::CONTENT_RANGE) {
+                resp.headers_mut().insert(header::CONTENT_RANGE, content_range.clone());
+            }
+            
+            resp.headers_mut().insert(
+                header::ACCESS_CONTROL_ALLOW_ORIGIN,
+                HeaderValue::from_static("*"),
+            );
+            resp
+        }
+        Err(e) => {
+            error!(error = %e, endpoint = %telemetry_endpoint, "Failed to proxy media view");
+            let mut resp = Response::new(Body::from("Telemetry service unavailable"));
+            *resp.status_mut() = StatusCode::BAD_GATEWAY;
+            resp.headers_mut().insert(
+                header::ACCESS_CONTROL_ALLOW_ORIGIN,
+                HeaderValue::from_static("*"),
+            );
+            resp
+        }
+    }
+}
+
+async fn media_delete_proxy_handler(
+    State(state): State<Arc<AppState>>,
+    Path(filename): Path<String>,
+) -> impl IntoResponse {
+    let telemetry_endpoint = format!(
+        "{}/internal/media/delete/{}",
+        state.telemetry_url.trim_end_matches('/'),
+        utf8_percent_encode(&filename, NON_ALPHANUMERIC)
+    );
+
+    match state.http_client.delete(&telemetry_endpoint).send().await {
+        Ok(r) => {
+            let status = r.status();
+            let bytes = r.bytes().await.unwrap_or_default();
+
+            let mut resp = Response::new(Body::from(bytes));
+            *resp.status_mut() = status;
+            resp.headers_mut().insert(
+                header::CONTENT_TYPE,
+                HeaderValue::from_static("application/json"),
+            );
+            resp.headers_mut().insert(
+                header::ACCESS_CONTROL_ALLOW_ORIGIN,
+                HeaderValue::from_static("*"),
+            );
+            resp
+        }
+        Err(e) => {
+            error!(error = %e, endpoint = %telemetry_endpoint, "Failed to proxy media delete");
+            let mut resp = Response::new(Body::from("Telemetry service unavailable"));
+            *resp.status_mut() = StatusCode::BAD_GATEWAY;
+            resp.headers_mut().insert(
+                header::ACCESS_CONTROL_ALLOW_ORIGIN,
+                HeaderValue::from_static("*"),
+            );
+            resp
+        }
+    }
+}
+
+async fn media_transcript_proxy_handler(
+    State(state): State<Arc<AppState>>,
+    Path(filename): Path<String>,
+) -> impl IntoResponse {
+    let telemetry_endpoint = format!(
+        "{}/internal/media/transcript/{}",
+        state.telemetry_url.trim_end_matches('/'),
+        utf8_percent_encode(&filename, NON_ALPHANUMERIC)
+    );
+
+    match state.http_client.get(&telemetry_endpoint).send().await {
+        Ok(r) => {
+            let status = r.status();
+            let bytes = r.bytes().await.unwrap_or_default();
+
+            let mut resp = Response::new(Body::from(bytes));
+            *resp.status_mut() = status;
+            resp.headers_mut().insert(
+                header::CONTENT_TYPE,
+                HeaderValue::from_static("application/json"),
+            );
+            resp.headers_mut().insert(
+                header::ACCESS_CONTROL_ALLOW_ORIGIN,
+                HeaderValue::from_static("*"),
+            );
+            resp
+        }
+        Err(e) => {
+            error!(error = %e, endpoint = %telemetry_endpoint, "Failed to proxy transcript");
+            let mut resp = Response::new(Body::from("Telemetry service unavailable"));
+            *resp.status_mut() = StatusCode::BAD_GATEWAY;
+            resp.headers_mut().insert(
+                header::ACCESS_CONTROL_ALLOW_ORIGIN,
+                HeaderValue::from_static("*"),
+            );
+            resp
+        }
+    }
+}
+
+async fn media_summary_proxy_handler(
+    State(state): State<Arc<AppState>>,
+    Path(filename): Path<String>,
+) -> impl IntoResponse {
+    let telemetry_endpoint = format!(
+        "{}/internal/media/summary/{}",
+        state.telemetry_url.trim_end_matches('/'),
+        utf8_percent_encode(&filename, NON_ALPHANUMERIC)
+    );
+
+    match state.http_client.get(&telemetry_endpoint).send().await {
+        Ok(r) => {
+            let status = r.status();
+            let bytes = r.bytes().await.unwrap_or_default();
+
+            let mut resp = Response::new(Body::from(bytes));
+            *resp.status_mut() = status;
+            resp.headers_mut().insert(
+                header::CONTENT_TYPE,
+                HeaderValue::from_static("application/json"),
+            );
+            resp.headers_mut().insert(
+                header::ACCESS_CONTROL_ALLOW_ORIGIN,
+                HeaderValue::from_static("*"),
+            );
+            resp
+        }
+        Err(e) => {
+            error!(error = %e, endpoint = %telemetry_endpoint, "Failed to proxy summary");
             let mut resp = Response::new(Body::from("Telemetry service unavailable"));
             *resp.status_mut() = StatusCode::BAD_GATEWAY;
             resp.headers_mut().insert(
@@ -512,6 +763,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/ws/signaling/:room_id", get(signaling_ws_handler))
         .route("/v1/telemetry/stream", get(telemetry_proxy_handler))
         .route("/api/media/upload", post(media_upload_proxy_handler).options(media_upload_options))
+        .route("/api/media/list", get(media_list_proxy_handler))
+        .route("/api/media/view/:filename", get(media_view_proxy_handler))
+        .route("/api/media/delete/:filename", delete(media_delete_proxy_handler))
+        .route("/api/media/transcript/:filename", get(media_transcript_proxy_handler))
+        .route("/api/media/summary/:filename", get(media_summary_proxy_handler))
         .with_state(app_state);
 
     let addr = SocketAddr::from(([0, 0, 0, 0], gateway_port));

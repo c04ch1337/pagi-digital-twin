@@ -19,6 +19,9 @@ use tower_http::cors::{Any, CorsLayer};
 
 const DEFAULT_SYSTEM_PROMPT_TEMPLATE: &str = include_str!("../config/system_prompt.txt");
 
+// P50: Analyst System Prompt for transcript summarization
+const ANALYST_SYSTEM_PROMPT: &str = "Summarize the following transcript into 3 sentences. Identify key decisions and action items. Output strictly as JSON: { \"summary\": \"...\", \"decisions\": [], \"tasks\": [] }.";
+
 fn load_dotenv() {
     // We often run services from their crate directories (e.g. `cd backend-rust-orchestrator && cargo run`).
     // In that case, the repo-root `.env` won't be found if we only look at the current working directory.
@@ -74,6 +77,10 @@ pub mod orchestrator_admin {
     tonic::include_proto!("orchestrator_admin");
 }
 
+pub mod orchestrator {
+    tonic::include_proto!("orchestrator");
+}
+
 use memory_client::memory_service_client::MemoryServiceClient;
 use memory_client::{
     DeleteMemoryRequest,
@@ -96,6 +103,11 @@ use orchestrator_admin::{
     PromptHistoryEntry,
     UpdateSystemPromptRequest, UpdateSystemPromptResponse,
 };
+
+use orchestrator::orchestrator_service_server::{
+    OrchestratorService, OrchestratorServiceServer,
+};
+use orchestrator::{SummarizeRequest as GrpcSummarizeRequest, SummarizeResponse as GrpcSummarizeResponse};
 
 #[derive(Clone, Debug)]
 struct SystemPromptRepository {
@@ -337,6 +349,41 @@ fn default_page() -> i32 {
 
 fn default_page_size() -> i32 {
     50
+}
+
+#[derive(Debug, Deserialize)]
+struct SummarizeTranscriptRequest {
+    transcript: String,
+    filename: String,
+    twin_id: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct TranscriptInsights {
+    summary: String,
+    key_decisions: Vec<String>,
+    follow_up_tasks: Vec<String>,
+}
+
+#[derive(Debug, Serialize)]
+struct SummarizeTranscriptResponse {
+    success: bool,
+    insights: Option<TranscriptInsights>,
+    error: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct AnalystInsightsJson {
+    summary: String,
+
+    // Canonical names (P50)
+    #[serde(default)]
+    #[serde(alias = "key_decisions")]
+    decisions: Vec<String>,
+
+    #[serde(default)]
+    #[serde(alias = "follow_up_tasks")]
+    tasks: Vec<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -617,7 +664,12 @@ async fn llm_plan_openrouter(
     };
     let mut system_prompt = base.replace("{twin_id}", twin_id);
     if media_active {
-        system_prompt.push_str("\n\n[CONTEXT] media_active=true. The operator is currently recording and/or screensharing. You may use ActionListRecordings to discover recent stored recordings in the Telemetry Service.\n");
+        system_prompt.push_str("\n\n[CONTEXT: MULTI-MODAL ACTIVE]\n");
+        system_prompt.push_str("media_active=true - The operator is currently recording voice/video and/or sharing their screen in real-time.\n");
+        system_prompt.push_str("- You are aware that live multi-modal input (audio/video/screen) is being captured.\n");
+        system_prompt.push_str("- You can reference this in your responses (e.g., 'I see you're currently recording...').\n");
+        system_prompt.push_str("- Use ActionListRecordings to discover and reference stored recordings from previous sessions.\n");
+        system_prompt.push_str("- Provide context-aware responses that account for the visual/audio information being captured.\n");
     }
 
     // Build the API request body
@@ -686,6 +738,130 @@ async fn llm_plan_openrouter(
         .map_err(|e| format!("Failed to parse LLM JSON response: {}. Raw content: {}", e, content))?;
 
     Ok((llm_action, content.to_string()))
+}
+
+async fn openrouter_chat_json(
+    state: &AppState,
+    system_prompt: &str,
+    user_content: &str,
+    temperature: f32,
+) -> Result<String, String> {
+    let payload = json!({
+        "model": state.openrouter_model,
+        "messages": [
+            {
+                "role": "system",
+                "content": system_prompt,
+            },
+            {
+                "role": "user",
+                "content": user_content,
+            }
+        ],
+        "response_format": {
+            "type": "json_object"
+        },
+        "temperature": temperature
+    });
+
+    let response = state
+        .http_client
+        .post(&state.openrouter_url)
+        .header("Authorization", format!("Bearer {}", state.openrouter_api_key))
+        .header("Content-Type", "application/json")
+        .header("HTTP-Referer", "ferrellgas-agi-digital-twin")
+        .json(&payload)
+        .send()
+        .await
+        .map_err(|e| format!("OpenRouter API request failed: {}", e))?;
+
+    if !response.status().is_success() {
+        let status = response.status();
+        let error_text = response.text().await.unwrap_or_default();
+        return Err(format!(
+            "OpenRouter API returned error status {}: {}",
+            status, error_text
+        ));
+    }
+
+    let api_response: serde_json::Value = response
+        .json()
+        .await
+        .map_err(|e| format!("Failed to parse OpenRouter response: {}", e))?;
+
+    let content = api_response
+        .get("choices")
+        .and_then(|choices| choices.as_array())
+        .and_then(|arr| arr.first())
+        .and_then(|choice| choice.get("message"))
+        .and_then(|msg| msg.get("content"))
+        .and_then(|c| c.as_str())
+        .ok_or_else(|| "Failed to extract content from OpenRouter response".to_string())?;
+
+    Ok(content.to_string())
+}
+
+#[derive(Clone)]
+struct OrchestratorServiceImpl {
+    state: Arc<AppState>,
+}
+
+#[tonic::async_trait]
+impl OrchestratorService for OrchestratorServiceImpl {
+    async fn summarize_transcript(
+        &self,
+        request: tonic::Request<GrpcSummarizeRequest>,
+    ) -> Result<tonic::Response<GrpcSummarizeResponse>, tonic::Status> {
+        let req = request.into_inner();
+        let transcript = req.transcript_text;
+
+        if transcript.trim().is_empty() {
+            return Err(tonic::Status::invalid_argument(
+                "transcript_text must not be empty",
+            ));
+        }
+        if transcript.len() > 2_000_000 {
+            return Err(tonic::Status::invalid_argument(
+                "transcript_text too large (max 2,000,000 chars)",
+            ));
+        }
+
+        if self.state.llm_provider != "openrouter" {
+            return Err(tonic::Status::failed_precondition(format!(
+                "Summarization requires LLM_PROVIDER=openrouter; current={}",
+                self.state.llm_provider
+            )));
+        }
+
+        let user_content = format!("Transcript:\n\n{}", transcript);
+
+        let raw = openrouter_chat_json(&self.state, ANALYST_SYSTEM_PROMPT, &user_content, 0.2)
+            .await
+            .map_err(|e| {
+                error!(error = %e, "SummarizeTranscript OpenRouter call failed");
+                tonic::Status::unavailable(format!("LLM request failed: {}", e))
+            })?;
+
+        let insights: AnalystInsightsJson = serde_json::from_str(&raw).map_err(|e| {
+            error!(error = %e, content = %raw, "SummarizeTranscript invalid JSON from LLM");
+            tonic::Status::internal(format!(
+                "LLM returned invalid JSON for insights: {}",
+                e
+            ))
+        })?;
+
+        if insights.summary.trim().is_empty() {
+            return Err(tonic::Status::internal(
+                "LLM returned JSON but `summary` was empty",
+            ));
+        }
+
+        Ok(tonic::Response::new(GrpcSummarizeResponse {
+            summary: insights.summary,
+            key_decisions: insights.decisions,
+            follow_up_tasks: insights.tasks,
+        }))
+    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -1372,6 +1548,155 @@ async fn handle_prompt_history(
     ResponseJson(PromptHistoryHttpResponse { entries })
 }
 
+async fn handle_summarize_transcript(
+    State(state): State<Arc<AppState>>,
+    Json(request): Json<SummarizeTranscriptRequest>,
+) -> ResponseJson<SummarizeTranscriptResponse> {
+    info!(
+        filename = %request.filename,
+        transcript_length = request.transcript.len(),
+        "Summarizing transcript"
+    );
+
+    // Analyst system prompt for extracting insights
+    const ANALYST_SYSTEM_PROMPT: &str = r#"You are an AI Analyst specializing in extracting actionable insights from recorded conversations and research sessions.
+
+Your task is to analyze the provided transcript and extract:
+1. **Summary**: A concise 2-3 sentence overview of the main topics and outcomes discussed.
+2. **Key Decisions**: A list of important decisions, conclusions, or commitments made during the session.
+3. **Follow-up Tasks**: A list of actionable items, next steps, or tasks that were mentioned or implied.
+
+Format your response as JSON with this exact structure:
+{
+  "summary": "Brief overview of the session...",
+  "key_decisions": ["Decision 1", "Decision 2", ...],
+  "follow_up_tasks": ["Task 1", "Task 2", ...]
+}
+
+Be concise but comprehensive. Focus on actionable insights that would be valuable for future reference."#;
+
+    if state.llm_provider != "openrouter" {
+        warn!("Summarization requires OpenRouter LLM provider; current provider: {}", state.llm_provider);
+        return ResponseJson(SummarizeTranscriptResponse {
+            success: false,
+            insights: None,
+            error: Some(format!("Summarization requires OpenRouter LLM provider; current: {}", state.llm_provider)),
+        });
+    }
+
+    // Build the API request body
+    let payload = json!({
+        "model": state.openrouter_model,
+        "messages": [
+            {
+                "role": "system",
+                "content": ANALYST_SYSTEM_PROMPT
+            },
+            {
+                "role": "user",
+                "content": format!("Analyze this transcript:\n\n{}", request.transcript)
+            }
+        ],
+        "response_format": {
+            "type": "json_object"
+        },
+        "temperature": 0.3
+    });
+
+    // Make the API call to OpenRouter
+    let response = match state
+        .http_client
+        .post(&state.openrouter_url)
+        .header("Authorization", format!("Bearer {}", state.openrouter_api_key))
+        .header("Content-Type", "application/json")
+        .header("HTTP-Referer", "ferrellgas-agi-digital-twin")
+        .json(&payload)
+        .send()
+        .await
+    {
+        Ok(r) => r,
+        Err(e) => {
+            error!(error = %e, "OpenRouter API request failed for transcript summarization");
+            return ResponseJson(SummarizeTranscriptResponse {
+                success: false,
+                insights: None,
+                error: Some(format!("OpenRouter API request failed: {}", e)),
+            });
+        }
+    };
+
+    if !response.status().is_success() {
+        let status = response.status();
+        let error_text = response.text().await.unwrap_or_default();
+        error!(status = %status, error = %error_text, "OpenRouter API returned error");
+        return ResponseJson(SummarizeTranscriptResponse {
+            success: false,
+            insights: None,
+            error: Some(format!("OpenRouter API returned error status {}: {}", status, error_text)),
+        });
+    }
+
+    // Parse the response
+    let api_response: serde_json::Value = match response.json().await {
+        Ok(r) => r,
+        Err(e) => {
+            error!(error = %e, "Failed to parse OpenRouter response");
+            return ResponseJson(SummarizeTranscriptResponse {
+                success: false,
+                insights: None,
+                error: Some(format!("Failed to parse OpenRouter response: {}", e)),
+            });
+        }
+    };
+
+    // Extract the content from the response
+    let content = match api_response
+        .get("choices")
+        .and_then(|choices| choices.as_array())
+        .and_then(|arr| arr.first())
+        .and_then(|choice| choice.get("message"))
+        .and_then(|msg| msg.get("content"))
+        .and_then(|c| c.as_str())
+    {
+        Some(c) => c,
+        None => {
+            error!("Failed to extract content from OpenRouter response");
+            return ResponseJson(SummarizeTranscriptResponse {
+                success: false,
+                insights: None,
+                error: Some("Failed to extract content from OpenRouter response".to_string()),
+            });
+        }
+    };
+
+    // Parse the structured JSON into TranscriptInsights
+    let insights: TranscriptInsights = match serde_json::from_str(content) {
+        Ok(i) => i,
+        Err(e) => {
+            error!(error = %e, content = %content, "Failed to parse insights JSON");
+            return ResponseJson(SummarizeTranscriptResponse {
+                success: false,
+                insights: None,
+                error: Some(format!("Failed to parse insights JSON: {}. Raw content: {}", e, content)),
+            });
+        }
+    };
+
+    info!(
+        filename = %request.filename,
+        summary_length = insights.summary.len(),
+        decisions_count = insights.key_decisions.len(),
+        tasks_count = insights.follow_up_tasks.len(),
+        "Transcript summarized successfully"
+    );
+
+    ResponseJson(SummarizeTranscriptResponse {
+        success: true,
+        insights: Some(insights),
+        error: None,
+    })
+}
+
 async fn handle_prompt_restore(
     State(state): State<AppState>,
     Json(request): Json<PromptRestoreHttpRequest>,
@@ -1423,8 +1748,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Load environment variables
     load_dotenv();
 
-    let llm_provider = env::var("LLM_PROVIDER")
-        .unwrap_or_else(|_| "openrouter".to_string())
+    let mut llm_provider = env::var("LLM_PROVIDER")
+        .unwrap_or_else(|_| "mock".to_string())
         .to_lowercase();
 
     // Get service addresses
@@ -1449,8 +1774,20 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     });
 
     // Get OpenRouter configuration (only required when LLM_PROVIDER=openrouter)
+    // If openrouter is requested but API key is missing, fall back to mock provider
     let openrouter_api_key = if llm_provider == "openrouter" {
-        env::var("OPENROUTER_API_KEY").expect("OPENROUTER_API_KEY environment variable is required")
+        match env::var("OPENROUTER_API_KEY") {
+            Ok(key) if !key.trim().is_empty() => key,
+            _ => {
+                warn!(
+                    "LLM_PROVIDER is set to 'openrouter' but OPENROUTER_API_KEY is not set or is empty. \
+                     Falling back to 'mock' provider. Set OPENROUTER_API_KEY in your environment to use OpenRouter."
+                );
+                // Fall back to mock provider if API key is missing
+                llm_provider = "mock".to_string();
+                String::new()
+            }
+        }
     } else {
         String::new()
     };
@@ -1576,9 +1913,22 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .parse()
         .expect("Invalid admin gRPC address");
 
+    // Public Orchestrator gRPC server (summarization endpoint)
+    let orchestrator_grpc_port = env::var("ORCHESTRATOR_GRPC_PORT")
+        .unwrap_or_else(|_| "50057".to_string())
+        .parse::<u16>()
+        .expect("ORCHESTRATOR_GRPC_PORT must be a valid port number");
+    let orchestrator_grpc_addr = format!("0.0.0.0:{}", orchestrator_grpc_port)
+        .parse()
+        .expect("Invalid orchestrator gRPC address");
+
     let admin_svc = OrchestratorAdminServiceImpl { prompt_mgr };
+    let orchestrator_svc = OrchestratorServiceImpl {
+        state: Arc::new(state.clone()),
+    };
 
     info!(addr = %admin_addr, port = admin_grpc_port, "Starting Orchestrator Admin gRPC server");
+    info!(addr = %orchestrator_grpc_addr, port = orchestrator_grpc_port, "Starting Orchestrator gRPC server");
     info!(addr = %addr, port = http_port, "Starting Orchestrator HTTP server");
 
     let listener = tokio::net::TcpListener::bind(&addr).await?;
@@ -1586,6 +1936,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let grpc_fut = tonic::transport::Server::builder()
         .add_service(OrchestratorAdminServiceServer::new(admin_svc))
         .serve(admin_addr);
+
+    let orchestrator_grpc_fut = tonic::transport::Server::builder()
+        .add_service(OrchestratorServiceServer::new(orchestrator_svc))
+        .serve(orchestrator_grpc_addr);
 
     let http_fut = axum::serve(listener, app);
 
@@ -1596,14 +1950,21 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             .map_err(|e| anyhow::anyhow!("admin gRPC server error: {e}"))
     });
 
+    let orchestrator_grpc_task = tokio::spawn(async move {
+        orchestrator_grpc_fut
+            .await
+            .map_err(|e| anyhow::anyhow!("orchestrator gRPC server error: {e}"))
+    });
+
     let http_task = tokio::spawn(async move {
         http_fut
             .await
             .map_err(|e| anyhow::anyhow!("http server error: {e}"))
     });
 
-    let (grpc_res, http_res) = tokio::join!(grpc_task, http_task);
+    let (grpc_res, orchestrator_grpc_res, http_res) = tokio::join!(grpc_task, orchestrator_grpc_task, http_task);
     grpc_res.map_err(|e| anyhow::anyhow!("admin gRPC task join error: {e}"))??;
+    orchestrator_grpc_res.map_err(|e| anyhow::anyhow!("orchestrator gRPC task join error: {e}"))??;
     http_res.map_err(|e| anyhow::anyhow!("http task join error: {e}"))??;
 
     Ok(())

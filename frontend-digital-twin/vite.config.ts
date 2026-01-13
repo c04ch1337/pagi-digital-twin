@@ -8,6 +8,18 @@ export default defineConfig(({ mode }) => {
       server: {
         port: 3000,
         host: '0.0.0.0',
+        // Local dev convenience: keep the frontend same-origin while proxying API calls
+        // to the Rust Gateway (which then proxies to Telemetry).
+        proxy: {
+          '/api': {
+            target: env.VITE_GATEWAY_HTTP_URL || 'http://127.0.0.1:8181',
+            changeOrigin: true,
+          },
+          '/v1': {
+            target: env.VITE_GATEWAY_HTTP_URL || 'http://127.0.0.1:8181',
+            changeOrigin: true,
+          },
+        },
       },
       plugins: [react()],
       define: {

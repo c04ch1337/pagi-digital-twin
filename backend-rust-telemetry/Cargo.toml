@@ -14,4 +14,12 @@ dotenvy = "0.15"
 sysinfo = "0.30"
 futures-core = "0.3"
 async-stream = "0.3"
+tonic = { version = "0.12.3", features = ["transport"] }
+prost = "0.13.5"
+prost-types = "0.13.5"
+uuid = { version = "1.6", features = ["v4", "serde"] }
+notify = "6.1"
+
+[build-dependencies]
+tonic-build = "0.12.3"
 

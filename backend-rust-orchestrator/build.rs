@@ -19,11 +19,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             &["../backend-rust-tools/proto/"],
         )?;
 
-    // Build orchestrator admin proto (server + client)
+    // Build orchestrator protos (server + client)
     tonic_build::configure()
         .build_server(true)
         .build_client(true)
-        .compile_protos(&["proto/orchestrator_admin.proto"], &["proto/"])?;
+        .compile_protos(
+            &[
+                "proto/orchestrator.proto",
+                "proto/orchestrator_admin.proto",
+            ],
+            &["proto/"],
+        )?;
 
     Ok(())
 }

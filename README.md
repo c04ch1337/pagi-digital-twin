@@ -13,11 +13,12 @@
 5. [Technology Stack](#technology-stack)
 6. [Getting Started](#getting-started)
 7. [Frontend Application & User Interface](#-frontend-application--user-interface)
-8. [Service Details](#service-details)
-9. [API Endpoints](#api-endpoints)
-10. [Development Guide](#development-guide)
-11. [Troubleshooting](#troubleshooting)
-12. [Appendix: Production Build & Deployment](#appendix-production-build--deployment)
+8. [Audio/Video & Screenshare Recording](#-audiovideo--screenshare-recording)
+9. [Service Details](#service-details)
+10. [API Endpoints](#api-endpoints)
+11. [Development Guide](#development-guide)
+12. [Troubleshooting](#troubleshooting)
+13. [Appendix: Production Build & Deployment](#appendix-production-build--deployment)
 
 > **📚 For detailed architecture documentation, implementation choices, and production recommendations, see [`docs/PROJECT_DELIVERY_SUMMARY.md`](docs/PROJECT_DELIVERY_SUMMARY.md)**
 
@@ -228,7 +229,7 @@ graph TB
 
 | Service | Language | Framework | Ports | Purpose | Key Features |
 |---------|----------|-----------|-------|---------|--------------|
-| **Rust Orchestrator** | Rust | Axum | 8182 (HTTP) | Planning + policy mediation | • Structured planning via OpenRouter<br>• Human-in-the-loop (HITL) gating<br>• Deterministic fallback for offline work<br>• Typed JSON action contracts |
+| **Rust Orchestrator** | Rust | Axum | 8182 (HTTP) | Planning + policy mediation | • Structured planning via OpenRouter or mock<br>• Human-in-the-loop (HITL) gating<br>• Deterministic fallback for offline work<br>• Typed JSON action contracts<br>• Multi-modal awareness (media recordings)<br>• Transcript summarization (gRPC) |
 
 #### Infrastructure Layer
 
@@ -345,8 +346,10 @@ sequenceDiagram
 **Key Flow Characteristics:**
 - **Human-in-the-Loop (HITL):** Memory queries and tool executions require explicit user approval
 - **Structured Planning:** Orchestrator uses OpenRouter with JSON response format for deterministic parsing
-- **Fail-Safe Fallback:** Mock planner available when OpenRouter is unavailable
+- **Fail-Safe Fallback:** Mock planner available when OpenRouter is unavailable or API key is missing (automatic fallback)
 - **Self-Developing Capabilities:** Orchestrator can create new tools (via Build Service) and improve its own system prompt
+- **Multi-Modal Awareness:** Orchestrator can access media recordings (voice/video/screen) from Telemetry Service
+- **Transcript Summarization:** gRPC service for automated transcript analysis (P50)
 - **Observability:** All actions are traceable via Jaeger and metered via Prometheus
 
 ### Legacy Agent Planner Request Flow
@@ -494,14 +497,10 @@ This is the **production-ready Tri-Layer architecture** with all services contai
 - **Multi-Service Coordination:** Complex deployments requiring multiple services and databases
 
 ```bash
-# 0. (Optional) copy env template
-# Linux/macOS/WSL/Git Bash:
-#   cp .env.example .env
-# Windows (cmd.exe):
-#   copy .env.example .env
-
-# Example (bash):
-cp .env.example .env
+# 0. (Optional) Create .env file for configuration
+# See ENV_SETUP.md or docs/CONFIGURATION.md for details
+# For development without API keys, LLM_PROVIDER defaults to "mock"
+# For production, set LLM_PROVIDER=openrouter and OPENROUTER_API_KEY
 
 # 1. Start all services
 docker compose up --build
@@ -536,8 +535,8 @@ For local development without Docker overhead, use the bare metal setup.
 cp .env.example .env
 
 # 1. Start core services
-# NOTE: This boots with LLM_PROVIDER=openrouter by default (requires OPENROUTER_API_KEY).
-# Set LLM_PROVIDER=mock for development without API keys.
+# NOTE: By default, LLM_PROVIDER=mock (no API key required).
+# Set LLM_PROVIDER=openrouter and OPENROUTER_API_KEY for real AI planning.
 python scripts/run_all_dev.py --profile core
 
 # Or (if you have Make):
@@ -564,7 +563,9 @@ The Tri-Layer architecture includes several critical implementation choices:
 
 1. **Structured Planning with OpenRouter**
    - Orchestrator uses OpenRouter for typed JSON decision-making
-   - Deterministic fallback to mock planner for offline/E2E testing
+   - Configurable via `LLM_PROVIDER` environment variable (`openrouter` or `mock`)
+   - Automatic fallback to mock planner if `LLM_PROVIDER=openrouter` but `OPENROUTER_API_KEY` is missing
+   - Default is `mock` for development without API keys
    - See [`backend-rust-orchestrator/src/main.rs`](backend-rust-orchestrator/src/main.rs) for implementation
 
 2. **Human-in-the-Loop (HITL) Gating**
@@ -1375,7 +1376,10 @@ The right sidebar provides real-time monitoring and system information:
 | Method | Endpoint | Description | Request Body | Response |
 |--------|----------|-------------|--------------|----------|
 | `GET` | `/health` | Health check | - | `{service, status, version}` |
-| `POST` | `/v1/chat` | Chat request with structured planning | `{message: string, twin_id: string, session_id: string, namespace?: string}` | `{response: string, job_id: string, actions_taken: string[], status: string, issued_command?: object, raw_orchestrator_decision?: string}` |
+| `POST` | `/v1/chat` | Chat request with structured planning | `{message: string, twin_id: string, session_id: string, namespace?: string, media_active?: boolean}` | `{response: string, job_id: string, actions_taken: string[], status: string, issued_command?: object, raw_orchestrator_decision?: string}` |
+
+**gRPC Service (P50 - Transcript Summarization):**
+- `SummarizeTranscript` - Analyzes transcripts and extracts key decisions and action items
 
 **Example Request:**
 ```bash
@@ -1385,9 +1389,12 @@ curl -X POST http://localhost:8182/v1/chat \
     "message": "Search for security threats",
     "twin_id": "twin-1",
     "session_id": "session-123",
-    "namespace": "default"
+    "namespace": "default",
+    "media_active": false
   }'
 ```
+
+**Note:** Set `media_active: true` when the user is actively recording voice/video or sharing screen. This enables multi-modal awareness in the orchestrator's decision-making.
 
 **Example Response:**
 ```json
@@ -1410,6 +1417,7 @@ curl -X POST http://localhost:8182/v1/chat \
 - `ActionTool` - Execute pre-compiled tool (requires HITL approval)
 - `ActionBuildTool` - Create new tool via Build Service (P38)
 - `ActionSelfImprove` - Update system prompt (P39)
+- `ActionListRecordings` - List media recordings from Telemetry Service (P50)
 - `ActionResponse` - Direct conversational response
 
 **Use Cases:**
@@ -1417,6 +1425,8 @@ curl -X POST http://localhost:8182/v1/chat \
 - **Tool Creation:** Self-developing agents create new tools on-demand
 - **Self-Improvement:** Agents enhance their own capabilities
 - **Memory Operations:** Semantic search and context retrieval
+- **Media Analysis:** Access and analyze voice/video/screen recordings from Telemetry Service
+- **Transcript Summarization:** Automated analysis of conversation transcripts for key decisions
 
 ### Rust Build Service (gRPC; port 50055)
 
@@ -1424,6 +1434,18 @@ curl -X POST http://localhost:8182/v1/chat \
 |--------|----------|-------------|---------|----------|
 | `gRPC` | `CreateTool` | Compile Rust code into executable tool | `{tool_name: string, tool_code: string}` | `{stdout: string, stderr: string, exit_code: int32}` |
 | `gRPC` | `HealthCheck` | Service health check | `{}` | `{status: string}` |
+
+### Rust Orchestrator (gRPC; port 50057)
+
+| Method | Endpoint | Description | Request | Response |
+|--------|----------|-------------|---------|----------|
+| `gRPC` | `SummarizeTranscript` | Analyze transcript and extract key decisions (P50) | `{transcript_text: string}` | `{summary: string, key_decisions: string[], follow_up_tasks: string[]}` |
+
+**Configuration:**
+- `ORCHESTRATOR_GRPC_PORT` (default: `50057`) - Public gRPC service port
+- `ORCHESTRATOR_ADMIN_GRPC_PORT` (default: `50056`) - Admin gRPC service port (internal)
+
+**Note:** The Orchestrator also exposes an HTTP API on port 8182 (see [Rust Orchestrator HTTP API](#rust-orchestrator-tri-layer-architecture-port-8182) above).
 
 **Example gRPC Request (via grpcurl):**
 ```bash
@@ -1481,6 +1503,249 @@ See [`backend-rust-build/README.md`](backend-rust-build/README.md) and [`docs/bu
 - **Real-time Monitoring:** Frontend displays live system metrics
 - **Performance Analysis:** Track resource usage over time
 - **Media Recording:** Store uploaded video/audio files for analysis
+
+---
+
+## 🎥 Audio/Video & Screenshare Recording
+
+The PAGI Digital Twin platform includes comprehensive multi-modal recording capabilities that enable agents to access and analyze audio, video, and screen recordings for enhanced context awareness.
+
+### Overview
+
+The recording system provides:
+- **Browser-based Recording:** Frontend captures audio (microphone), video (camera), and screen shares using Web APIs
+- **Automatic Storage:** Recordings are automatically uploaded and stored by the Telemetry Service
+- **Multi-Modal Context:** Orchestrator can access recordings to provide context-aware responses
+- **Transcription Support:** Audio/video recordings can be transcribed for text analysis
+- **Media Gallery:** Frontend provides a gallery interface to browse and manage recordings
+
+### Recording Workflow
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant Frontend
+    participant Gateway
+    participant Telemetry
+    participant Orchestrator
+
+    User->>Frontend: Enable Mic/Camera/Screen
+    Frontend->>Frontend: Request MediaStream (getUserMedia/getDisplayMedia)
+    Frontend->>Frontend: Start MediaRecorder
+    User->>Frontend: Start Recording
+    Frontend->>Frontend: Capture MediaStream chunks
+    User->>Frontend: Stop Recording
+    Frontend->>Frontend: Create Blob from chunks
+    Frontend->>Gateway: POST /api/media/upload (multipart)
+    Gateway->>Telemetry: Proxy to /v1/media/upload
+    Telemetry->>Telemetry: Store in recordings/ directory
+    Telemetry->>Telemetry: Append to recordings.jsonl log
+    Telemetry->>Frontend: SSE Event: "media" (broadcast)
+    Telemetry-->>Gateway: {success, filename, stored_path}
+    Gateway-->>Frontend: Upload confirmation
+    
+    Note over User,Orchestrator: Agent Access
+    User->>Orchestrator: Chat: "list recordings"
+    Orchestrator->>Telemetry: gRPC: ListRecordings()
+    Telemetry-->>Orchestrator: List of recordings
+    Orchestrator-->>User: Display recordings with metadata
+```
+
+### Frontend Recording Features
+
+**Media Controls Component:**
+- **Microphone Toggle:** Enable/disable audio recording
+- **Camera Toggle:** Enable/disable video recording from webcam
+- **Screen Share Toggle:** Enable/disable screen capture recording
+- **Record Button:** Start/stop recording session
+- **Live Preview:** Picture-in-picture preview of active video source
+- **Upload Status:** Real-time upload progress indicator
+
+**Supported Formats:**
+- **Video:** WebM (preferred), MP4
+- **Audio:** WebM audio, MP4 audio
+- **Screen:** WebM screen capture with optional audio
+
+**Recording States:**
+- `micEnabled` - Microphone is active
+- `cameraEnabled` - Camera is active
+- `screenEnabled` - Screen share is active
+- `isRecording` - Recording session in progress
+- `isUploading` - Upload to server in progress
+- `activeVideoSource` - Current video source ('screen' | 'camera' | null)
+
+### Telemetry Service Storage
+
+**Storage Structure:**
+```
+telemetry_storage/
+├── recordings/
+│   ├── rec_twin-1_1234567890.webm
+│   ├── rec_twin-2_1234567891.webm
+│   └── recordings.jsonl          # Metadata log
+└── media/                         # Legacy storage
+    └── rec_*.{webm,mp4}
+```
+
+**Recording Metadata (recordings.jsonl):**
+Each line contains JSON metadata:
+```json
+{
+  "ts_ms": 1234567890,
+  "twin_id": "twin-sentinel",
+  "filename": "rec_twin-sentinel_1234567890.webm",
+  "mime_type": "video/webm",
+  "size_bytes": 1048576,
+  "stored_path": "/path/to/rec_twin-sentinel_1234567890.webm"
+}
+```
+
+**API Endpoints:**
+- `POST /v1/media/upload` - Upload recording (multipart form data)
+- `GET /v1/media/list?twin_id=<id>&limit=<n>` - List recordings
+- `GET /v1/media/transcript?filename=<name>` - Get transcription (if available)
+
+### Orchestrator Integration
+
+**Multi-Modal Awareness:**
+When a user is actively recording, the orchestrator receives `media_active: true` in chat requests, enabling:
+- **Context-Aware Responses:** Agent acknowledges active recording session
+- **Recording References:** Agent can reference stored recordings from previous sessions
+- **Multi-Modal Analysis:** Agent can request transcriptions or summaries of recordings
+
+**Action Types:**
+- `ActionListRecordings` - Query available recordings
+  ```json
+  {
+    "action_type": "ActionListRecordings",
+    "details": {
+      "twin_id": "optional-filter",
+      "limit": 20
+    }
+  }
+  ```
+
+**Example Use Cases:**
+1. **Security Incident Documentation:**
+   - User records screen during security incident
+   - Agent references recording in analysis
+   - Recording stored for compliance/audit
+
+2. **Training & Onboarding:**
+   - User records training session
+   - Agent summarizes key points from recording
+   - Transcription stored for future reference
+
+3. **Multi-Modal Context:**
+   - User shares screen while asking questions
+   - Agent sees visual context and provides relevant responses
+   - Recording saved for later analysis
+
+### WebSocket Signaling
+
+**Signaling Endpoint:**
+- `ws://localhost:8181/ws/signaling/:room_id`
+
+**Purpose:**
+- Coordinate media streams between multiple participants
+- Real-time signaling for WebRTC connections
+- Session management for multi-user scenarios
+
+**Use Cases:**
+- **Multi-Agent Coordination:** Multiple agents can coordinate via signaling
+- **Screen Sharing Sessions:** Manage screen share permissions
+- **Media Synchronization:** Sync recordings across multiple clients
+
+### Transcription & Analysis
+
+**Transcription Service:**
+- Audio/video recordings can be transcribed to text
+- Transcripts stored alongside recordings
+- Orchestrator can access transcripts via `SummarizeTranscript` gRPC endpoint
+
+**Transcript Format:**
+```json
+{
+  "transcript": "Full text transcription...",
+  "summary": "3-sentence summary",
+  "key_decisions": ["Decision 1", "Decision 2"],
+  "follow_up_tasks": ["Task 1", "Task 2"]
+}
+```
+
+**Access Methods:**
+1. **Direct API:** `GET /v1/media/transcript?filename=<name>`
+2. **Orchestrator gRPC:** `SummarizeTranscript` service
+3. **Agent Actions:** Agent can request transcriptions via chat
+
+### Configuration
+
+**Environment Variables:**
+```bash
+# Telemetry Service
+TELEMETRY_STORAGE_DIR=./telemetry_storage    # Storage root directory
+TELEMETRY_PORT=8183                          # Service port
+
+# Frontend (optional)
+VITE_MEDIA_UPLOAD_URL=/api/media/upload      # Upload endpoint (default)
+```
+
+**Storage Limits:**
+- No built-in size limits (limited by disk space)
+- Recordings stored indefinitely unless manually deleted
+- Consider implementing retention policies for production
+
+### Privacy & Security
+
+**Privacy Considerations:**
+- **User Consent:** Recording requires explicit user action (start recording button)
+- **Visual Indicators:** Red recording indicator shows when recording is active
+- **Local Processing:** Recordings processed in browser before upload
+- **Secure Storage:** Recordings stored in isolated telemetry storage directory
+
+**Security Features:**
+- **Twin ID Isolation:** Recordings tagged with `twin_id` for multi-tenant isolation
+- **Filename Sanitization:** Twin IDs sanitized to prevent path traversal
+- **MIME Type Validation:** Only supported media types accepted
+- **Access Control:** Orchestrator requires HITL approval for sensitive operations
+
+### Media Gallery
+
+**Frontend Gallery Features:**
+- Browse all recordings for current twin
+- View recording metadata (timestamp, size, duration)
+- Access transcriptions (if available)
+- Download recordings
+- Delete recordings
+
+**Access:**
+- Available via frontend Media Gallery component
+- Integrated into main application navigation
+- Filterable by twin_id and date range
+
+### Troubleshooting
+
+**Common Issues:**
+
+1. **Recording Not Starting:**
+   - Check browser permissions (microphone/camera/screen)
+   - Verify MediaStream API support
+   - Check browser console for errors
+
+2. **Upload Failing:**
+   - Verify Gateway service is running (port 8181)
+   - Check Telemetry service is running (port 8183)
+   - Verify storage directory permissions
+
+3. **Recordings Not Appearing:**
+   - Check `recordings.jsonl` log file
+   - Verify twin_id matches in queries
+   - Check storage directory exists and is writable
+
+4. **Transcription Not Available:**
+   - Transcription is optional feature
+   - Requires additional service configuration
+   - Check transcription worker logs
 
 ---
 
@@ -1607,7 +1872,7 @@ pagi-chat-desktop/
 
 #### Backend Services
 
-Create a `.env` file (optional; defaults exist). Start with [`.env.example`](.env.example:1).
+Create a `.env` file (optional; defaults exist). See [`ENV_SETUP.md`](ENV_SETUP.md) or [`docs/CONFIGURATION.md`](docs/CONFIGURATION.md) for detailed configuration instructions.
 
 ```bash
 # Service Ports (bare-metal harness)
@@ -1631,7 +1896,11 @@ MODEL_GATEWAY_GRPC_TIMEOUT_SECONDS=5
 # Logging
 LOG_LEVEL=info
 
-# OpenRouter (for Orchestrator LLM planning)
+# LLM Provider (orchestrator planning)
+# Options: "mock" (default, no API key needed) or "openrouter" (requires OPENROUTER_API_KEY)
+LLM_PROVIDER=mock
+
+# OpenRouter (for Orchestrator LLM planning - only required if LLM_PROVIDER=openrouter)
 OPENROUTER_API_KEY=YOUR_OPENROUTER_API_KEY_HERE
 OPENROUTER_MODEL=google/gemini-2.0-flash-exp
 OPENROUTER_URL=https://openrouter.ai/api/v1/chat/completions

@@ -78,8 +78,10 @@ export function useMediaStream() {
   const [lastRecording, setLastRecording] = React.useState<RecordingResult | null>(null);
   const [error, setError] = React.useState<string | null>(null);
 
+  // Prefer same-origin upload path so this can be deployed behind a reverse proxy.
+  // In local dev, `vite.config.ts` proxies `/api` to the Gateway.
   const uploadUrl = ((import.meta as any).env?.VITE_MEDIA_UPLOAD_URL as string | undefined)
-    || 'http://127.0.0.1:8181/api/media/upload';
+    || '/api/media/upload';
 
   const syncPreviewStream = React.useCallback(() => {
     const display = displayStreamRef.current;
@@ -110,15 +112,31 @@ export function useMediaStream() {
     if (userStreamRef.current) return userStreamRef.current;
 
     setError(null);
-    const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-    userStreamRef.current = stream;
-    return stream;
-  }, []);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+
+      // Privacy-first defaults:
+      // browsers typically start tracks enabled; immediately match our toggles.
+      stream.getAudioTracks().forEach((t) => (t.enabled = micEnabled));
+      stream.getVideoTracks().forEach((t) => (t.enabled = cameraEnabled));
+
+      userStreamRef.current = stream;
+      return stream;
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      setError(`[media] getUserMedia failed: ${msg}`);
+      throw e;
+    }
+  }, [cameraEnabled, micEnabled]);
 
   const enableMic = React.useCallback(async () => {
-    const stream = await ensureUserStream();
-    stream.getAudioTracks().forEach((t) => (t.enabled = true));
-    setMicEnabled(true);
+    try {
+      const stream = await ensureUserStream();
+      stream.getAudioTracks().forEach((t) => (t.enabled = true));
+      setMicEnabled(true);
+    } catch {
+      // error already set
+    }
   }, [ensureUserStream]);
 
   const disableMic = React.useCallback(() => {
@@ -128,9 +146,13 @@ export function useMediaStream() {
   }, []);
 
   const enableCamera = React.useCallback(async () => {
-    const stream = await ensureUserStream();
-    stream.getVideoTracks().forEach((t) => (t.enabled = true));
-    setCameraEnabled(true);
+    try {
+      const stream = await ensureUserStream();
+      stream.getVideoTracks().forEach((t) => (t.enabled = true));
+      setCameraEnabled(true);
+    } catch {
+      // error already set
+    }
   }, [ensureUserStream]);
 
   const disableCamera = React.useCallback(() => {
@@ -141,17 +163,22 @@ export function useMediaStream() {
 
   const startScreenShare = React.useCallback(async () => {
     setError(null);
-    const stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
-    displayStreamRef.current = stream;
-    setScreenEnabled(true);
+    try {
+      const stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
+      displayStreamRef.current = stream;
+      setScreenEnabled(true);
 
-    // If the user stops screensharing via the browser UI, reflect it in our state.
-    stream.getVideoTracks().forEach((t) => {
-      t.onended = () => {
-        displayStreamRef.current = null;
-        setScreenEnabled(false);
-      };
-    });
+      // If the user stops screensharing via the browser UI, reflect it in our state.
+      stream.getVideoTracks().forEach((t) => {
+        t.onended = () => {
+          displayStreamRef.current = null;
+          setScreenEnabled(false);
+        };
+      });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      setError(`[media] getDisplayMedia failed: ${msg}`);
+    }
   }, []);
 
   const stopScreenShare = React.useCallback(() => {

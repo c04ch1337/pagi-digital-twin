@@ -13,6 +13,7 @@ import CommandModal from './components/CommandModal';
 import MediaControls from './components/MediaControls';
 import MemoryExplorer from './pages/memory-explorer';
 import Evolution from './pages/evolution';
+import MediaGallery from './pages/MediaGallery';
 import { executeJobLifecycle } from './services/orchestrator';
 import { usePagi } from './context/PagiContext';
 import { useTelemetry } from './context/TelemetryContext';
@@ -38,6 +39,17 @@ const App: React.FC = () => {
   const [activeCommand, setActiveCommand] = useState<AgentCommand | null>(null);
   const [commandMessageId, setCommandMessageId] = useState<string | null>(null);
   const [activeDecisionTrace, setActiveDecisionTrace] = useState<string | null>(null);
+
+  // Notify orchestrator when gallery is open (for context awareness)
+  useEffect(() => {
+    // Set a flag that the orchestrator can check via media_active or a separate mechanism
+    // For now, we'll use a localStorage flag that can be checked
+    if (view === 'gallery') {
+      localStorage.setItem('pagi_gallery_active', 'true');
+    } else {
+      localStorage.removeItem('pagi_gallery_active');
+    }
+  }, [view]);
 
   // Prevent re-processing the same issued_command on every render.
   // `protocolMessages` is an append-only stream, so without this, the modal
@@ -385,6 +397,12 @@ const App: React.FC = () => {
             onClose={() => setView('orchestrator')}
           />
         );
+      case 'gallery':
+        return (
+          <MediaGallery 
+            onClose={() => setView('orchestrator')}
+          />
+        );
       case 'chat':
       default:
         return (
@@ -439,6 +457,8 @@ const App: React.FC = () => {
                   ? 'Neural Archive Explorer'
                   : view === 'evolution'
                   ? 'Evolutionary Timeline'
+                  : view === 'gallery'
+                  ? 'Neural Archive'
                   : 'Tactical Agent'}
               </h1>
             </div>
@@ -499,7 +519,7 @@ const App: React.FC = () => {
         onDeny={handleCommandDeny}
       />
 
-      <MediaControls />
+      <MediaControls onOpenGallery={() => setView('gallery')} />
     </div>
   );
 };

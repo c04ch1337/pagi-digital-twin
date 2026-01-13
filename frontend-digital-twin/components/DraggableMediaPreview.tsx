@@ -11,8 +11,8 @@ export default function DraggableMediaPreview({ stream, activeVideoSource }: Pro
   const containerRef = React.useRef<HTMLDivElement | null>(null);
 
   const [pos, setPos] = React.useState<{ x: number; y: number }>(() => ({
-    x: Math.max(20, window.innerWidth - 200),
-    y: Math.max(20, window.innerHeight - 160),
+    x: Math.max(20, window.innerWidth - 240),
+    y: Math.max(20, window.innerHeight - 190),
   }));
 
   const dragRef = React.useRef<{
@@ -79,7 +79,7 @@ export default function DraggableMediaPreview({ stream, activeVideoSource }: Pro
     <div
       ref={containerRef}
       className="fixed z-50 select-none rounded-lg border border-white/20 bg-black/50 shadow-lg backdrop-blur"
-      style={{ left: pos.x, top: pos.y, width: 160 }}
+      style={{ left: pos.x, top: pos.y, width: 200, maxWidth: 200 }}
       onPointerDown={(ev) => {
         const rect = (ev.currentTarget as HTMLDivElement).getBoundingClientRect();
         dragRef.current.dragging = true;
@@ -94,7 +94,7 @@ export default function DraggableMediaPreview({ stream, activeVideoSource }: Pro
 
       <video
         ref={videoRef}
-        className="block h-[90px] w-full rounded-b-lg object-cover"
+        className="block h-[112px] w-full rounded-b-lg object-cover"
         autoPlay
         muted
         playsInline

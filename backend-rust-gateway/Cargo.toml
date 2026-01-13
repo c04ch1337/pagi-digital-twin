@@ -17,3 +17,4 @@ chrono = { version = "0.4", features = ["serde"] }
 anyhow = "1.0"
 tower-http = { version = "0.5.2", features = ["trace", "cors"] }
 futures = "0.3"
+percent-encoding = "2.3"

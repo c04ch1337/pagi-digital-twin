@@ -16,8 +16,13 @@ use std::{
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
 use sysinfo::{CpuRefreshKind, MemoryRefreshKind, RefreshKind, System};
+use tokio::io::AsyncWriteExt;
 use tokio::sync::broadcast;
 use tracing::{info, warn};
+
+mod media;
+mod transcription_worker;
+mod orchestrator_client;
 
 #[derive(Debug, Serialize)]
 struct TelemetryPayload {
@@ -180,11 +185,163 @@ struct MediaListItem {
     size_bytes: u64,
     stored_path: String,
     ts_ms: Option<u128>,
+    #[serde(default)]
+    has_transcript: bool,
+    #[serde(default)]
+    has_summary: bool,
 }
 
 #[derive(Debug, Serialize)]
 struct MediaListResponse {
     recordings: Vec<MediaListItem>,
+}
+
+async fn internal_media_store_handler(
+    State(state): State<Arc<AppState>>,
+    mut multipart: Multipart,
+) -> Result<Json<MediaUploadResponse>, (axum::http::StatusCode, String)> {
+    let mut twin_id: Option<String> = None;
+    let mut mime_type: Option<String> = None;
+    let mut original_filename: Option<String> = None;
+    let mut stored: Option<MediaUploadResponse> = None;
+
+    while let Some(field) = multipart
+        .next_field()
+        .await
+        .map_err(|e| (axum::http::StatusCode::BAD_REQUEST, format!("multipart parse error: {e}")))?
+    {
+        let name = field.name().unwrap_or("").to_string();
+
+        if name == "file" {
+            // If the client sends the file field before twin_id, we will fall back to "unknown".
+            let twin_id = sanitize_id(twin_id.as_deref().unwrap_or("unknown"));
+            let mime_type = field
+                .content_type()
+                .map(|v| v.to_string())
+                .or_else(|| mime_type.clone())
+                .unwrap_or_else(|| "application/octet-stream".to_string());
+            let original_filename = field
+                .file_name()
+                .map(|v| v.to_string())
+                .or_else(|| original_filename.clone())
+                .unwrap_or_else(|| "recording.webm".to_string());
+
+            // Bare-metal convention: force webm naming (frontend currently produces webm recordings).
+            let ts_ms = now_ms();
+            let filename = format!("rec_{twin_id}_{ts_ms}.webm");
+
+            // Ensure storage/recordings exists.
+            let recordings_dir = state.storage_dir.join("recordings");
+            tokio::fs::create_dir_all(&recordings_dir)
+                .await
+                .map_err(|e| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, format!("mkdir failed: {e}")))?;
+
+            let stored_path = recordings_dir.join(&filename);
+            let mut f = tokio::fs::File::create(&stored_path)
+                .await
+                .map_err(|e| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, format!("create failed: {e}")))?;
+
+            let mut size_bytes: u64 = 0;
+            let mut field = field;
+            while let Some(chunk) = field
+                .chunk()
+                .await
+                .map_err(|e| (axum::http::StatusCode::BAD_REQUEST, format!("file read error: {e}")))?
+            {
+                f.write_all(&chunk)
+                    .await
+                    .map_err(|e| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, format!("write failed: {e}")))?;
+                size_bytes = size_bytes.saturating_add(chunk.len() as u64);
+            }
+
+            f.flush()
+                .await
+                .map_err(|e| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, format!("flush failed: {e}")))?;
+            drop(f);
+
+            let stored_path_str = stored_path.to_string_lossy().to_string();
+            info!(
+                twin_id = %twin_id,
+                mime_type = %mime_type,
+                original_filename = %original_filename,
+                size_bytes = size_bytes,
+                path = %stored_path_str,
+                "Stored recording (internal)"
+            );
+
+            let evt = MediaRecordedEvent {
+                ts_ms,
+                twin_id: twin_id.clone(),
+                filename: filename.clone(),
+                mime_type: mime_type.clone(),
+                size_bytes,
+                stored_path: stored_path_str.clone(),
+            };
+
+            // Append to an on-disk JSONL log so other services can reference this as multi-modal context.
+            let log_path = recordings_dir.join("recordings.jsonl");
+            let mut log = tokio::fs::OpenOptions::new()
+                .create(true)
+                .append(true)
+                .open(&log_path)
+                .await
+                .map_err(|e| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, format!("open log failed: {e}")))?;
+            let line = serde_json::to_string(&evt).unwrap_or_else(|_| "{}".to_string());
+            log.write_all(line.as_bytes())
+                .await
+                .map_err(|e| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, format!("log write failed: {e}")))?;
+            log.write_all(b"\n")
+                .await
+                .map_err(|e| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, format!("log write failed: {e}")))?;
+
+            if let Err(e) = state.media_tx.send(evt) {
+                warn!(error = %e, "failed to broadcast media event");
+            }
+
+            stored = Some(MediaUploadResponse {
+                ok: true,
+                filename,
+                size_bytes,
+                stored_path: stored_path_str,
+            });
+            break;
+        } else if name == "user_id" || name == "twin_id" {
+            let v = field
+                .text()
+                .await
+                .map_err(|e| (axum::http::StatusCode::BAD_REQUEST, format!("field read error: {e}")))?;
+            if !v.trim().is_empty() {
+                twin_id = Some(v.trim().to_string());
+            }
+        } else if name == "mime_type" {
+            let v = field
+                .text()
+                .await
+                .map_err(|e| (axum::http::StatusCode::BAD_REQUEST, format!("field read error: {e}")))?;
+            if !v.trim().is_empty() {
+                mime_type = Some(v.trim().to_string());
+            }
+        } else if name == "original_filename" {
+            let v = field
+                .text()
+                .await
+                .map_err(|e| (axum::http::StatusCode::BAD_REQUEST, format!("field read error: {e}")))?;
+            if !v.trim().is_empty() {
+                original_filename = Some(v.trim().to_string());
+            }
+        } else {
+            // ignore other fields
+        }
+    }
+
+    let stored = stored.ok_or_else(|| {
+        (
+            axum::http::StatusCode::BAD_REQUEST,
+            "missing 'file' field".to_string(),
+        )
+    })?;
+
+    Ok(Json(stored))
 }
 
 async fn media_list_handler(
@@ -199,57 +356,84 @@ async fn media_list_handler(
     };
 
     let limit = q.limit.unwrap_or(100).clamp(1, 1000);
-    let media_dir = state.storage_dir.join("media");
+    // New internal store endpoint writes to recordings/; legacy public upload wrote to media/.
+    let recordings_dir = state.storage_dir.join("recordings");
+    let legacy_media_dir = state.storage_dir.join("media");
 
     let mut items: Vec<MediaListItem> = Vec::new();
 
-    if tokio::fs::metadata(&media_dir).await.is_err() {
-        return Ok(Json(MediaListResponse { recordings: vec![] }));
-    }
-
-    let mut rd = tokio::fs::read_dir(&media_dir)
-        .await
-        .map_err(|e| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, format!("read_dir failed: {e}")))?;
-
-    while let Some(entry) = rd
-        .next_entry()
-        .await
-        .map_err(|e| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, format!("read_dir entry failed: {e}")))?
-    {
-        let path = entry.path();
-        if !path.is_file() {
+    for dir in [&recordings_dir, &legacy_media_dir] {
+        if tokio::fs::metadata(dir).await.is_err() {
             continue;
         }
 
-        let filename = match path.file_name().and_then(|v| v.to_str()) {
-            Some(v) => v.to_string(),
-            None => continue,
-        };
+        let mut rd = tokio::fs::read_dir(dir)
+            .await
+            .map_err(|e| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, format!("read_dir failed: {e}")))?;
 
-        if let Some(twin) = &requested_twin {
-            let prefix = format!("rec_{twin}_");
-            if !filename.starts_with(&prefix) {
+        while let Some(entry) = rd
+            .next_entry()
+            .await
+            .map_err(|e| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, format!("read_dir entry failed: {e}")))?
+        {
+            let path = entry.path();
+            if !path.is_file() {
                 continue;
             }
+
+            let filename = match path.file_name().and_then(|v| v.to_str()) {
+                Some(v) => v.to_string(),
+                None => continue,
+            };
+
+            if let Some(twin) = &requested_twin {
+                let prefix = format!("rec_{twin}_");
+                if !filename.starts_with(&prefix) {
+                    continue;
+                }
+            }
+
+            let size_bytes = match tokio::fs::metadata(&path).await {
+                Ok(m) => m.len(),
+                Err(_) => 0,
+            };
+
+            // Only process video files (webm, mp4, etc.)
+            let ext = path.extension().and_then(|s| s.to_str()).unwrap_or("");
+            if ext != "webm" && ext != "mp4" && ext != "mkv" && ext != "avi" {
+                continue;
+            }
+
+            // Parse ts_ms from `rec_<twin>_<ts>.ext`
+            let ts_ms = filename
+                .rsplit_once('.')
+                .and_then(|(base, _ext)| base.rsplit_once('_').map(|(_, ts)| ts))
+                .and_then(|ts| ts.parse::<u128>().ok());
+
+            // Check for transcript and summary files
+            let base_name = filename.rsplit_once('.').map(|(base, _)| base).unwrap_or(&filename);
+            let transcript_filename = format!("{}.txt", base_name);
+            let summary_filename = format!("{}.summary.json", base_name);
+            
+            let transcript_path = dir.join(&transcript_filename);
+            let summary_path = dir.join(&summary_filename);
+            
+            let has_transcript = tokio::fs::metadata(&transcript_path).await.is_ok();
+            let has_summary = tokio::fs::metadata(&summary_path).await.is_ok();
+
+            items.push(MediaListItem {
+                filename: filename.clone(),
+                size_bytes,
+                stored_path: path.to_string_lossy().to_string(),
+                ts_ms,
+                has_transcript,
+                has_summary,
+            });
+
+            if items.len() >= limit {
+                break;
+            }
         }
-
-        let size_bytes = match tokio::fs::metadata(&path).await {
-            Ok(m) => m.len(),
-            Err(_) => 0,
-        };
-
-        // Parse ts_ms from `rec_<twin>_<ts>.ext`
-        let ts_ms = filename
-            .rsplit_once('.')
-            .and_then(|(base, _ext)| base.rsplit_once('_').map(|(_, ts)| ts))
-            .and_then(|ts| ts.parse::<u128>().ok());
-
-        items.push(MediaListItem {
-            filename: filename.clone(),
-            size_bytes,
-            stored_path: path.to_string_lossy().to_string(),
-            ts_ms,
-        });
 
         if items.len() >= limit {
             break;
@@ -266,6 +450,7 @@ async fn media_upload_handler(
     State(state): State<Arc<AppState>>,
     mut multipart: Multipart,
 ) -> Result<Json<MediaUploadResponse>, (axum::http::StatusCode, String)> {
+    // Legacy /v1/media/upload implementation (buffers to memory). Kept for compatibility.
     let mut twin_id: Option<String> = None;
     let mut mime_type: Option<String> = None;
     let mut original_filename: Option<String> = None;
@@ -303,7 +488,7 @@ async fn media_upload_handler(
                 mime_type = Some(v.trim().to_string());
             }
         } else {
-            // ignore other metadata fields for now
+            // ignore other fields
         }
     }
 
@@ -343,7 +528,7 @@ async fn media_upload_handler(
         mime_type = %mime_type,
         size_bytes = bytes.len(),
         path = %stored_path_str,
-        "Stored recording"
+        "Stored recording (legacy)"
     );
 
     let evt = MediaRecordedEvent {
@@ -366,6 +551,177 @@ async fn media_upload_handler(
     }))
 }
 
+#[derive(Debug, Serialize)]
+struct TranscriptResponse {
+    transcript: String,
+}
+
+async fn internal_media_transcript_handler(
+    State(state): State<Arc<AppState>>,
+    axum::extract::Path(filename): axum::extract::Path<String>,
+) -> Result<Json<TranscriptResponse>, (axum::http::StatusCode, String)> {
+    // Extract base name from filename (remove extension)
+    let base_name = filename.rsplit_once('.').map(|(base, _)| base).unwrap_or(&filename);
+    let transcript_filename = format!("{}.txt", base_name);
+    
+    // Check in recordings directory first, then legacy media directory
+    let recordings_dir = state.storage_dir.join("recordings");
+    let legacy_media_dir = state.storage_dir.join("media");
+    
+    let transcript_path = recordings_dir.join(&transcript_filename);
+    let transcript_path_legacy = legacy_media_dir.join(&transcript_filename);
+    
+    let path = if tokio::fs::metadata(&transcript_path).await.is_ok() {
+        transcript_path
+    } else if tokio::fs::metadata(&transcript_path_legacy).await.is_ok() {
+        transcript_path_legacy
+    } else {
+        return Err((
+            axum::http::StatusCode::NOT_FOUND,
+            format!("Transcript not found for {}", filename),
+        ));
+    };
+    
+    let transcript_text = tokio::fs::read_to_string(&path)
+        .await
+        .map_err(|e| {
+            (
+                axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Failed to read transcript file: {}", e),
+            )
+        })?;
+    
+    Ok(Json(TranscriptResponse {
+        transcript: transcript_text,
+    }))
+}
+
+#[derive(Debug, Serialize)]
+struct SummaryResponse {
+    insights: SummaryJson,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct SummaryJson {
+    summary: String,
+    key_decisions: Vec<String>,
+    follow_up_tasks: Vec<String>,
+}
+
+async fn internal_media_summary_handler(
+    State(state): State<Arc<AppState>>,
+    axum::extract::Path(filename): axum::extract::Path<String>,
+) -> Result<Json<SummaryResponse>, (axum::http::StatusCode, String)> {
+    // Extract base name from filename (remove extension)
+    let base_name = filename.rsplit_once('.').map(|(base, _)| base).unwrap_or(&filename);
+    let summary_filename = format!("{}.summary.json", base_name);
+    
+    // Check in recordings directory first, then legacy media directory
+    let recordings_dir = state.storage_dir.join("recordings");
+    let legacy_media_dir = state.storage_dir.join("media");
+    
+    let summary_path = recordings_dir.join(&summary_filename);
+    let summary_path_legacy = legacy_media_dir.join(&summary_filename);
+    
+    let path = if tokio::fs::metadata(&summary_path).await.is_ok() {
+        summary_path
+    } else if tokio::fs::metadata(&summary_path_legacy).await.is_ok() {
+        summary_path_legacy
+    } else {
+        return Err((
+            axum::http::StatusCode::NOT_FOUND,
+            format!("Summary not found for {}", filename),
+        ));
+    };
+    
+    let summary_json_text = tokio::fs::read_to_string(&path)
+        .await
+        .map_err(|e| {
+            (
+                axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Failed to read summary file: {}", e),
+            )
+        })?;
+    
+    let summary_json: SummaryJson = serde_json::from_str(&summary_json_text)
+        .map_err(|e| {
+            (
+                axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Failed to parse summary JSON: {}", e),
+            )
+        })?;
+    
+    Ok(Json(SummaryResponse {
+        insights: summary_json,
+    }))
+}
+
+async fn internal_media_view_handler(
+    State(state): State<Arc<AppState>>,
+    axum::extract::Path(filename): axum::extract::Path<String>,
+    request: axum::http::Request<axum::body::Body>,
+) -> Result<axum::response::Response, (axum::http::StatusCode, String)> {
+    use axum::body::Body;
+    use axum::http::{header, HeaderValue, StatusCode};
+    use axum::response::Response;
+    
+    // Check in recordings directory first, then legacy media directory
+    let recordings_dir = state.storage_dir.join("recordings");
+    let legacy_media_dir = state.storage_dir.join("media");
+    
+    let file_path = recordings_dir.join(&filename);
+    let file_path_legacy = legacy_media_dir.join(&filename);
+    
+    let path = if tokio::fs::metadata(&file_path).await.is_ok() {
+        file_path
+    } else if tokio::fs::metadata(&file_path_legacy).await.is_ok() {
+        file_path_legacy
+    } else {
+        return Err((
+            StatusCode::NOT_FOUND,
+            format!("Media file not found: {}", filename),
+        ));
+    };
+    
+    let file_bytes = tokio::fs::read(&path)
+        .await
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Failed to read file: {}", e),
+            )
+        })?;
+    
+    // Determine content type from extension
+    let content_type = match path.extension().and_then(|s| s.to_str()) {
+        Some("webm") => "video/webm",
+        Some("mp4") => "video/mp4",
+        Some("mkv") => "video/x-matroska",
+        Some("avi") => "video/x-msvideo",
+        _ => "application/octet-stream",
+    };
+    
+    let mut response = Response::new(Body::from(file_bytes));
+    *response.status_mut() = StatusCode::OK;
+    response.headers_mut().insert(
+        header::CONTENT_TYPE,
+        HeaderValue::from_static(content_type),
+    );
+    response.headers_mut().insert(
+        header::ACCEPT_RANGES,
+        HeaderValue::from_static("bytes"),
+    );
+    
+    // Handle Range requests for video scrubbing
+    if let Some(range_header) = request.headers().get(header::RANGE) {
+        // For simplicity, we'll return the full file. In production, you'd parse the range
+        // and return partial content with 206 Partial Content status.
+        // This is a basic implementation.
+    }
+    
+    Ok(response)
+}
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tracing_subscriber::fmt()
@@ -382,19 +738,49 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .parse()
         .expect("TELEMETRY_PORT must be a valid port number");
 
-    let storage_dir = env::var("TELEMETRY_STORAGE_DIR").unwrap_or_else(|_| "./telemetry_storage".to_string());
+    // Bare-metal default: ./storage (recordings will live under ./storage/recordings).
+    let storage_dir = env::var("TELEMETRY_STORAGE_DIR").unwrap_or_else(|_| "./storage".to_string());
     let storage_dir = Path::new(storage_dir.trim()).to_path_buf();
 
+    // Get gRPC service addresses for transcription worker
+    let orchestrator_grpc_addr = env::var("ORCHESTRATOR_GRPC_ADDR")
+        .unwrap_or_else(|_| "http://127.0.0.1:50057".to_string());
+    let memory_grpc_addr = env::var("MEMORY_GRPC_ADDR")
+        .unwrap_or_else(|_| "http://127.0.0.1:50052".to_string());
+
     let (media_tx, _media_rx) = broadcast::channel::<MediaRecordedEvent>(128);
-    let state = Arc::new(AppState {
-        storage_dir,
-        media_tx,
+    let state = Arc::new(AppState { storage_dir: storage_dir.clone(), media_tx });
+
+    // Start transcription worker in background
+    let storage_dir_worker = storage_dir.clone();
+    let orchestrator_addr_worker = orchestrator_grpc_addr.clone();
+    let memory_addr_worker = memory_grpc_addr.clone();
+    tokio::spawn(async move {
+        if let Err(e) = transcription_worker::start_transcription_watcher(
+            storage_dir_worker,
+            orchestrator_addr_worker,
+            memory_addr_worker,
+        )
+        .await
+        {
+            warn!(error = %e, "Transcription worker exited with error");
+        }
     });
+
+    info!(
+        orchestrator_addr = %orchestrator_grpc_addr,
+        memory_addr = %memory_grpc_addr,
+        "Started transcription worker"
+    );
 
     let app = Router::new()
         .route("/v1/telemetry/stream", get(sse_stream))
         .route("/v1/media/upload", post(media_upload_handler))
         .route("/v1/media/list", get(media_list_handler))
+        .route("/internal/media/store", post(internal_media_store_handler))
+        .route("/internal/media/view/:filename", get(internal_media_view_handler))
+        .route("/internal/media/transcript/:filename", get(internal_media_transcript_handler))
+        .route("/internal/media/summary/:filename", get(internal_media_summary_handler))
         .with_state(state);
     let addr = SocketAddr::from(([0, 0, 0, 0], port));
 

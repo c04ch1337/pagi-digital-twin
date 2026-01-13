@@ -1,0 +1,20 @@
+syntax = "proto3";
+
+package orchestrator;
+
+// Public Orchestrator gRPC API (non-admin).
+// This is used by other services (ex: Telemetry) to request automated insights.
+service OrchestratorService {
+  rpc SummarizeTranscript(SummarizeRequest) returns (SummarizeResponse);
+}
+
+message SummarizeRequest {
+  string transcript_text = 1;
+}
+
+message SummarizeResponse {
+  string summary = 1;
+  repeated string key_decisions = 2;
+  repeated string follow_up_tasks = 3;
+}
+
