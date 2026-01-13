@@ -108,12 +108,38 @@ export function useMediaStream() {
     setPreviewStream(new MediaStream([trackToPreview]));
   }, [cameraEnabled, screenEnabled]);
 
-  const ensureUserStream = React.useCallback(async (): Promise<MediaStream> => {
-    if (userStreamRef.current) return userStreamRef.current;
+  const ensureUserStream = React.useCallback(async (options?: { audio?: boolean; video?: boolean }): Promise<MediaStream> => {
+    const existing = userStreamRef.current;
+    
+    // If we have an existing stream, check if it has the tracks we need
+    if (existing) {
+      const needsAudio = options?.audio ?? micEnabled;
+      const needsVideo = options?.video ?? cameraEnabled;
+      
+      const hasAudio = existing.getAudioTracks().length > 0;
+      const hasVideo = existing.getVideoTracks().length > 0;
+      
+      // If we have all needed tracks, return existing stream
+      if ((!needsAudio || hasAudio) && (!needsVideo || hasVideo)) {
+        return existing;
+      }
+      
+      // If we need additional tracks, we'll need to request a new stream
+      // Stop the old one first
+      stopStreamTracks(existing);
+      userStreamRef.current = null;
+    }
 
     setError(null);
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+      // Only request what's needed based on options or current state
+      const requestAudio = options?.audio ?? micEnabled;
+      const requestVideo = options?.video ?? cameraEnabled;
+      
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        audio: requestAudio, 
+        video: requestVideo 
+      });
 
       // Privacy-first defaults:
       // browsers typically start tracks enabled; immediately match our toggles.
@@ -131,7 +157,15 @@ export function useMediaStream() {
 
   const enableMic = React.useCallback(async () => {
     try {
-      const stream = await ensureUserStream();
+      // Check if we already have a video track that we want to preserve
+      const existing = userStreamRef.current;
+      const hasVideoTrack = existing?.getVideoTracks().length > 0;
+      
+      // Request audio, and video if we already have a video track
+      const stream = await ensureUserStream({ 
+        audio: true, 
+        video: hasVideoTrack 
+      });
       stream.getAudioTracks().forEach((t) => (t.enabled = true));
       setMicEnabled(true);
     } catch {
@@ -147,13 +181,21 @@ export function useMediaStream() {
 
   const enableCamera = React.useCallback(async () => {
     try {
-      const stream = await ensureUserStream();
+      // Check if we already have an audio track that we want to preserve
+      const existing = userStreamRef.current;
+      const hasAudioTrack = existing?.getAudioTracks().length > 0;
+      
+      // Request video, and audio if we want mic enabled OR if we already have an audio track
+      const stream = await ensureUserStream({ 
+        audio: micEnabled || hasAudioTrack, 
+        video: true 
+      });
       stream.getVideoTracks().forEach((t) => (t.enabled = true));
       setCameraEnabled(true);
     } catch {
       // error already set
     }
-  }, [ensureUserStream]);
+  }, [ensureUserStream, micEnabled]);
 
   const disableCamera = React.useCallback(() => {
     const stream = userStreamRef.current;

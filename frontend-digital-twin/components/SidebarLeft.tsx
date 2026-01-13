@@ -14,15 +14,17 @@ interface SidebarLeftProps {
   onSelectMemoryExplorer: () => void;
   onSelectEvolution: () => void;
   onSelectSystemStatus: () => void;
-  projects: { id: string; name: string }[];
+  onSelectFileProcessingMonitor?: () => void;
+  projects: { id: string; name: string; watchPath?: string }[];
   onSelectProject?: (projectId: string) => void;
   onCreateProject: (name: string) => void;
   onRenameProject: (projectId: string, name: string) => void;
   onDeleteProject: (projectId: string) => void;
-  onSelectRootAdminSettings?: () => void;
+  onConfigureWatchPath?: (projectId: string, watchPath: string) => void;
+  onSelectOrchestratorSettings?: () => void;
 }
 
-const SidebarLeft: React.FC<SidebarLeftProps> = ({ twins, activeTwinId, currentView, onSelectTwin, onSelectOrchestrator, onOpenCreateModal, onSelectSearch, onSelectMemoryExplorer, onSelectEvolution, onSelectSystemStatus, projects, onSelectProject, onCreateProject, onRenameProject, onDeleteProject, onSelectRootAdminSettings }) => {
+const SidebarLeft: React.FC<SidebarLeftProps> = ({ twins, activeTwinId, currentView, onSelectTwin, onSelectOrchestrator, onOpenCreateModal, onSelectSearch, onSelectMemoryExplorer, onSelectEvolution, onSelectSystemStatus, onSelectFileProcessingMonitor, projects, onSelectProject, onCreateProject, onRenameProject, onDeleteProject, onConfigureWatchPath, onSelectOrchestratorSettings }) => {
   const [logoUrl, setLogoUrl] = useState('/ferrellgas-agi-badge.svg');
   const [userName, setUserName] = useState(getUserName());
 
@@ -234,11 +236,30 @@ const SidebarLeft: React.FC<SidebarLeftProps> = ({ twins, activeTwinId, currentV
               </div>
               <div className="text-xs font-bold uppercase tracking-widest">New Agent</div>
             </button>
+
+            {onSelectFileProcessingMonitor && (
+              <button
+                onClick={onSelectFileProcessingMonitor}
+                className={`w-full flex items-center gap-3 p-3 rounded-xl transition-all text-left ${
+                  currentView === 'file-processing-monitor' 
+                    ? 'bg-[#5381A5] text-white border border-[#5381A5]' 
+                    : 'bg-white/30 text-[#163247] hover:bg-[#78A2C2] border border-[#5381A5]/30'
+                }`}
+              >
+                <div className="w-10 h-10 flex items-center justify-center rounded-xl bg-white/40 border border-[#5381A5]/30 shrink-0">
+                  <span className="material-symbols-outlined text-sm">folder_managed</span>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-xs font-bold uppercase tracking-wider">File Processing</div>
+                  <div className="text-[9px] text-[#163247] truncate">Watch Monitor</div>
+                </div>
+              </button>
+            )}
           </div>
         </div>
 
         <div>
-          <div className="text-[10px] font-bold text-[#163247] uppercase tracking-widest px-2 mb-2">Active Projects</div>
+          <div className="text-[10px] font-bold text-[#163247] uppercase tracking-widest px-2 mb-2">Monitored Applications</div>
           <div className="space-y-1">
             {projects.map((project) => (
               <div
@@ -254,16 +275,41 @@ const SidebarLeft: React.FC<SidebarLeftProps> = ({ twins, activeTwinId, currentV
                 }}
                 title={project.id}
               >
-                <div className="w-4 h-4 rounded-sm bg-white/40 border border-[#5381A5]/30 shrink-0" />
+                <div className="w-4 h-4 rounded-sm bg-white/40 border border-[#5381A5]/30 shrink-0 flex items-center justify-center">
+                  {project.watchPath && (
+                    <span className="material-symbols-outlined text-[10px] text-[#5381A5]" title="Watch folder configured">
+                      folder
+                    </span>
+                  )}
+                </div>
                 <span className="text-xs flex-1 min-w-0 truncate">{project.name}</span>
 
                 <button
                   type="button"
                   className="p-1 rounded-md hover:bg-white/30 text-[#163247]"
-                  title="Rename Project"
+                  title={project.watchPath ? `Watch folder: ${project.watchPath}` : "Configure Watch Folder"}
                   onClick={(e) => {
                     e.stopPropagation();
-                    const nextName = window.prompt('Rename project', project.name);
+                    const currentPath = project.watchPath || '';
+                    const newPath = window.prompt(
+                      `Configure watch folder for ${project.name}:\n\nEnter the local file system path to monitor for logs, emails, and alerts.\n\nLeave empty to remove watch folder.`,
+                      currentPath
+                    );
+                    if (newPath !== null && onConfigureWatchPath) {
+                      onConfigureWatchPath(project.id, newPath.trim());
+                    }
+                  }}
+                >
+                  <span className="material-symbols-outlined text-[14px]">{project.watchPath ? 'folder_open' : 'folder'}</span>
+                </button>
+
+                <button
+                  type="button"
+                  className="p-1 rounded-md hover:bg-white/30 text-[#163247]"
+                  title="Rename Application"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const nextName = window.prompt('Rename application', project.name);
                     if (!nextName) return;
                     const trimmed = nextName.trim();
                     if (!trimmed) return;
@@ -276,10 +322,10 @@ const SidebarLeft: React.FC<SidebarLeftProps> = ({ twins, activeTwinId, currentV
                 <button
                   type="button"
                   className="p-1 rounded-md hover:bg-white/30 text-[#163247]"
-                  title="Delete Project"
+                  title="Delete Application"
                   onClick={(e) => {
                     e.stopPropagation();
-                    const ok = window.confirm(`Delete project “${project.name}”?`);
+                    const ok = window.confirm(`Delete application "${project.name}"?`);
                     if (!ok) return;
                     onDeleteProject(project.id);
                   }}
@@ -291,7 +337,7 @@ const SidebarLeft: React.FC<SidebarLeftProps> = ({ twins, activeTwinId, currentV
             
             <button 
               onClick={() => {
-                const name = window.prompt('New project name');
+                const name = window.prompt('New application name (e.g., Rapid7 SIEM, Zscaler, CrowdStrike, Splunk, etc.)');
                 if (!name) return;
                 const trimmed = name.trim();
                 if (!trimmed) return;
@@ -302,7 +348,7 @@ const SidebarLeft: React.FC<SidebarLeftProps> = ({ twins, activeTwinId, currentV
               <div className="w-4 h-4 flex items-center justify-center rounded-sm bg-white/40 border border-[#5381A5]/30">
                 <span className="material-symbols-outlined text-[10px]">add</span>
               </div>
-              <span className="text-[11px] font-bold uppercase tracking-wider">Create New Project</span>
+              <span className="text-[11px] font-bold uppercase tracking-wider">Add Application</span>
             </button>
           </div>
         </div>
@@ -318,9 +364,9 @@ const SidebarLeft: React.FC<SidebarLeftProps> = ({ twins, activeTwinId, currentV
               <div className="text-[9px] text-[#163247] font-bold uppercase tracking-widest truncate">Authorized</div>
            </div>
            <button 
-             onClick={() => onSelectRootAdminSettings?.()}
+             onClick={() => onSelectOrchestratorSettings?.()}
              className="text-[#163247] hover:text-[#5381A5] transition-colors"
-             title="Root Admin Settings"
+             title="Orchestrator Settings"
            >
               <span className="material-symbols-outlined text-sm">settings</span>
            </button>

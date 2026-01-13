@@ -4,7 +4,7 @@
  */
 
 function getGatewayUrl(): string {
-  // Allow runtime overrides from RootAdminSettings without requiring a rebuild.
+  // Allow runtime overrides from OrchestratorSettings without requiring a rebuild.
   const runtime = (globalThis as any).__GATEWAY_URL__ as string | undefined;
   if (runtime && runtime.trim()) return runtime.trim();
 

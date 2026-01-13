@@ -99,7 +99,16 @@ export default function MediaControls({ onOpenGallery, placement = 'floating' }:
           <IconButton
             title="Open Neural Archive"
             active={false}
-            onClick={onOpenGallery}
+            onClick={() => {
+              // Defensive: some environments swallow a click if the handler throws.
+              // Emit a console log so this is diagnosable in prod/devtools.
+              console.log('[MediaControls] Open Neural Archive clicked');
+              try {
+                onOpenGallery();
+              } catch (err) {
+                console.error('[MediaControls] Failed to open Neural Archive', err);
+              }
+            }}
           >
             <Library size={14} />
           </IconButton>

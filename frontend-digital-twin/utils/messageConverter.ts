@@ -31,10 +31,31 @@ export function convertChatResponseToMessage(
       }
 
       // Convert status updates to assistant messages for display
+      // Format error messages more clearly
+      let content = response.details || 'Status update';
+      if (response.status?.toLowerCase() === 'error') {
+        // Improve error message formatting
+        if (content.includes('Request to orchestrator failed')) {
+          content = `Connection Error: Unable to reach the orchestrator service. Please check:\n\n` +
+            `1. Is the orchestrator service running? (Check backend-rust-orchestrator)\n` +
+            `2. Is the WebSocket URL correct? (Current: ${import.meta.env.VITE_WS_URL || 'ws://127.0.0.1:8181/ws/chat'})\n` +
+            `3. Check browser console for detailed connection errors\n\n` +
+            `Original error: ${content}`;
+        } else if (content.includes('error sending request')) {
+          content = `Network Error: Failed to send request to orchestrator.\n\n` +
+            `This usually means:\n` +
+            `- The orchestrator service is not running\n` +
+            `- There's a network connectivity issue\n` +
+            `- The service is starting up (wait a few seconds and try again)\n\n` +
+            `Check the orchestrator logs for more details.\n\n` +
+            `Original error: ${content}`;
+        }
+      }
+
       return {
         id: `status-${Date.now()}-${Math.random()}`,
         sender: 'assistant',
-        content: `[${response.status.toUpperCase()}] ${response.details || 'Status update'}`,
+        content: `[${response.status.toUpperCase()}] ${content}`,
         timestamp: new Date(),
         twinId,
       };

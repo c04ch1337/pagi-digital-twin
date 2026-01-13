@@ -33,7 +33,7 @@ The Orchestrator is the central decision-making component that:
   "message": "Search for recent SSH attacks",
   "twin_id": "twin-sentinel",
   "session_id": "uuid",
-  "namespace": "threat_intel_v24"
+  "namespace": "threat_intel"
 }
 ```
 

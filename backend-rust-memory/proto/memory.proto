@@ -23,7 +23,7 @@ service MemoryService {
 // Request to query memory
 message QueryMemoryRequest {
   string query = 1;           // Semantic search query text
-  string namespace = 2;       // Memory namespace (e.g., "threat_intel_v24")
+  string namespace = 2;       // Memory namespace (e.g., "threat_intel")
   string twin_id = 3;         // Optional: Filter by twin ID
   int32 top_k = 4;            // Number of results to return (default: 10)
   repeated string memory_types = 5; // Optional: Filter by memory types

@@ -44,9 +44,16 @@ export interface ChatRequest {
   media_active?: boolean;
   /**
    * User's display name for personalized addressing.
-   * If not provided, defaults to "ROOT ADMIN".
+   * If not provided, defaults to "FG_User".
    */
   user_name?: string;
+  /**
+   * LLM settings for this request (optional - uses twin defaults if not provided)
+   */
+  temperature?: number;
+  top_p?: number;
+  max_tokens?: number;
+  max_memory?: number;
 }
 
 // --- 2. Response to Frontend (Agent Output) ---

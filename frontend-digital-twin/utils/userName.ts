@@ -4,11 +4,11 @@
 
 /**
  * Gets the user's display name from localStorage
- * Returns "ROOT ADMIN" if no name is set
+ * Returns "FG_User" if no name is set
  */
 export function getUserName(): string {
   const userName = localStorage.getItem('root_admin_user_name');
-  return userName?.trim() || 'ROOT ADMIN';
+  return userName?.trim() || 'FG_User';
 }
 
 /**

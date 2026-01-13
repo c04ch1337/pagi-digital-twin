@@ -272,7 +272,7 @@ const MemoryExplorer: React.FC<MemoryExplorerProps> = ({ activeTwin, onClose }) 
                 value={namespace}
                 onChange={(e) => setNamespace(e.target.value)}
                 onKeyPress={(e) => e.key === 'Enter' && loadMemories()}
-                placeholder="Enter namespace (e.g., threat_intel_v24)"
+                placeholder="Enter namespace (e.g., threat_intel)"
                 className="w-full px-4 py-2 border border-[#5381A5]/30 rounded bg-white text-[#0b1b2b] focus:outline-none focus:ring-2 focus:ring-[#5381A5]"
               />
             </div>

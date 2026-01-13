@@ -25,6 +25,11 @@ export interface SystemSnapshot {
   top_processes: ProcessSnapshot[];
 }
 
+export interface SyncMetricsResponse {
+  neural_sync: number;
+  services: Record<string, string>;
+}
+
 // Prefer calling the Gateway (8181) and let it proxy to the Orchestrator.
 // This avoids CORS/config drift across multiple frontend services.
 //
@@ -50,6 +55,24 @@ export async function fetchSystemSnapshot(): Promise<SystemSnapshot> {
 
   if (!response.ok) {
     throw new Error(`Failed to fetch system snapshot: ${response.statusText}`);
+  }
+
+  return response.json();
+}
+
+/**
+ * Fetches sync metrics (neural_sync + per-service status) from the orchestrator.
+ */
+export async function fetchSyncMetrics(): Promise<SyncMetricsResponse> {
+  const response = await fetch(`${ORCHESTRATOR_URL}/api/system/sync-metrics`, {
+    method: 'GET',
+    headers: {
+      Accept: 'application/json',
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch sync metrics: ${response.statusText}`);
   }
 
   return response.json();

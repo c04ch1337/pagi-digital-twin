@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Twin, Message, Job, Approval, TwinStatus, TelemetryData, AppView, LogEntry } from './types';
+import { Twin, Message, Job, Approval, TwinStatus, TelemetryData, AppView, LogEntry, TwinSettings } from './types';
 import { INITIAL_TWINS, ICONS, AVAILABLE_TOOLS } from './constants';
 import SidebarLeft from './components/SidebarLeft';
 import SidebarRight from './components/SidebarRight';
@@ -15,7 +15,9 @@ import MemoryExplorer from './pages/memory-explorer';
 import Evolution from './pages/evolution';
 import MediaGallery from './pages/MediaGallery';
 import SystemMonitor from './components/SystemMonitor';
-import RootAdminSettings from './components/RootAdminSettings';
+import OrchestratorSettings from './components/RootAdminSettings';
+import FileProcessingMonitor from './components/FileProcessingMonitor';
+import OAuthCallback from './pages/OAuthCallback';
 import { executeJobLifecycle } from './services/orchestrator';
 import { usePagi } from './context/PagiContext';
 import { useTelemetry } from './context/TelemetryContext';
@@ -36,7 +38,38 @@ const App: React.FC = () => {
   // Get Telemetry context
   const { telemetry, isConnected: isTelemetryConnected } = useTelemetry();
   
-  const [twins, setTwins] = useState<Twin[]>(INITIAL_TWINS);
+  // Load orchestrator agent settings from localStorage on mount
+  const loadOrchestratorAgentSettings = (): Partial<TwinSettings> | null => {
+    try {
+      const stored = localStorage.getItem('orchestrator_agent_settings');
+      if (stored) {
+        return JSON.parse(stored);
+      }
+    } catch (e) {
+      console.warn('[App] Failed to load orchestrator agent settings:', e);
+    }
+    return null;
+  };
+
+  const initialTwins = React.useMemo(() => {
+    const savedAgentSettings = loadOrchestratorAgentSettings();
+    if (savedAgentSettings) {
+      return INITIAL_TWINS.map(t => 
+        t.id === 'twin-aegis' 
+          ? { 
+              ...t, 
+              settings: { 
+                ...t.settings, 
+                ...savedAgentSettings,
+              } 
+            } 
+          : t
+      );
+    }
+    return INITIAL_TWINS;
+  }, []);
+
+  const [twins, setTwins] = useState<Twin[]>(initialTwins);
   const [activeTwinId, setActiveTwinId] = useState<string>(INITIAL_TWINS[0].id);
   const [view, setView] = useState<AppView>('orchestrator');
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
@@ -49,15 +82,35 @@ const App: React.FC = () => {
   const [activeCommand, setActiveCommand] = useState<AgentCommand | null>(null);
   const [commandMessageId, setCommandMessageId] = useState<string | null>(null);
   const [activeDecisionTrace, setActiveDecisionTrace] = useState<string | null>(null);
+  
+  // Check for OAuth callback on mount
+  const [isOAuthCallback, setIsOAuthCallback] = useState(false);
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('code') || urlParams.get('error')) {
+      setIsOAuthCallback(true);
+    }
+  }, []);
 
   interface Project {
     id: string;
     name: string;
+    watchPath?: string; // Optional: local file system path to monitor
   }
 
   const DEFAULT_PROJECTS: Project[] = [
-    { id: 'project-alpha', name: 'Project Alpha' },
-    { id: 'neural-sync', name: 'Neural Sync' },
+    { id: 'rapid7-siem', name: 'Rapid7 SIEM' },
+    { id: 'proofpoint', name: 'Proofpoint' },
+    { id: 'sentinelone', name: 'SentinelOne' },
+    { id: 'zscaler', name: 'Zscaler' },
+    { id: 'crowdstrike', name: 'CrowdStrike' },
+    { id: 'microsoft-defender', name: 'Microsoft Defender' },
+    { id: 'splunk', name: 'Splunk' },
+    { id: 'qualys', name: 'Qualys' },
+    { id: 'tenable', name: 'Tenable' },
+    { id: 'palo-alto', name: 'Palo Alto Networks' },
+    { id: 'fortinet', name: 'Fortinet' },
+    { id: 'cisco-umbrella', name: 'Cisco Umbrella' },
   ];
 
   const [projects, setProjects] = useState<Project[]>(() => {
@@ -68,7 +121,11 @@ const App: React.FC = () => {
       if (!Array.isArray(parsed)) return DEFAULT_PROJECTS;
       const sanitized: Project[] = parsed
         .filter((p: any) => p && typeof p.id === 'string' && typeof p.name === 'string')
-        .map((p: any) => ({ id: String(p.id), name: String(p.name) }));
+        .map((p: any) => ({ 
+          id: String(p.id), 
+          name: String(p.name),
+          watchPath: typeof p.watchPath === 'string' ? String(p.watchPath) : undefined
+        }));
       return sanitized.length > 0 ? sanitized : DEFAULT_PROJECTS;
     } catch {
       return DEFAULT_PROJECTS;
@@ -95,7 +152,7 @@ const App: React.FC = () => {
 
   type ProjectSessionMap = Record<string, string>; // projectId -> sessionId
 
-  const loadProjectSessionMap = (): ProjectSessionMap => {
+  const loadProjectSessionMap = useCallback((): ProjectSessionMap => {
     try {
       const raw = localStorage.getItem('pagi_project_sessions');
       if (!raw) return {};
@@ -109,19 +166,19 @@ const App: React.FC = () => {
     } catch {
       return {};
     }
-  };
+  }, []);
 
-  const saveProjectSessionMap = (m: ProjectSessionMap) => {
+  const saveProjectSessionMap = useCallback((m: ProjectSessionMap) => {
     try {
       localStorage.setItem('pagi_project_sessions', JSON.stringify(m));
     } catch {
       // ignore
     }
-  };
+  }, []);
 
-  const normalizeProjectName = (name: string) => name.trim().replace(/\s+/g, ' ');
+  const normalizeProjectName = useCallback((name: string) => name.trim().replace(/\s+/g, ' '), []);
 
-  const ensureProjectByName = (projectNameRaw: string, projectIdHint?: string): Project => {
+  const ensureProjectByName = useCallback((projectNameRaw: string, projectIdHint?: string): Project => {
     const projectName = normalizeProjectName(projectNameRaw);
     const existingById = projectIdHint ? projects.find(p => p.id === projectIdHint) : undefined;
     if (existingById) return existingById;
@@ -133,11 +190,37 @@ const App: React.FC = () => {
     const created = { id, name: projectName };
     setProjects(prev => [...prev, created]);
     return created;
-  };
+  }, [normalizeProjectName, projects]);
 
   // Update favicon links on mount
   useEffect(() => {
     updateFaviconLinks();
+  }, []);
+
+  // Listen for orchestrator agent settings changes from OrchestratorSettings
+  useEffect(() => {
+    const handleAgentSettingsChange = (event: CustomEvent) => {
+      const newSettings = event.detail.settings;
+      setTwins(prev => prev.map(t => 
+        t.id === 'twin-aegis' 
+          ? { 
+              ...t, 
+              settings: { 
+                ...t.settings, 
+                temperature: newSettings.temperature,
+                topP: newSettings.topP,
+                maxMemory: newSettings.maxMemory,
+                tokenLimit: newSettings.tokenLimit,
+              } 
+            } 
+          : t
+      ));
+    };
+
+    window.addEventListener('orchestratorAgentSettingsChanged', handleAgentSettingsChange as EventListener);
+    return () => {
+      window.removeEventListener('orchestratorAgentSettingsChanged', handleAgentSettingsChange as EventListener);
+    };
   }, []);
 
   // Persist projects list
@@ -369,7 +452,7 @@ const App: React.FC = () => {
         return;
     }
 
-    sendChatRequest(denialMessage);
+    sendChatRequest(denialMessage, undefined); // Denial messages don't need settings
 
     // Clear command state
     setActiveCommand(null);
@@ -393,9 +476,14 @@ const App: React.FC = () => {
     // Update twin status to thinking
     setTwins(prev => prev.map(t => t.id === targetTwin.id ? { ...t, status: TwinStatus.THINKING } : t));
 
-    // Send message via WebSocket
+    // Send message via WebSocket with twin settings
     if (isConnected) {
-      sendChatRequest(text);
+      sendChatRequest(text, {
+        temperature: targetTwin.settings.temperature,
+        top_p: targetTwin.settings.topP,
+        max_tokens: targetTwin.settings.tokenLimit * 1000, // Convert from K to actual tokens
+        max_memory: targetTwin.settings.maxMemory,
+      });
     } else {
       // Show error if not connected
       const errMsg: Message = {
@@ -553,12 +641,20 @@ const App: React.FC = () => {
       case 'system-status':
         return (
           <SystemMonitor 
+            twinId={orchestrator.id}
             onClose={() => setView('orchestrator')}
           />
         );
-      case 'root-admin-settings':
+      case 'file-processing-monitor':
         return (
-          <RootAdminSettings 
+          <FileProcessingMonitor 
+            projectId={activeProjectId || undefined}
+            onClose={() => setView('orchestrator')}
+          />
+        );
+      case 'orchestrator-settings':
+        return (
+          <OrchestratorSettings 
             onClose={() => setView('orchestrator')}
           />
         );
@@ -575,6 +671,11 @@ const App: React.FC = () => {
         );
     }
   };
+
+  // Show OAuth callback page if we're handling OAuth redirect
+  if (isOAuthCallback) {
+    return <OAuthCallback />;
+  }
 
   return (
     <div className="flex h-screen bg-[#9EC9D9] text-[#0b1b2b] overflow-hidden">
@@ -593,6 +694,7 @@ const App: React.FC = () => {
           onSelectMemoryExplorer={() => setView('memory-explorer')}
           onSelectEvolution={() => setView('evolution')}
           onSelectSystemStatus={() => setView('system-status')}
+          onSelectFileProcessingMonitor={() => setView('file-processing-monitor')}
           projects={projects}
           onSelectProject={(projectId) => {
             // Navigate to orchestrator view for project context and switch to the project's session.
@@ -623,7 +725,31 @@ const App: React.FC = () => {
           onDeleteProject={(projectId) => {
             setProjects((prev) => prev.filter((p) => p.id !== projectId));
           }}
-          onSelectRootAdminSettings={() => setView('root-admin-settings')}
+          onConfigureWatchPath={async (projectId, watchPath) => {
+            const project = projects.find((p) => p.id === projectId);
+            if (!project) return;
+            
+            // Update local state
+            setProjects((prev) => prev.map((p) => 
+              p.id === projectId ? { ...p, watchPath: watchPath || undefined } : p
+            ));
+            
+            // If watch path is provided, configure it on the backend
+            if (watchPath.trim()) {
+              try {
+                const { configureProjectWatch } = await import('./services/projectService');
+                await configureProjectWatch(projectId, project.name, watchPath.trim());
+              } catch (error) {
+                console.error('[App] Failed to configure watch path:', error);
+                // Revert on error
+                setProjects((prev) => prev.map((p) => 
+                  p.id === projectId ? { ...p, watchPath: project.watchPath } : p
+                ));
+                window.alert(`Failed to configure watch path: ${error instanceof Error ? error.message : String(error)}`);
+              }
+            }
+          }}
+          onSelectOrchestratorSettings={() => setView('orchestrator-settings')}
         />
       )}
 
@@ -653,8 +779,10 @@ const App: React.FC = () => {
                   ? 'Neural Archive'
                   : view === 'system-status'
                   ? 'System Status'
-                  : view === 'root-admin-settings'
-                  ? 'Root Admin Settings'
+                  : view === 'orchestrator-settings'
+                  ? 'Orchestrator Settings'
+                  : view === 'file-processing-monitor'
+                  ? 'File Processing Monitor'
                   : 'Tactical Agent'}
               </h1>
             </div>
@@ -673,7 +801,13 @@ const App: React.FC = () => {
             )}
 
             {/* Audio/Video/Recording controls moved into the top-right title panel */}
-            <MediaControls placement="header" onOpenGallery={() => setView('gallery')} />
+            <MediaControls
+              placement="header"
+              onOpenGallery={() => {
+                console.log('[App] Opening Neural Archive (gallery view)');
+                setView('gallery');
+              }}
+            />
 
             <button 
               onClick={() => setIsSidebarRightOpen(!isSidebarRightOpen)}

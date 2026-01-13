@@ -9,7 +9,7 @@ interface PagiContextType {
   client: PAGIClient | null;
   isConnected: boolean;
   messages: ChatResponse[];
-  sendChatRequest: (message: string) => void;
+  sendChatRequest: (message: string, settings?: { temperature?: number; top_p?: number; max_tokens?: number; max_memory?: number }) => void;
   currentUserId: string;
   sessionId: string;
   createNewSession: () => string;
@@ -151,7 +151,7 @@ export const PagiProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [sessionId, userId, handleIncomingMessage, handleConnectionStatus]);
 
-  const sendChatRequest = useCallback((message: string) => {
+  const sendChatRequest = useCallback((message: string, settings?: { temperature?: number; top_p?: number; max_tokens?: number; max_memory?: number }) => {
     if (clientRef.current && isConnected && sessionId) {
       const mediaActive = localStorage.getItem('pagi_media_active') === 'true';
       const userName = getUserName(); // Get user name from localStorage
@@ -161,7 +161,11 @@ export const PagiProvider: React.FC<{ children: React.ReactNode }> = ({ children
         timestamp: new Date().toISOString(),
         message: message,
         media_active: mediaActive,
-        user_name: userName !== 'ROOT ADMIN' ? userName : undefined, // Only send if not default
+        user_name: userName !== 'FG_User' ? userName : undefined, // Only send if not default
+        temperature: settings?.temperature,
+        top_p: settings?.top_p,
+        max_tokens: settings?.max_tokens,
+        max_memory: settings?.max_memory,
       };
       
       const sent = clientRef.current.sendRequest(request);

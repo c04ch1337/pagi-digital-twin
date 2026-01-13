@@ -1,16 +1,42 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { fetchSystemSnapshot, SystemSnapshot, ProcessSnapshot } from '../services/systemService';
 import { usePagi } from '../context/PagiContext';
+import NetworkMap from './NetworkMap';
+import { fetchLatestNetworkScan, runNetworkScan } from '../services/networkScanService';
+import type { NetworkScanResult } from '../types/networkScan';
 
 interface SystemMonitorProps {
   onClose?: () => void;
+  twinId: string;
 }
 
-const SystemMonitor: React.FC<SystemMonitorProps> = ({ onClose }) => {
+const SystemMonitor: React.FC<SystemMonitorProps> = ({ onClose, twinId }) => {
   const [snapshot, setSnapshot] = useState<SystemSnapshot | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { sendChatRequest } = usePagi();
+
+  const [scanTarget, setScanTarget] = useState<string>('192.168.1.0/24');
+  const [showScanAdvanced, setShowScanAdvanced] = useState<boolean>(false);
+  const [publicScanToken, setPublicScanToken] = useState<string>('');
+  const [scan, setScan] = useState<NetworkScanResult | null>(null);
+  const [scanLoading, setScanLoading] = useState<boolean>(false);
+  const [scanError, setScanError] = useState<string | null>(null);
+
+  const isLikelyPrivateTarget = (t: string): boolean => {
+    const s = (t || '').trim();
+    const ip = s.split('/')[0];
+    const parts = ip.split('.');
+    if (parts.length !== 4) return false;
+    const a = Number(parts[0]);
+    const b = Number(parts[1]);
+    if (!Number.isFinite(a) || !Number.isFinite(b)) return false;
+    if (a === 10) return true;
+    if (a === 172 && b >= 16 && b <= 31) return true;
+    if (a === 192 && b === 168) return true;
+    if (a === 169 && b === 254) return true;
+    return false;
+  };
 
   const loadSnapshot = useCallback(async () => {
     try {
@@ -31,6 +57,40 @@ const SystemMonitor: React.FC<SystemMonitorProps> = ({ onClose }) => {
     const interval = setInterval(loadSnapshot, 2000);
     return () => clearInterval(interval);
   }, [loadSnapshot]);
+
+  const loadLatestScan = useCallback(async () => {
+    try {
+      setScanError(null);
+      const latest = await fetchLatestNetworkScan({ twin_id: twinId, namespace: 'default' });
+      setScan(latest);
+    } catch (e) {
+      setScanError(e instanceof Error ? e.message : 'Failed to load network scan');
+    }
+  }, [twinId]);
+
+  useEffect(() => {
+    loadLatestScan();
+  }, [loadLatestScan]);
+
+  const handleRescanNetwork = async () => {
+    if (!scanTarget.trim()) return;
+    setScanLoading(true);
+    setScanError(null);
+    try {
+      const token = publicScanToken.trim();
+      const res = await runNetworkScan({
+        target: scanTarget.trim(),
+        twin_id: twinId,
+        namespace: 'default',
+        hitl_token: token.length > 0 ? token : undefined,
+      });
+      setScan(res);
+    } catch (e) {
+      setScanError(e instanceof Error ? e.message : 'Network scan failed');
+    } finally {
+      setScanLoading(false);
+    }
+  };
 
   const handleAskAIOptimize = () => {
     if (!snapshot) return;
@@ -139,6 +199,81 @@ const SystemMonitor: React.FC<SystemMonitorProps> = ({ onClose }) => {
 
       {/* Content */}
       <div className="flex-1 overflow-y-auto p-4 space-y-6">
+        {/* Network Map */}
+        <div className="bg-white/70 border border-[#5381A5]/30 rounded-lg p-4">
+          <div className="flex items-center justify-between gap-2 mb-3">
+            <div className="flex items-center gap-2">
+              <span className="material-symbols-outlined text-[#5381A5]">hub</span>
+              <h3 className="text-xs font-bold text-[#163247] uppercase tracking-wider">Network Scanner</h3>
+            </div>
+            <button
+              onClick={handleRescanNetwork}
+              disabled={scanLoading || !scanTarget.trim()}
+              className="px-3 py-1.5 bg-[#5381A5] hover:bg-[#78A2C2] disabled:opacity-50 rounded-lg text-xs font-bold text-white transition-all flex items-center gap-1"
+            >
+              <span className="material-symbols-outlined text-sm">refresh</span>
+              Rescan Network
+            </button>
+          </div>
+
+          <div className="flex flex-col md:flex-row gap-2 mb-4">
+            <input
+              value={scanTarget}
+              onChange={(e) => setScanTarget(e.target.value)}
+              placeholder="192.168.1.0/24"
+              className="flex-1 bg-white/80 border border-[#5381A5]/30 rounded-lg px-3 py-2 text-xs font-mono focus:ring-1 focus:ring-[#5381A5]/40"
+            />
+            <button
+              type="button"
+              onClick={() => {
+                // Quick presets for common lab subnets
+                if (!scanTarget.trim()) setScanTarget('192.168.1.0/24');
+              }}
+              className="px-3 py-2 bg-white/70 border border-[#5381A5]/30 rounded-lg text-xs font-bold text-[#163247] hover:bg-white transition-all"
+              title="Preset"
+            >
+              Preset
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setShowScanAdvanced(v => !v)}
+              className="px-3 py-2 bg-white/70 border border-[#5381A5]/30 rounded-lg text-xs font-bold text-[#163247] hover:bg-white transition-all"
+              title="Advanced (public scan HITL token)"
+            >
+              {showScanAdvanced ? 'Hide Advanced' : 'Advanced'}
+            </button>
+          </div>
+
+          {!isLikelyPrivateTarget(scanTarget) && (
+            <div className="mb-3 text-[11px] text-amber-900 bg-amber-100/60 border border-amber-300/60 rounded-lg px-3 py-2">
+              Public/non-RFC1918 target detected. This will be blocked unless the server enables public scans
+              (<span className="font-mono">ALLOW_PUBLIC_NETWORK_SCAN=1</span>) and you provide a valid HITL token
+              (<span className="font-mono">NETWORK_SCAN_HITL_TOKEN</span>).
+            </div>
+          )}
+
+          {showScanAdvanced && (
+            <div className="mb-4 grid grid-cols-1 md:grid-cols-2 gap-2">
+              <div>
+                <label className="block text-[10px] font-bold text-[#163247] uppercase tracking-widest mb-1">
+                  Public Scan HITL Token (optional)
+                </label>
+                <input
+                  value={publicScanToken}
+                  onChange={(e) => setPublicScanToken(e.target.value)}
+                  placeholder="(matches NETWORK_SCAN_HITL_TOKEN)"
+                  className="w-full bg-white/80 border border-[#5381A5]/30 rounded-lg px-3 py-2 text-xs font-mono focus:ring-1 focus:ring-[#5381A5]/40"
+                />
+              </div>
+              <div className="text-[11px] text-[#163247] opacity-80 leading-relaxed">
+                Use this only when explicitly authorized. Planner-triggered scans remain internal-only.
+              </div>
+            </div>
+          )}
+
+          <NetworkMap scan={scan} loading={scanLoading} error={scanError} />
+        </div>
         {/* CPU and RAM Gauges */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* CPU Gauge */}

@@ -1873,7 +1873,7 @@ grpcurl -plaintext -d '{
 ```bash
 grpcurl -plaintext -d '{
   "content": "Indicator of Compromise (IOC) detected: C2 beaconing to 185.x.x.x identified in outbound firewall logs. Timestamp: 2024-01-15 14:32:00 UTC",
-  "namespace": "threat_intel_v24",
+  "namespace": "threat_intel",
   "twin_id": "twin-sentinel",
   "memory_type": "Episodic",
   "risk_level": "High",
@@ -1890,7 +1890,7 @@ grpcurl -plaintext -d '{
 ```bash
 grpcurl -plaintext -d '{
   "content": "Policy Alert: Administrative accounts must use MFA for all lateral RDP sessions. This policy was updated on 2024-01-10 and applies to all domain controllers.",
-  "namespace": "threat_intel_v24",
+  "namespace": "threat_intel",
   "twin_id": "twin-aegis",
   "memory_type": "Semantic",
   "risk_level": "Medium",
@@ -1941,7 +1941,7 @@ grpcurl -plaintext -d '{
 ```bash
 grpcurl -plaintext -d '{
   "query": "recent C2 beaconing activity",
-  "namespace": "threat_intel_v24",
+  "namespace": "threat_intel",
   "twin_id": "twin-sentinel",
   "top_k": 10
 }' localhost:50052 memory.MemoryService/QueryMemory
@@ -1975,7 +1975,7 @@ grpcurl -plaintext -d '{
 #### Namespaces
 
 Namespaces organize memories by domain:
-- `threat_intel_v24` - Threat intelligence and security indicators
+- `threat_intel` - Threat intelligence and security indicators
 - `corporate_context` - Leadership, company history, organizational knowledge
 - `insights` - Transcript summaries, analysis outputs
 - `incident_response` - Incident tracking and remediation actions
@@ -1983,21 +1983,78 @@ Namespaces organize memories by domain:
 
 #### Bulk Memory Ingestion
 
-For bulk loading knowledge bases, use the example ingestion script:
+The orchestrator includes ingestion scripts for populating knowledge bases into Qdrant. All scripts are located in [`backend-rust-orchestrator/examples/`](backend-rust-orchestrator/examples/).
+
+**Available Knowledge Base Ingestion Scripts:**
+
+| KB Name | Namespace | Script | Description |
+|---------|-----------|--------|-------------|
+| **Leadership KB** | `corporate_context` | `ingest_leadership_kb.rs` | Leadership knowledge, company history, organizational values |
+| **Threat Intelligence KB** | `threat_intel` | `ingest_threat_intel_kb.rs` | Security indicators, IOCs, threat analysis frameworks |
+| **Incident Response KB** | `incident_response` | `ingest_incident_response_kb.rs` | Incident response playbooks and procedures |
+| **System Configuration KB** | `system_config` | `ingest_system_config_kb.rs` | Platform architecture, service configuration, environment variables |
+
+**Quick Start - Ingest All Knowledge Bases:**
 
 ```bash
-# Ingest leadership knowledge base
 cd backend-rust-orchestrator
+
+# Ingest Leadership KB (corporate context)
 cargo run --example ingest_leadership_kb
+
+# Ingest Threat Intelligence KB
+cargo run --example ingest_threat_intel_kb
+
+# Ingest Incident Response KB
+cargo run --example ingest_incident_response_kb
+
+# Ingest System Configuration KB
+cargo run --example ingest_system_config_kb
 ```
 
-This script demonstrates how to:
-- Connect to the Memory Service via gRPC
-- Chunk large documents into semantic pieces
-- Commit multiple memory blocks with metadata
-- Handle errors and track ingestion progress
+**With Custom Memory Service URL:**
 
-See [`backend-rust-orchestrator/examples/ingest_leadership_kb.rs`](backend-rust-orchestrator/examples/ingest_leadership_kb.rs) for the complete implementation.
+```bash
+MEMORY_GRPC_URL=http://127.0.0.1:50052 cargo run --example ingest_leadership_kb
+```
+
+**What the Scripts Do:**
+
+Each ingestion script:
+- Connects to the Memory Service via gRPC
+- Creates/ensures the target namespace (collection) exists in Qdrant
+- Chunks knowledge into semantic pieces
+- Commits memory blocks with appropriate metadata
+- Handles errors and tracks ingestion progress
+
+**Documentation:**
+
+- **Master Guide**: [`backend-rust-orchestrator/examples/README_KB_INGESTION.md`](backend-rust-orchestrator/examples/README_KB_INGESTION.md) - Overview of all KB ingestion scripts
+- **Leadership KB**: [`backend-rust-orchestrator/examples/README_LEADERSHIP_KB.md`](backend-rust-orchestrator/examples/README_LEADERSHIP_KB.md)
+- **Threat Intelligence KB**: [`backend-rust-orchestrator/examples/README_THREAT_INTEL_KB.md`](backend-rust-orchestrator/examples/README_THREAT_INTEL_KB.md)
+- **Incident Response KB**: [`backend-rust-orchestrator/examples/README_INCIDENT_RESPONSE_KB.md`](backend-rust-orchestrator/examples/README_INCIDENT_RESPONSE_KB.md)
+- **System Configuration KB**: [`backend-rust-orchestrator/examples/README_SYSTEM_CONFIG_KB.md`](backend-rust-orchestrator/examples/README_SYSTEM_CONFIG_KB.md)
+
+**Prerequisites:**
+
+1. **Memory Service Running**: `backend-rust-memory` must be running
+   - Default gRPC endpoint: `http://127.0.0.1:50052`
+   - Override via `MEMORY_GRPC_URL` environment variable
+
+2. **Qdrant Running** (if using Qdrant backend):
+   - Default: `http://127.0.0.1:6334`
+   - Override via `QDRANT_URL` environment variable
+
+**Verification:**
+
+After ingestion, verify each KB is accessible by querying The Blue Flame orchestrator:
+
+- **Leadership KB**: "Who in leadership would best understand a technical resource request?"
+- **Threat Intelligence KB**: "What are the indicators of C2 beaconing activity?"
+- **Incident Response KB**: "What are the steps for responding to a ransomware incident?"
+- **System Configuration KB**: "What ports does the Gateway service use?"
+
+See the individual README files for detailed usage instructions and troubleshooting.
 
 ---
 

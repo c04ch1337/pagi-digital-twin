@@ -2,6 +2,8 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Message, Twin, TwinStatus } from '../types';
 import { AVAILABLE_TOOLS } from '../constants';
 import { commitToMemory } from '../services/memory';
+import { useSpeechToText } from '../hooks/useSpeechToText';
+import { getUserName } from '../utils/userName';
 
 interface ChatAreaProps {
   messages: Message[];
@@ -17,6 +19,20 @@ const ChatArea: React.FC<ChatAreaProps> = ({ messages, activeTwin, onSendMessage
   const [saveStatus, setSaveStatus] = useState<Record<string, boolean>>({});
   const scrollRef = useRef<HTMLDivElement>(null);
   const toolMenuRef = useRef<HTMLDivElement>(null);
+
+  const stt = useSpeechToText({ lang: 'en-US', continuous: false, interimResults: true });
+  const dictationBaseRef = useRef<string>('');
+  const lastAppliedDictationRef = useRef<string>('');
+
+  useEffect(() => {
+    if (!stt.state.isListening) return;
+    const base = dictationBaseRef.current;
+    const parts = [base, stt.state.finalText, stt.state.interimText].filter(Boolean);
+    const next = parts.join(' ').replace(/\s+/g, ' ').trimStart();
+    if (lastAppliedDictationRef.current === next) return;
+    lastAppliedDictationRef.current = next;
+    setInput(next);
+  }, [stt.state.finalText, stt.state.interimText, stt.state.isListening]);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -57,6 +73,25 @@ const ChatArea: React.FC<ChatAreaProps> = ({ messages, activeTwin, onSendMessage
   const authorizedTools = AVAILABLE_TOOLS.filter(tool => 
     activeTwin.settings.toolAccess.includes(tool.id)
   );
+
+  // Helper function to get user's first name
+  const getUserFirstName = (): string => {
+    const fullName = getUserName();
+    if (fullName === 'FG_User') {
+      return 'FG_User';
+    }
+    // Extract first name (everything before the first space)
+    const firstName = fullName.split(' ')[0];
+    return firstName || fullName;
+  };
+
+  // Get display name for message sender
+  const getSenderDisplayName = (sender: 'user' | 'assistant'): string => {
+    if (sender === 'user') {
+      return getUserFirstName();
+    }
+    return 'The Blue Flame';
+  };
 
   return (
     <div className="chat-area flex-1 flex flex-col bg-[#9EC9D9] relative">
@@ -100,12 +135,21 @@ const ChatArea: React.FC<ChatAreaProps> = ({ messages, activeTwin, onSendMessage
             )}
             
             <div className={`max-w-[85%] md:max-w-[70%] space-y-2 group relative`}>
+              <div className={`text-[10px] font-bold text-[#163247] uppercase tracking-wider mb-1 px-1 ${
+                msg.sender === 'user' ? 'text-right' : 'text-left'
+              }`}>
+                {getSenderDisplayName(msg.sender)}
+              </div>
               <div className={`p-4 rounded-2xl text-sm leading-relaxed shadow-sm ${
                 msg.sender === 'user' 
                   ? 'bg-[#5381A5] text-white rounded-tr-none' 
+                  : (msg.content.includes('[ERROR]') || msg.content.includes('Connection Error') || msg.content.includes('Network Error'))
+                  ? 'bg-red-50 text-red-900 border border-red-300 rounded-tl-none'
                   : 'bg-white/70 text-[#0b1b2b] border border-[#5381A5]/30 rounded-tl-none'
               }`}>
-                {msg.content}
+                <div className={msg.content.includes('Connection Error') || msg.content.includes('Network Error') ? 'whitespace-pre-line' : ''}>
+                  {msg.content}
+                </div>
                 
                 {/* Save to Memory Button */}
                 {msg.sender === 'assistant' && (
@@ -170,6 +214,38 @@ const ChatArea: React.FC<ChatAreaProps> = ({ messages, activeTwin, onSendMessage
               placeholder={`Instruct ${activeTwin.name}...`}
               className="flex-1 bg-transparent border-none focus:ring-0 text-sm text-[#0b1b2b] placeholder-[#163247] py-2"
             />
+
+            <button
+              type="button"
+              title={
+                !stt.state.isSupported
+                  ? 'Voice input not supported in this browser'
+                  : stt.state.isListening
+                    ? 'Stop voice input'
+                    : 'Start voice input'
+              }
+              disabled={!stt.state.isSupported || activeTwin.status === TwinStatus.THINKING}
+              onClick={() => {
+                if (!stt.state.isSupported) return;
+                if (stt.state.isListening) {
+                  stt.actions.stop();
+                  return;
+                }
+                dictationBaseRef.current = input;
+                lastAppliedDictationRef.current = '';
+                stt.actions.start();
+              }}
+              className={
+                'p-2 rounded-xl transition-all flex items-center justify-center ' +
+                (!stt.state.isSupported || activeTwin.status === TwinStatus.THINKING
+                  ? 'opacity-40 cursor-not-allowed'
+                  : stt.state.isListening
+                    ? 'bg-[#5381A5] text-white'
+                    : 'text-[#163247] hover:text-[#0b1b2b]')
+              }
+            >
+              <span className="material-symbols-outlined text-[18px]">mic</span>
+            </button>
             
             <button 
               type="submit"
@@ -180,6 +256,12 @@ const ChatArea: React.FC<ChatAreaProps> = ({ messages, activeTwin, onSendMessage
               <span className="text-[10px] font-bold uppercase tracking-widest hidden sm:inline">Send</span>
             </button>
           </form>
+
+          {stt.state.error && (
+            <div className="mt-2 text-[11px] text-red-700 bg-white/60 border border-red-300/60 rounded-lg px-3 py-2">
+              Voice input error: {stt.state.error}
+            </div>
+          )}
         </div>
       </div>
     </div>

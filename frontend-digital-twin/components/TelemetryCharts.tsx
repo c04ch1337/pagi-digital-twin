@@ -3,6 +3,46 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { TelemetryData } from '../types';
 import HoverTooltip from './HoverTooltip';
 
+// NOTE:
+// Recharts v3 includes internal prop-reporting logic that can trigger an infinite
+// render loop if we pass new object/function identities on every render.
+// Keep commonly reused objects/functions stable (module scope) to avoid
+// `Maximum update depth exceeded` crashes.
+
+const CHART_MARGIN = { top: 2, right: 5, left: -15, bottom: 2 } as const;
+const X_TICK_STYLE = { fontSize: 9, fill: '#163247' } as const;
+const Y_TICK_STYLE = { fontSize: 9, fill: '#163247' } as const;
+
+// Format timestamp for X-axis (show only time portion)
+const formatXAxis = (tickItem: string) => {
+  if (!tickItem) return '';
+  // If it's already formatted as time, return it
+  if (tickItem.includes(':')) {
+    const parts = tickItem.split(':');
+    if (parts.length >= 2) {
+      return `${parts[parts.length - 2]}:${parts[parts.length - 1]}`;
+    }
+  }
+  return tickItem;
+};
+
+// Custom tooltip with light tactical theme
+const TelemetryTooltip = ({ active, payload, label }: any) => {
+  if (active && payload && payload.length) {
+    return (
+      <div className="bg-white/90 border border-[#5381A5]/40 rounded-lg p-2 shadow-xl">
+        <p className="text-[10px] text-[#163247] mb-1">{label}</p>
+        {payload.map((entry: any, index: number) => (
+          <p key={index} className="text-xs font-semibold" style={{ color: entry.color }}>
+            {entry.name}: {entry.value}%
+          </p>
+        ))}
+      </div>
+    );
+  }
+  return null;
+};
+
 interface TelemetryChartsProps {
   data: TelemetryData[];
 }
@@ -48,36 +88,6 @@ const TelemetryCharts: React.FC<TelemetryChartsProps> = ({ data }) => {
     }));
   }, [data]);
 
-  // Custom tooltip with dark theme
-  const CustomTooltip = ({ active, payload, label }: any) => {
-    if (active && payload && payload.length) {
-      return (
-        <div className="bg-white/90 border border-[#5381A5]/40 rounded-lg p-2 shadow-xl">
-          <p className="text-[10px] text-[#163247] mb-1">{label}</p>
-          {payload.map((entry: any, index: number) => (
-            <p key={index} className="text-xs font-semibold" style={{ color: entry.color }}>
-              {entry.name}: {entry.value}%
-            </p>
-          ))}
-        </div>
-      );
-    }
-    return null;
-  };
-
-  // Format timestamp for X-axis (show only time portion)
-  const formatXAxis = (tickItem: string) => {
-    if (!tickItem) return '';
-    // If it's already formatted as time, return it
-    if (tickItem.includes(':')) {
-      const parts = tickItem.split(':');
-      if (parts.length >= 2) {
-        return `${parts[parts.length - 2]}:${parts[parts.length - 1]}`;
-      }
-    }
-    return tickItem;
-  };
-
   if (chartData.length === 0) {
     return (
       <div className="h-32 w-full flex items-center justify-center">
@@ -115,17 +125,17 @@ const TelemetryCharts: React.FC<TelemetryChartsProps> = ({ data }) => {
             </span>
           </HoverTooltip>
         </div>
-        <ResponsiveContainer width="100%" height="100%">
+        <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
           <LineChart 
             data={chartData} 
-            margin={{ top: 2, right: 5, left: -15, bottom: 2 }}
+            margin={CHART_MARGIN}
           >
             <CartesianGrid strokeDasharray="3 3" stroke="#5381A5" opacity={0.18} />
             <XAxis 
               dataKey="time" 
               tickFormatter={formatXAxis}
               stroke="#163247" 
-              tick={{ fontSize: 9, fill: '#163247' }}
+              tick={X_TICK_STYLE}
               interval="preserveStartEnd"
               minTickGap={30}
             />
@@ -133,10 +143,10 @@ const TelemetryCharts: React.FC<TelemetryChartsProps> = ({ data }) => {
               unit="%" 
               domain={[0, 100]} 
               stroke="#163247" 
-              tick={{ fontSize: 9, fill: '#163247' }}
+              tick={Y_TICK_STYLE}
               width={30}
             />
-            <Tooltip content={<CustomTooltip />} />
+            <Tooltip content={TelemetryTooltip} />
             <Line 
               type="monotone" 
               dataKey="cpu" 
@@ -173,17 +183,17 @@ const TelemetryCharts: React.FC<TelemetryChartsProps> = ({ data }) => {
             </span>
           </HoverTooltip>
         </div>
-        <ResponsiveContainer width="100%" height="100%">
+        <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
           <LineChart 
             data={chartData} 
-            margin={{ top: 2, right: 5, left: -15, bottom: 2 }}
+            margin={CHART_MARGIN}
           >
             <CartesianGrid strokeDasharray="3 3" stroke="#5381A5" opacity={0.18} />
             <XAxis 
               dataKey="time" 
               tickFormatter={formatXAxis}
               stroke="#163247" 
-              tick={{ fontSize: 9, fill: '#163247' }}
+              tick={X_TICK_STYLE}
               interval="preserveStartEnd"
               minTickGap={30}
             />
@@ -191,10 +201,10 @@ const TelemetryCharts: React.FC<TelemetryChartsProps> = ({ data }) => {
               unit="%" 
               domain={[0, 100]} 
               stroke="#163247" 
-              tick={{ fontSize: 9, fill: '#163247' }}
+              tick={Y_TICK_STYLE}
               width={30}
             />
-            <Tooltip content={<CustomTooltip />} />
+            <Tooltip content={TelemetryTooltip} />
             <Line 
               type="monotone" 
               dataKey="memory" 
@@ -232,17 +242,17 @@ const TelemetryCharts: React.FC<TelemetryChartsProps> = ({ data }) => {
               </span>
             </HoverTooltip>
           </div>
-          <ResponsiveContainer width="100%" height="100%">
+          <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
             <LineChart 
               data={chartData} 
-              margin={{ top: 2, right: 5, left: -15, bottom: 2 }}
+              margin={CHART_MARGIN}
             >
               <CartesianGrid strokeDasharray="3 3" stroke="#5381A5" opacity={0.18} />
               <XAxis 
                 dataKey="time" 
                 tickFormatter={formatXAxis}
                 stroke="#163247" 
-                tick={{ fontSize: 9, fill: '#163247' }}
+                tick={X_TICK_STYLE}
                 interval="preserveStartEnd"
                 minTickGap={30}
               />
@@ -250,10 +260,10 @@ const TelemetryCharts: React.FC<TelemetryChartsProps> = ({ data }) => {
                 unit="%" 
                 domain={[0, 100]} 
                 stroke="#163247" 
-                tick={{ fontSize: 9, fill: '#163247' }}
+                tick={Y_TICK_STYLE}
                 width={30}
               />
-              <Tooltip content={<CustomTooltip />} />
+              <Tooltip content={TelemetryTooltip} />
               <Line 
                 type="monotone" 
                 dataKey="network" 

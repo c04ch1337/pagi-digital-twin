@@ -9,13 +9,19 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::collections::HashMap;
 use std::env;
+use std::net::Ipv4Addr;
 use std::path::PathBuf;
 use std::sync::Arc;
+use quick_xml::Reader as XmlReader;
+use quick_xml::events::Event as XmlEvent;
+use tokio::process::Command as TokioCommand;
 use tokio::sync::{mpsc, RwLock};
 use tonic::transport::Channel;
 use tracing::{info, warn, error};
 use uuid::Uuid;
 use tower_http::cors::{Any, CorsLayer};
+
+use tools::network_scanner;
 
 const DEFAULT_SYSTEM_PROMPT_TEMPLATE: &str = include_str!("../config/system_prompt.txt");
 
@@ -204,9 +210,13 @@ use orchestrator::{SummarizeRequest as GrpcSummarizeRequest, SummarizeResponse a
 
 mod tools;
 mod health;
+mod project_watcher;
+mod email_teams_monitor;
 use tools::system::{get_logs, manage_service, read_file, run_command, systemctl, write_file};
 use tools::get_system_snapshot;
 use health::HealthManager;
+use project_watcher::ProjectWatcher;
+use email_teams_monitor::EmailTeamsMonitor;
 
 #[derive(Clone, Debug)]
 struct SystemPromptRepository {
@@ -416,6 +426,15 @@ struct ChatRequest {
     media_active: bool,
     #[serde(default)]
     user_name: Option<String>,
+    // LLM settings (optional - will use defaults if not provided)
+    #[serde(default)]
+    temperature: Option<f32>,
+    #[serde(default)]
+    top_p: Option<f32>,
+    #[serde(default)]
+    max_tokens: Option<u32>,
+    #[serde(default)]
+    max_memory: Option<u32>,
 }
 
 #[derive(Debug, Serialize)]
@@ -550,6 +569,30 @@ struct PromptRestoreHttpResponse {
 }
 
 #[derive(Debug, Serialize)]
+struct PromptCurrentHttpResponse {
+    prompt: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct PromptUpdateHttpRequest {
+    new_prompt: String,
+    #[serde(default)]
+    change_summary: String,
+}
+
+#[derive(Debug, Serialize)]
+struct PromptUpdateHttpResponse {
+    success: bool,
+    message: String,
+}
+
+#[derive(Debug, Serialize)]
+struct PromptResetHttpResponse {
+    success: bool,
+    message: String,
+}
+
+#[derive(Debug, Serialize)]
 struct HealthResponse {
     service: &'static str,
     status: &'static str,
@@ -604,6 +647,15 @@ struct AppState {
 
     // Health check manager
     health_manager: HealthManager,
+
+    // Last network scan results (keyed by twin_id::namespace)
+    last_network_scans: Arc<RwLock<HashMap<String, NetworkScanResult>>>,
+
+    // Project folder watcher for monitoring application logs/files
+    project_watcher: Arc<ProjectWatcher>,
+
+    // Email and Teams monitoring
+    email_teams_monitor: Arc<RwLock<Option<EmailTeamsMonitor>>>,
 }
 
 #[derive(Debug, Clone)]
@@ -658,6 +710,369 @@ pub enum LLMAction {
     ActionSelfImprove {
         new_prompt: String,
     },
+
+    #[serde(rename = "ActionNetworkScan")]
+    ActionNetworkScan {
+        target: String,
+    },
+    #[serde(rename = "ActionMonitorEmail")]
+    ActionMonitorEmail {
+        #[serde(default)]
+        filter_unread: Option<bool>,
+    },
+    #[serde(rename = "ActionSendEmail")]
+    ActionSendEmail {
+        original_email_id: String,
+        reply_body: String,
+    },
+    #[serde(rename = "ActionMonitorTeams")]
+    ActionMonitorTeams {},
+    #[serde(rename = "ActionSendTeamsMessage")]
+    ActionSendTeamsMessage {
+        chat_id: String,
+        message_content: String,
+    },
+    #[serde(rename = "ActionEmailTrends")]
+    ActionEmailTrends {
+        period: String, // "day", "week", "month"
+    },
+}
+
+#[derive(Debug, Clone)]
+struct LLMSettings {
+    temperature: f32,
+    top_p: Option<f32>,
+    max_tokens: Option<u32>,
+    max_memory: Option<u32>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct NetworkScanPort {
+    pub port: u16,
+    pub protocol: String,
+    pub state: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub service: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct NetworkScanHost {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ipv4: Option<String>,
+    #[serde(default)]
+    pub hostnames: Vec<String>,
+    #[serde(default)]
+    pub ports: Vec<NetworkScanPort>,
+    pub is_agi_core_node: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct NetworkScanResult {
+    pub target: String,
+    pub timestamp: String,
+    pub scanned_ports: Vec<u16>,
+    pub hosts: Vec<NetworkScanHost>,
+}
+
+fn is_private_ipv4(ip: Ipv4Addr) -> bool {
+    let [a, b, ..] = ip.octets();
+    a == 10
+        || (a == 172 && (16..=31).contains(&b))
+        || (a == 192 && b == 168)
+        || (a == 169 && b == 254) // link-local
+}
+
+fn public_network_scan_enabled() -> bool {
+    matches!(
+        env::var("ALLOW_PUBLIC_NETWORK_SCAN")
+            .unwrap_or_default()
+            .to_lowercase()
+            .as_str(),
+        "1" | "true" | "yes" | "on"
+    )
+}
+
+fn public_network_scan_hitl_token() -> Option<String> {
+    let t = env::var("NETWORK_SCAN_HITL_TOKEN").ok()?;
+    let t = t.trim().to_string();
+    if t.is_empty() {
+        None
+    } else {
+        Some(t)
+    }
+}
+
+fn parse_ipv4_target(target: &str) -> Result<Ipv4Addr, String> {
+    let t = target.trim();
+    if t.is_empty() {
+        return Err("target must not be empty".to_string());
+    }
+
+    // Disallow obvious hostnames / URLs.
+    if t.contains("://")
+        || (t.contains('/')
+            && t.split('/').nth(1).and_then(|s| s.parse::<u8>().ok()).is_none())
+    {
+        return Err(
+            "network scanning target must be an IPv4 address or IPv4 CIDR (e.g., 192.168.1.0/24)".to_string(),
+        );
+    }
+    if t.contains(':') {
+        return Err("IPv6 targets are not allowed for network scanning in this environment".to_string());
+    }
+
+    let ip_part = t.split('/').next().unwrap_or(t);
+    let ip: Ipv4Addr = ip_part
+        .parse()
+        .map_err(|_| "invalid IPv4 target (expected e.g. 192.168.1.0/24)".to_string())?;
+    Ok(ip)
+}
+
+/// Corporate guardrail (P64): allow internal scans by default.
+/// Public scans require BOTH:
+/// - `ALLOW_PUBLIC_NETWORK_SCAN=1`
+/// - caller provides a matching HITL token (`NETWORK_SCAN_HITL_TOKEN`)
+fn enforce_network_scan_policy(target: &str, hitl_token: Option<&str>) -> Result<(), String> {
+    let ip = parse_ipv4_target(target)?;
+
+    if is_private_ipv4(ip) {
+        return Ok(());
+    }
+
+    if !public_network_scan_enabled() {
+        return Err(
+            "network scanning is restricted to internal research subnets (e.g., 192.168.x.x). Public scans require explicit HITL and ALLOW_PUBLIC_NETWORK_SCAN=1".to_string(),
+        );
+    }
+
+    let expected = public_network_scan_hitl_token().ok_or_else(|| {
+        "public network scan is enabled, but NETWORK_SCAN_HITL_TOKEN is not set; refusing public scan".to_string()
+    })?;
+    let provided = hitl_token.unwrap_or("").trim();
+    if provided.is_empty() {
+        return Err(
+            "public target requested: HITL token required (provide hitl_token matching NETWORK_SCAN_HITL_TOKEN)".to_string(),
+        );
+    }
+    if provided != expected {
+        return Err("public target requested: invalid HITL token".to_string());
+    }
+
+    Ok(())
+}
+
+fn parse_nmap_xml(xml: &str) -> Result<Vec<NetworkScanHost>, String> {
+    let mut reader = XmlReader::from_str(xml);
+    reader.config_mut().trim_text(true);
+
+    let mut buf = Vec::new();
+
+    let mut hosts: Vec<NetworkScanHost> = Vec::new();
+    let mut current_host: Option<NetworkScanHost> = None;
+    let mut current_port: Option<NetworkScanPort> = None;
+    let mut in_hostnames = false;
+    let mut in_ports = false;
+
+    loop {
+        match reader.read_event_into(&mut buf) {
+            Ok(XmlEvent::Eof) => break,
+            Ok(XmlEvent::Start(e)) => {
+                match e.name().as_ref() {
+                    b"host" => {
+                        current_host = Some(NetworkScanHost {
+                            ipv4: None,
+                            hostnames: Vec::new(),
+                            ports: Vec::new(),
+                            is_agi_core_node: false,
+                        });
+                    }
+                    b"hostnames" => in_hostnames = true,
+                    b"ports" => in_ports = true,
+                    b"address" => {
+                        if let Some(h) = current_host.as_mut() {
+                            let mut addr: Option<String> = None;
+                            let mut addrtype: Option<String> = None;
+                            for a in e.attributes().flatten() {
+                                match a.key.as_ref() {
+                                    b"addr" => addr = Some(a.unescape_value().unwrap_or_default().to_string()),
+                                    b"addrtype" => {
+                                        addrtype = Some(a.unescape_value().unwrap_or_default().to_string())
+                                    }
+                                    _ => {}
+                                }
+                            }
+                            if addrtype.as_deref() == Some("ipv4") {
+                                h.ipv4 = addr;
+                            }
+                        }
+                    }
+                    b"hostname" => {
+                        if in_hostnames {
+                            if let Some(h) = current_host.as_mut() {
+                                for a in e.attributes().flatten() {
+                                    if a.key.as_ref() == b"name" {
+                                        let name = a.unescape_value().unwrap_or_default().to_string();
+                                        if !name.trim().is_empty() {
+                                            h.hostnames.push(name);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    b"port" => {
+                        if in_ports {
+                            let mut portid: Option<u16> = None;
+                            let mut protocol: Option<String> = None;
+                            for a in e.attributes().flatten() {
+                                match a.key.as_ref() {
+                                    b"portid" => {
+                                        portid = a
+                                            .unescape_value()
+                                            .ok()
+                                            .and_then(|v| v.parse::<u16>().ok());
+                                    }
+                                    b"protocol" => {
+                                        protocol = Some(a.unescape_value().unwrap_or_default().to_string());
+                                    }
+                                    _ => {}
+                                }
+                            }
+                            if let Some(p) = portid {
+                                current_port = Some(NetworkScanPort {
+                                    port: p,
+                                    protocol: protocol.unwrap_or_else(|| "tcp".to_string()),
+                                    state: "unknown".to_string(),
+                                    service: None,
+                                });
+                            }
+                        }
+                    }
+                    b"state" => {
+                        if let Some(p) = current_port.as_mut() {
+                            for a in e.attributes().flatten() {
+                                if a.key.as_ref() == b"state" {
+                                    p.state = a.unescape_value().unwrap_or_default().to_string();
+                                }
+                            }
+                        }
+                    }
+                    b"service" => {
+                        if let Some(p) = current_port.as_mut() {
+                            for a in e.attributes().flatten() {
+                                if a.key.as_ref() == b"name" {
+                                    let s = a.unescape_value().unwrap_or_default().to_string();
+                                    if !s.trim().is_empty() {
+                                        p.service = Some(s);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    _ => {}
+                }
+            }
+            Ok(XmlEvent::End(e)) => match e.name().as_ref() {
+                b"hostnames" => in_hostnames = false,
+                b"ports" => in_ports = false,
+                b"port" => {
+                    if let (Some(h), Some(p)) = (current_host.as_mut(), current_port.take()) {
+                        // Keep all ports, but caller can filter.
+                        h.ports.push(p);
+                    }
+                }
+                b"host" => {
+                    if let Some(mut h) = current_host.take() {
+                        // Mark AGI core node if any of the orchestrator ports are open.
+                        h.is_agi_core_node = h
+                            .ports
+                            .iter()
+                            .any(|p| p.protocol == "tcp" && p.state == "open" && (8281..=8284).contains(&p.port));
+                        hosts.push(h);
+                    }
+                }
+                _ => {}
+            },
+            Err(e) => {
+                return Err(format!("failed to parse nmap XML: {e}"));
+            }
+            _ => {}
+        }
+
+        buf.clear();
+    }
+
+    Ok(hosts)
+}
+
+async fn run_nmap_scan_xml(target: &str) -> Result<String, String> {
+    // NOTE:
+    // - On Unix, `-sS` requires root; we attempt `sudo -n` (no password prompt).
+    // - On Windows, the process must be launched with Administrator privileges.
+
+    let scanned_ports = "8281-8284";
+
+    let mut cmd = if cfg!(target_os = "windows") {
+        let mut c = TokioCommand::new("nmap");
+        c.arg("-sS")
+            .arg("-T4")
+            .arg("-Pn")
+            .arg("--max-retries")
+            .arg("2")
+            .arg("--host-timeout")
+            .arg("15s")
+            .arg("-p")
+            .arg(scanned_ports)
+            .arg("-oX")
+            .arg("-")
+            .arg(target);
+        c
+    } else {
+        let mut c = TokioCommand::new("sudo");
+        c.arg("-n")
+            .arg("nmap")
+            .arg("-sS")
+            .arg("-T4")
+            .arg("-Pn")
+            .arg("--max-retries")
+            .arg("2")
+            .arg("--host-timeout")
+            .arg("15s")
+            .arg("-p")
+            .arg(scanned_ports)
+            .arg("-oX")
+            .arg("-")
+            .arg(target);
+        c
+    };
+
+    cmd.kill_on_drop(true);
+    let output = cmd.output().await.map_err(|e| format!("failed to launch nmap: {e}"))?;
+
+    let stdout = String::from_utf8_lossy(&output.stdout).to_string();
+    let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+
+    if !output.status.success() {
+        if !cfg!(target_os = "windows") && stderr.to_lowercase().contains("password") {
+            return Err(
+                "nmap requires elevated privileges. Configure sudoers NOPASSWD for agi-orchestrator (see backend-rust-orchestrator/config/sudoers.*)".to_string(),
+            );
+        }
+        return Err(format!(
+            "nmap scan failed (status={:?}). stderr: {}",
+            output.status.code(),
+            truncate_for_log(&stderr, 4_000)
+        ));
+    }
+
+    if stdout.trim().is_empty() {
+        return Err(format!(
+            "nmap returned empty output. stderr: {}",
+            truncate_for_log(&stderr, 4_000)
+        ));
+    }
+
+    Ok(stdout)
 }
 
 /// Deterministic mock planning used for local E2E runs.
@@ -919,6 +1334,7 @@ pub async fn llm_plan_openrouter(
     state: &AppState,
     media_active: bool,
     user_name: Option<&str>,
+    settings: Option<&LLMSettings>,
 ) -> Result<(LLMAction, String), String> {
     info!(
         user_message = %user_message,
@@ -936,8 +1352,8 @@ pub async fn llm_plan_openrouter(
     };
     let mut system_prompt = base.replace("{twin_id}", twin_id);
     
-    // Replace user_name placeholder (default to "ROOT ADMIN" if not provided)
-    let user_display_name = user_name.unwrap_or("ROOT ADMIN");
+    // Replace user_name placeholder (default to "FG_User" if not provided)
+    let user_display_name = user_name.unwrap_or("FG_User");
     system_prompt = system_prompt.replace("{user_name}", user_display_name);
     
     if media_active {
@@ -950,23 +1366,34 @@ pub async fn llm_plan_openrouter(
     }
 
     // Build the API request body
-    let payload = json!({
-        "model": state.openrouter_model,
-        "messages": [
-            {
-                "role": "system",
-                "content": system_prompt
-            },
-            {
-                "role": "user",
-                "content": user_message
-            }
-        ],
-        "response_format": {
-            "type": "json_object"
+    let mut payload = serde_json::Map::new();
+    payload.insert("model".to_string(), json!(state.openrouter_model));
+    payload.insert("messages".to_string(), json!([
+        {
+            "role": "system",
+            "content": system_prompt
         },
-        "temperature": 0.1
-    });
+        {
+            "role": "user",
+            "content": user_message
+        }
+    ]));
+    payload.insert("response_format".to_string(), json!({
+        "type": "json_object"
+    }));
+    payload.insert("temperature".to_string(), json!(settings.map(|s| s.temperature).unwrap_or(0.1)));
+    
+    // Add optional parameters only if provided
+    if let Some(s) = settings {
+        if let Some(top_p) = s.top_p {
+            payload.insert("top_p".to_string(), json!(top_p));
+        }
+        if let Some(max_tokens) = s.max_tokens {
+            payload.insert("max_tokens".to_string(), json!(max_tokens));
+        }
+    }
+    
+    let payload = serde_json::Value::Object(payload);
 
     // Make the API call to OpenRouter
     let response = state
@@ -1158,6 +1585,415 @@ struct TelemetryMediaListItem {
 struct TelemetryMediaListResponse {
     #[serde(default)]
     recordings: Vec<TelemetryMediaListItem>,
+}
+
+#[derive(Debug, Deserialize)]
+struct NetworkScanLatestQuery {
+    #[serde(default)]
+    twin_id: String,
+    #[serde(default)]
+    namespace: String,
+}
+
+async fn handle_network_scan_latest(
+    State(state): State<AppState>,
+    axum::extract::Query(query): axum::extract::Query<NetworkScanLatestQuery>,
+) -> Result<ResponseJson<NetworkScanResult>, StatusCode> {
+    let ns = if query.namespace.trim().is_empty() {
+        "default".to_string()
+    } else {
+        query.namespace
+    };
+    let twin = query.twin_id;
+    if twin.trim().is_empty() {
+        return Err(StatusCode::BAD_REQUEST);
+    }
+    let key = pending_key(&twin, "_", &ns);
+
+    let scans = state.last_network_scans.read().await;
+    let Some(res) = scans.get(&key) else {
+        return Err(StatusCode::NOT_FOUND);
+    };
+    Ok(ResponseJson(res.clone()))
+}
+
+#[derive(Debug, Deserialize)]
+struct NetworkScanRequest {
+    target: String,
+    #[serde(default)]
+    twin_id: String,
+    #[serde(default)]
+    namespace: String,
+    #[serde(default)]
+    hitl_token: Option<String>,
+}
+
+async fn handle_network_scan(
+    State(state): State<AppState>,
+    Json(req): Json<NetworkScanRequest>,
+) -> Result<ResponseJson<NetworkScanResult>, StatusCode> {
+    let ns = if req.namespace.trim().is_empty() {
+        "default".to_string()
+    } else {
+        req.namespace
+    };
+    if req.twin_id.trim().is_empty() {
+        return Err(StatusCode::BAD_REQUEST);
+    }
+    enforce_network_scan_policy(&req.target, req.hitl_token.as_deref()).map_err(|_| StatusCode::FORBIDDEN)?;
+
+    let mut hosts = network_scanner::run_xml_scan(&req.target, "8281-8284")
+        .await
+        .map_err(|_| StatusCode::BAD_GATEWAY)?;
+
+    // `network_scanner` already filters to open ports, but keep this defensive.
+    for h in hosts.iter_mut() {
+        h.ports.retain(|p| p.state == "open");
+        h.is_agi_core_node = h
+            .ports
+            .iter()
+            .any(|p| p.protocol == "tcp" && (8281..=8284).contains(&p.port));
+    }
+
+    let result = NetworkScanResult {
+        target: req.target.clone(),
+        timestamp: chrono::Utc::now().to_rfc3339(),
+        scanned_ports: vec![8281, 8282, 8283, 8284],
+        hosts,
+    };
+
+    let key = pending_key(&req.twin_id, "_", &ns);
+    {
+        let mut scans = state.last_network_scans.write().await;
+        scans.insert(key, result.clone());
+    }
+
+    Ok(ResponseJson(result))
+}
+
+#[derive(Debug, Deserialize)]
+struct ConfigureProjectWatchRequest {
+    project_id: String,
+    project_name: String,
+    watch_path: String,
+}
+
+async fn handle_configure_project_watch(
+    State(state): State<AppState>,
+    Json(req): Json<ConfigureProjectWatchRequest>,
+) -> Result<ResponseJson<serde_json::Value>, StatusCode> {
+    state.project_watcher
+        .watch_project_folder(&req.project_id, &req.project_name, &req.watch_path)
+        .await
+        .map_err(|e| {
+            error!(error = %e, project_id = %req.project_id, "Failed to configure project watch");
+            StatusCode::BAD_REQUEST
+        })?;
+    
+    Ok(ResponseJson(json!({
+        "ok": true,
+        "message": format!("Now watching folder for {}", req.project_name)
+    })))
+}
+
+#[derive(Debug, Deserialize)]
+struct GetWatchConfigsQuery {
+    #[serde(default)]
+    project_id: String,
+}
+
+async fn handle_get_watch_configs(
+    State(state): State<AppState>,
+    axum::extract::Query(query): axum::extract::Query<GetWatchConfigsQuery>,
+) -> Result<ResponseJson<serde_json::Value>, StatusCode> {
+    let configs = state.project_watcher.get_all_configs().await;
+    
+    let result: HashMap<String, serde_json::Value> = configs
+        .into_iter()
+        .map(|(id, (name, path))| {
+            (
+                id,
+                json!({
+                    "project_name": name,
+                    "watch_path": path.to_string_lossy().to_string(),
+                }),
+            )
+        })
+        .collect();
+    
+    Ok(ResponseJson(json!(result)))
+}
+
+#[derive(Debug, Deserialize)]
+struct GetProcessingStatsQuery {
+    #[serde(default)]
+    project_id: String,
+}
+
+async fn handle_get_processing_stats(
+    State(state): State<AppState>,
+    axum::extract::Query(query): axum::extract::Query<GetProcessingStatsQuery>,
+) -> Result<ResponseJson<serde_json::Value>, StatusCode> {
+    let project_id = if query.project_id.is_empty() {
+        None
+    } else {
+        Some(query.project_id.as_str())
+    };
+    
+    let stats = state.project_watcher.get_processing_stats(project_id).await;
+    Ok(ResponseJson(json!(stats)))
+}
+
+// --- Email/Teams Monitoring Handlers ---
+
+#[derive(Debug, Deserialize)]
+struct OAuthConfigRequest {
+    client_id: String,
+    client_secret: String,
+    tenant_id: String,
+    user_email: String,
+    user_name: String,
+    redirect_uri: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct OAuthTokenRequest {
+    access_token: String,
+    refresh_token: Option<String>,
+}
+
+async fn handle_configure_email_teams(
+    State(state): State<AppState>,
+    Json(config): Json<OAuthConfigRequest>,
+) -> Result<ResponseJson<serde_json::Value>, StatusCode> {
+    let monitor = EmailTeamsMonitor::new(
+        config.client_id,
+        config.client_secret,
+        config.tenant_id,
+        config.user_email,
+        config.user_name,
+        config.redirect_uri,
+    );
+
+    *state.email_teams_monitor.write().await = Some(monitor);
+
+    Ok(ResponseJson(json!({
+        "ok": true,
+        "message": "Email/Teams monitor configured. Complete OAuth flow to activate."
+    })))
+}
+
+async fn handle_set_oauth_tokens(
+    State(state): State<AppState>,
+    Json(tokens): Json<OAuthTokenRequest>,
+) -> Result<ResponseJson<serde_json::Value>, StatusCode> {
+    let mut monitor_guard = state.email_teams_monitor.write().await;
+    if let Some(ref mut monitor) = *monitor_guard {
+        monitor.set_access_token(tokens.access_token, tokens.refresh_token).await;
+        Ok(ResponseJson(json!({
+            "ok": true,
+            "message": "OAuth tokens set successfully"
+        })))
+    } else {
+        Err(StatusCode::BAD_REQUEST)
+    }
+}
+
+#[derive(Debug, Deserialize)]
+struct ExchangeTokenRequest {
+    code: String,
+}
+
+async fn handle_exchange_token(
+    State(state): State<AppState>,
+    Json(request): Json<ExchangeTokenRequest>,
+) -> Result<ResponseJson<serde_json::Value>, StatusCode> {
+    let monitor_guard = state.email_teams_monitor.read().await;
+    if let Some(ref monitor) = *monitor_guard {
+        match monitor.exchange_code_for_token(&request.code).await {
+            Ok((access_token, refresh_token)) => {
+                Ok(ResponseJson(json!({
+                    "ok": true,
+                    "access_token": access_token,
+                    "refresh_token": refresh_token,
+                    "message": "Token exchange successful"
+                })))
+            }
+            Err(e) => {
+                error!("Failed to exchange token: {}", e);
+                Err(StatusCode::INTERNAL_SERVER_ERROR)
+            }
+        }
+    } else {
+        Err(StatusCode::BAD_REQUEST)
+    }
+}
+
+async fn handle_check_emails(
+    State(state): State<AppState>,
+    axum::extract::Query(params): axum::extract::Query<HashMap<String, String>>,
+) -> Result<ResponseJson<serde_json::Value>, StatusCode> {
+    let filter_unread = params.get("unread").map(|v| v == "true").unwrap_or(true);
+    
+    let monitor_guard = state.email_teams_monitor.read().await;
+    if let Some(ref monitor) = *monitor_guard {
+        match monitor.check_new_emails(filter_unread).await {
+            Ok(emails) => {
+                let emails_json: Vec<serde_json::Value> = emails.iter()
+                    .map(|e| json!({
+                        "id": e.id,
+                        "subject": e.subject,
+                        "from": {
+                            "name": e.from.name,
+                            "address": e.from.address
+                        },
+                        "received_date_time": e.received_date_time.to_rfc3339(),
+                        "is_read": e.is_read,
+                        "importance": e.importance,
+                        "has_attachments": e.has_attachments,
+                        "body_preview": e.body.content.chars().take(200).collect::<String>()
+                    }))
+                    .collect();
+                Ok(ResponseJson(json!({
+                    "ok": true,
+                    "emails": emails_json,
+                    "count": emails_json.len()
+                })))
+            }
+            Err(e) => {
+                error!("Failed to check emails: {}", e);
+                Err(StatusCode::INTERNAL_SERVER_ERROR)
+            }
+        }
+    } else {
+        Err(StatusCode::BAD_REQUEST)
+    }
+}
+
+async fn handle_check_teams(
+    State(state): State<AppState>,
+) -> Result<ResponseJson<serde_json::Value>, StatusCode> {
+    let monitor_guard = state.email_teams_monitor.read().await;
+    if let Some(ref monitor) = *monitor_guard {
+        match monitor.check_teams_messages().await {
+            Ok(messages) => {
+                let messages_json: Vec<serde_json::Value> = messages.iter()
+                    .map(|m| json!({
+                        "id": m.id,
+                        "chat_id": m.chat_id,
+                        "channel_id": m.channel_id,
+                        "from": {
+                            "display_name": m.from.display_name,
+                            "user_principal_name": m.from.user_principal_name
+                        },
+                        "body": m.body.content,
+                        "created_date_time": m.created_date_time.to_rfc3339(),
+                        "message_type": m.message_type,
+                        "mentions": m.mentions.iter().map(|ment| json!({
+                            "mention_text": ment.mention_text,
+                            "mentioned": {
+                                "display_name": ment.mentioned.display_name
+                            }
+                        })).collect::<Vec<_>>()
+                    }))
+                    .collect();
+                Ok(ResponseJson(json!({
+                    "ok": true,
+                    "messages": messages_json,
+                    "count": messages_json.len()
+                })))
+            }
+            Err(e) => {
+                error!("Failed to check Teams messages: {}", e);
+                Err(StatusCode::INTERNAL_SERVER_ERROR)
+            }
+        }
+    } else {
+        Err(StatusCode::BAD_REQUEST)
+    }
+}
+
+async fn handle_send_email_reply(
+    State(state): State<AppState>,
+    Json(payload): Json<serde_json::Value>,
+) -> Result<ResponseJson<serde_json::Value>, StatusCode> {
+    let email_id = payload.get("email_id").and_then(|v| v.as_str()).ok_or(StatusCode::BAD_REQUEST)?;
+    let reply_body = payload.get("reply_body").and_then(|v| v.as_str()).ok_or(StatusCode::BAD_REQUEST)?;
+
+    let monitor_guard = state.email_teams_monitor.read().await;
+    if let Some(ref monitor) = *monitor_guard {
+        match monitor.send_email_reply(email_id.to_string(), reply_body.to_string()).await {
+            Ok(msg) => Ok(ResponseJson(json!({
+                "ok": true,
+                "message": msg
+            }))),
+            Err(e) => {
+                error!("Failed to send email reply: {}", e);
+                Err(StatusCode::INTERNAL_SERVER_ERROR)
+            }
+        }
+    } else {
+        Err(StatusCode::BAD_REQUEST)
+    }
+}
+
+async fn handle_send_teams_message(
+    State(state): State<AppState>,
+    Json(payload): Json<serde_json::Value>,
+) -> Result<ResponseJson<serde_json::Value>, StatusCode> {
+    let chat_id = payload.get("chat_id").and_then(|v| v.as_str()).ok_or(StatusCode::BAD_REQUEST)?;
+    let message_content = payload.get("message_content").and_then(|v| v.as_str()).ok_or(StatusCode::BAD_REQUEST)?;
+
+    let monitor_guard = state.email_teams_monitor.read().await;
+    if let Some(ref monitor) = *monitor_guard {
+        match monitor.send_teams_message(chat_id.to_string(), message_content.to_string()).await {
+            Ok(msg) => Ok(ResponseJson(json!({
+                "ok": true,
+                "message": msg
+            }))),
+            Err(e) => {
+                error!("Failed to send Teams message: {}", e);
+                Err(StatusCode::INTERNAL_SERVER_ERROR)
+            }
+        }
+    } else {
+        Err(StatusCode::BAD_REQUEST)
+    }
+}
+
+async fn handle_email_trends(
+    State(state): State<AppState>,
+    axum::extract::Query(params): axum::extract::Query<HashMap<String, String>>,
+) -> Result<ResponseJson<serde_json::Value>, StatusCode> {
+    let period = params.get("period").map(|s| s.as_str()).unwrap_or("week");
+    
+    let monitor_guard = state.email_teams_monitor.read().await;
+    if let Some(ref monitor) = *monitor_guard {
+        match monitor.get_email_trends(period).await {
+            Ok(trends) => {
+                Ok(ResponseJson(json!({
+                    "ok": true,
+                    "trends": {
+                        "period": trends.period,
+                        "total_emails": trends.total_emails,
+                        "unread_count": trends.unread_count,
+                        "urgent_count": trends.urgent_count,
+                        "top_senders": trends.from_top_senders.iter().map(|s| json!({
+                            "email": s.email,
+                            "name": s.name,
+                            "count": s.count
+                        })).collect::<Vec<_>>()
+                    }
+                })))
+            }
+            Err(e) => {
+                error!("Failed to get email trends: {}", e);
+                Err(StatusCode::INTERNAL_SERVER_ERROR)
+            }
+        }
+    } else {
+        Err(StatusCode::BAD_REQUEST)
+    }
 }
 
 // --- Orchestrator Logic ---
@@ -1532,7 +2368,19 @@ async fn handle_chat_request(
         let raw = serde_json::to_string(&forced).unwrap_or_else(|_| "{}".to_string());
         (forced, raw)
     } else if state.llm_provider == "openrouter" {
-        match llm_plan_openrouter(&request.message, &request.twin_id, &state, request.media_active, request.user_name.as_deref()).await {
+        // Extract LLM settings from request
+        let llm_settings = if request.temperature.is_some() || request.top_p.is_some() || request.max_tokens.is_some() || request.max_memory.is_some() {
+            Some(LLMSettings {
+                temperature: request.temperature.unwrap_or(0.1),
+                top_p: request.top_p,
+                max_tokens: request.max_tokens,
+                max_memory: request.max_memory,
+            })
+        } else {
+            None
+        };
+        
+        match llm_plan_openrouter(&request.message, &request.twin_id, &state, request.media_active, request.user_name.as_deref(), llm_settings.as_ref()).await {
             Ok((action, raw)) => (action, raw),
             Err(e) => {
                 error!(job_id = %job_id, error = %e, "LLM planning failed");
@@ -1891,6 +2739,256 @@ async fn handle_chat_request(
 
             raw_orchestrator_decision = Some(raw_decision);
         }
+
+        LLMAction::ActionNetworkScan { target } => {
+            actions_taken.push("network_scan".to_string());
+            // NOTE: planner-triggered network scans are restricted to internal ranges only.
+            enforce_network_scan_policy(&target, None).map_err(|e| {
+                error!(job_id = %job_id, error = %e, target = %target, "Network scan blocked by guardrail");
+                StatusCode::FORBIDDEN
+            })?;
+
+            let xml = match run_nmap_scan_xml(&target).await {
+                Ok(x) => x,
+                Err(e) => {
+                    actions_taken.push("network_scan_failed".to_string());
+                    response_message = format!("Network scan failed: {}", e);
+                    raw_orchestrator_decision = Some(raw_decision);
+
+                    // Update job to completed
+                    {
+                        let mut queue = state.job_queue.write().await;
+                        if let Some(job) = queue.get_mut(&job_id.to_string()) {
+                            job.status = "completed".to_string();
+                            job.progress = 100;
+                            job.logs.push("Job completed".to_string());
+                        }
+                    }
+
+                    return Ok(ResponseJson(ChatResponse {
+                        response: response_message,
+                        job_id: Some(job_id.to_string()),
+                        actions_taken,
+                        status: "completed".to_string(),
+                        issued_command,
+                        raw_orchestrator_decision,
+                    }));
+                }
+            };
+
+            let mut hosts = parse_nmap_xml(&xml).map_err(|e| {
+                error!(job_id = %job_id, error = %e, "Failed to parse nmap XML");
+                StatusCode::BAD_GATEWAY
+            })?;
+            for h in hosts.iter_mut() {
+                h.ports.retain(|p| p.state == "open");
+                h.is_agi_core_node = h
+                    .ports
+                    .iter()
+                    .any(|p| p.protocol == "tcp" && (8281..=8284).contains(&p.port));
+            }
+
+            let result = NetworkScanResult {
+                target: target.clone(),
+                timestamp: chrono::Utc::now().to_rfc3339(),
+                scanned_ports: vec![8281, 8282, 8283, 8284],
+                hosts: hosts.clone(),
+            };
+
+            // Store for UI to fetch
+            {
+                let key = pending_key(&request.twin_id, "_", &namespace);
+                let mut scans = state.last_network_scans.write().await;
+                scans.insert(key, result.clone());
+            }
+
+            let host_count = result.hosts.len();
+            let agi_nodes = result.hosts.iter().filter(|h| h.is_agi_core_node).count();
+            response_message = format!(
+                "Network scan completed for target '{}'. Hosts observed: {}. AGI Core Nodes (ports 8281-8284 open): {}.",
+                target, host_count, agi_nodes
+            );
+
+            issued_command = Some(json!({
+                "command": "network_scan_completed",
+                "target": target,
+                "host_count": host_count,
+                "agi_core_nodes": agi_nodes,
+            }));
+
+            raw_orchestrator_decision = Some(raw_decision);
+        }
+
+        LLMAction::ActionMonitorEmail { filter_unread } => {
+            actions_taken.push("monitor_email".to_string());
+            
+            let monitor_guard = state.email_teams_monitor.read().await;
+            if let Some(ref monitor) = *monitor_guard {
+                match monitor.check_new_emails(filter_unread.unwrap_or(true)).await {
+                    Ok(emails) => {
+                        if emails.is_empty() {
+                            response_message = "No new emails addressed to you found.".to_string();
+                        } else {
+                            let mut lines = Vec::new();
+                            for email in emails.iter().take(10) {
+                                lines.push(format!(
+                                    "- From: {} | Subject: {} | Received: {}",
+                                    email.from.address,
+                                    email.subject,
+                                    email.received_date_time.format("%Y-%m-%d %H:%M")
+                                ));
+                            }
+                            response_message = format!(
+                                "Found {} email(s) addressed to you:\n{}",
+                                emails.len(),
+                                lines.join("\n")
+                            );
+                        }
+                        actions_taken.push(format!("checked_emails: {} found", emails.len()));
+                    }
+                    Err(e) => {
+                        error!(job_id = %job_id, error = %e, "Failed to check emails");
+                        response_message = format!("Failed to check emails: {}", e);
+                        actions_taken.push("monitor_email_failed".to_string());
+                    }
+                }
+            } else {
+                response_message = "Email/Teams monitor not configured. Please configure OAuth authentication first.".to_string();
+                actions_taken.push("monitor_email_not_configured".to_string());
+            }
+            raw_orchestrator_decision = Some(raw_decision);
+        }
+
+        LLMAction::ActionSendEmail { original_email_id, reply_body } => {
+            actions_taken.push("send_email".to_string());
+            
+            let monitor_guard = state.email_teams_monitor.read().await;
+            if let Some(ref monitor) = *monitor_guard {
+                match monitor.send_email_reply(original_email_id.clone(), reply_body.clone()).await {
+                    Ok(msg) => {
+                        response_message = format!("Email reply sent successfully: {}", msg);
+                        actions_taken.push("email_sent".to_string());
+                    }
+                    Err(e) => {
+                        error!(job_id = %job_id, error = %e, "Failed to send email");
+                        response_message = format!("Failed to send email reply: {}", e);
+                        actions_taken.push("send_email_failed".to_string());
+                    }
+                }
+            } else {
+                response_message = "Email/Teams monitor not configured. Please configure OAuth authentication first.".to_string();
+                actions_taken.push("send_email_not_configured".to_string());
+            }
+            raw_orchestrator_decision = Some(raw_decision);
+        }
+
+        LLMAction::ActionMonitorTeams {} => {
+            actions_taken.push("monitor_teams".to_string());
+            
+            let monitor_guard = state.email_teams_monitor.read().await;
+            if let Some(ref monitor) = *monitor_guard {
+                match monitor.check_teams_messages().await {
+                    Ok(messages) => {
+                        if messages.is_empty() {
+                            response_message = "No new Teams messages found.".to_string();
+                        } else {
+                            let mut lines = Vec::new();
+                            for msg in messages.iter().take(10) {
+                                let mention_info = if !msg.mentions.is_empty() {
+                                    format!(" ({} mention(s))", msg.mentions.len())
+                                } else {
+                                    String::new()
+                                };
+                                lines.push(format!(
+                                    "- From: {} | {} | Created: {}{}",
+                                    msg.from.display_name,
+                                    msg.body.content.chars().take(50).collect::<String>(),
+                                    msg.created_date_time.format("%Y-%m-%d %H:%M"),
+                                    mention_info
+                                ));
+                            }
+                            response_message = format!(
+                                "Found {} Teams message(s):\n{}",
+                                messages.len(),
+                                lines.join("\n")
+                            );
+                        }
+                        actions_taken.push(format!("checked_teams: {} found", messages.len()));
+                    }
+                    Err(e) => {
+                        error!(job_id = %job_id, error = %e, "Failed to check Teams messages");
+                        response_message = format!("Failed to check Teams messages: {}", e);
+                        actions_taken.push("monitor_teams_failed".to_string());
+                    }
+                }
+            } else {
+                response_message = "Email/Teams monitor not configured. Please configure OAuth authentication first.".to_string();
+                actions_taken.push("monitor_teams_not_configured".to_string());
+            }
+            raw_orchestrator_decision = Some(raw_decision);
+        }
+
+        LLMAction::ActionSendTeamsMessage { chat_id, message_content } => {
+            actions_taken.push("send_teams_message".to_string());
+            
+            let monitor_guard = state.email_teams_monitor.read().await;
+            if let Some(ref monitor) = *monitor_guard {
+                match monitor.send_teams_message(chat_id.clone(), message_content.clone()).await {
+                    Ok(msg) => {
+                        response_message = format!("Teams message sent successfully: {}", msg);
+                        actions_taken.push("teams_message_sent".to_string());
+                    }
+                    Err(e) => {
+                        error!(job_id = %job_id, error = %e, "Failed to send Teams message");
+                        response_message = format!("Failed to send Teams message: {}", e);
+                        actions_taken.push("send_teams_failed".to_string());
+                    }
+                }
+            } else {
+                response_message = "Email/Teams monitor not configured. Please configure OAuth authentication first.".to_string();
+                actions_taken.push("send_teams_not_configured".to_string());
+            }
+            raw_orchestrator_decision = Some(raw_decision);
+        }
+
+        LLMAction::ActionEmailTrends { period } => {
+            actions_taken.push("email_trends".to_string());
+            
+            let monitor_guard = state.email_teams_monitor.read().await;
+            if let Some(ref monitor) = *monitor_guard {
+                match monitor.get_email_trends(&period).await {
+                    Ok(trends) => {
+                        let mut lines = Vec::new();
+                        lines.push(format!("Email trends for the past {}:", period));
+                        lines.push(format!("  Total emails: {}", trends.total_emails));
+                        lines.push(format!("  Unread: {}", trends.unread_count));
+                        lines.push(format!("  Urgent: {}", trends.urgent_count));
+                        if !trends.from_top_senders.is_empty() {
+                            lines.push("  Top senders:".to_string());
+                            for sender in trends.from_top_senders.iter().take(5) {
+                                lines.push(format!(
+                                    "    - {} ({}): {} emails",
+                                    sender.name.as_ref().unwrap_or(&sender.email),
+                                    sender.email,
+                                    sender.count
+                                ));
+                            }
+                        }
+                        response_message = lines.join("\n");
+                        actions_taken.push("email_trends_analyzed".to_string());
+                    }
+                    Err(e) => {
+                        error!(job_id = %job_id, error = %e, "Failed to get email trends");
+                        response_message = format!("Failed to get email trends: {}", e);
+                        actions_taken.push("email_trends_failed".to_string());
+                    }
+                }
+            } else {
+                response_message = "Email/Teams monitor not configured. Please configure OAuth authentication first.".to_string();
+                actions_taken.push("email_trends_not_configured".to_string());
+            }
+            raw_orchestrator_decision = Some(raw_decision);
+        }
     }
 
     // Update job to completed
@@ -2008,7 +3106,7 @@ async fn handle_prompt_history(
 }
 
 async fn handle_summarize_transcript(
-    State(state): State<Arc<AppState>>,
+    State(state): State<AppState>,
     Json(request): Json<SummarizeTranscriptRequest>,
 ) -> ResponseJson<SummarizeTranscriptResponse> {
     info!(
@@ -2179,6 +3277,66 @@ async fn handle_prompt_restore(
     Ok(ResponseJson(PromptRestoreHttpResponse {
         success: true,
         message: "prompt restored".to_string(),
+    }))
+}
+
+async fn handle_prompt_current(
+    State(state): State<AppState>,
+) -> ResponseJson<PromptCurrentHttpResponse> {
+    let prompt = state.system_prompt.get_template().await;
+    ResponseJson(PromptCurrentHttpResponse { prompt })
+}
+
+async fn handle_prompt_update(
+    State(state): State<AppState>,
+    Json(request): Json<PromptUpdateHttpRequest>,
+) -> Result<ResponseJson<PromptUpdateHttpResponse>, StatusCode> {
+    if request.new_prompt.len() > 200_000 {
+        return Ok(ResponseJson(PromptUpdateHttpResponse {
+            success: false,
+            message: "new_prompt too large (max 200k chars)".to_string(),
+        }));
+    }
+
+    let summary = if request.change_summary.trim().is_empty() {
+        None
+    } else {
+        Some(request.change_summary)
+    };
+
+    state
+        .system_prompt
+        .update_with_history(request.new_prompt, summary)
+        .await
+        .map_err(|e| {
+            error!(error = %e, "Prompt update failed");
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
+
+    Ok(ResponseJson(PromptUpdateHttpResponse {
+        success: true,
+        message: "prompt updated".to_string(),
+    }))
+}
+
+async fn handle_prompt_reset(
+    State(state): State<AppState>,
+) -> Result<ResponseJson<PromptResetHttpResponse>, StatusCode> {
+    state
+        .system_prompt
+        .update_with_history(
+            DEFAULT_SYSTEM_PROMPT_TEMPLATE.to_string(),
+            Some("reset_to_default".to_string()),
+        )
+        .await
+        .map_err(|e| {
+            error!(error = %e, "Prompt reset failed");
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
+
+    Ok(ResponseJson(PromptResetHttpResponse {
+        success: true,
+        message: "prompt reset to default".to_string(),
     }))
 }
 
@@ -2353,6 +3511,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Create health manager first
     let health_manager = HealthManager::new();
+    let project_watcher = Arc::new(ProjectWatcher::new());
+    
+    // Set memory client for automatic file processing
+    project_watcher.set_memory_client(memory_client.clone()).await;
+
+    // Initialize email/teams monitor (will be configured via OAuth flow)
+    let email_teams_monitor = Arc::new(RwLock::new(None::<EmailTeamsMonitor>));
 
     // Create application state
     let state = Arc::new(AppState {
@@ -2370,6 +3535,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         telemetry_url,
         system_prompt,
         health_manager,
+        last_network_scans: Arc::new(RwLock::new(HashMap::new())),
+        project_watcher: project_watcher.clone(),
+        email_teams_monitor,
     });
 
     // We'll use the same internal prompt manager for both:
@@ -2390,10 +3558,26 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/chat", post(handle_chat_request))
         .route("/v1/memory/list", post(handle_memory_list))
         .route("/v1/memory/delete", post(handle_memory_delete))
+        .route("/v1/prompt/current", get(handle_prompt_current))
         .route("/v1/prompt/history", get(handle_prompt_history))
+        .route("/v1/prompt/update", post(handle_prompt_update))
         .route("/v1/prompt/restore", post(handle_prompt_restore))
+        .route("/v1/prompt/reset", post(handle_prompt_reset))
         .route("/api/system/snapshot", get(handle_system_snapshot))
         .route("/api/system/sync-metrics", get(handle_sync_metrics))
+        .route("/api/network/scan", post(handle_network_scan))
+        .route("/api/network/scan/latest", get(handle_network_scan_latest))
+        .route("/api/projects/configure-watch", post(handle_configure_project_watch))
+        .route("/api/projects/watch-configs", get(handle_get_watch_configs))
+        .route("/api/projects/processing-stats", get(handle_get_processing_stats))
+        .route("/api/email-teams/configure", post(handle_configure_email_teams))
+        .route("/api/email-teams/set-tokens", post(handle_set_oauth_tokens))
+        .route("/api/email-teams/exchange-token", post(handle_exchange_token))
+        .route("/api/email/check", get(handle_check_emails))
+        .route("/api/email/send", post(handle_send_email_reply))
+        .route("/api/email/trends", get(handle_email_trends))
+        .route("/api/teams/check", get(handle_check_teams))
+        .route("/api/teams/send", post(handle_send_teams_message))
         .layer(cors)
         .with_state((*state).clone());
 

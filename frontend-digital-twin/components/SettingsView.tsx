@@ -563,6 +563,42 @@ const SettingsView: React.FC<SettingsViewProps> = ({ twin, onSave, onCancel }) =
                         />
                       </HoverTooltip>
                    </div>
+
+                   <div className="space-y-3">
+                      <div className="flex justify-between items-center">
+                        <span className="text-[#163247] text-[10px] font-black uppercase tracking-widest">Top P (Nucleus Sampling)</span>
+                        <span className="text-xs font-mono text-[#5381A5] font-bold">{formData.settings.topP.toFixed(2)}</span>
+                      </div>
+                      <HoverTooltip
+                        title="Top P (Nucleus Sampling)"
+                        description="Controls diversity via nucleus sampling. Lower values (0.1-0.5) = more focused, higher values (0.9-1.0) = more diverse outputs."
+                      >
+                        <input 
+                          type="range" min="0.1" max="1.0" step="0.05"
+                          value={formData.settings.topP}
+                          onChange={(e) => setFormData({ ...formData, settings: { ...formData.settings, topP: parseFloat(e.target.value) } })}
+                          className="w-full h-1.5 bg-white/40 rounded-lg appearance-none cursor-pointer accent-[#5381A5]"
+                        />
+                      </HoverTooltip>
+                   </div>
+
+                   <div className="space-y-3">
+                      <div className="flex justify-between items-center">
+                        <span className="text-[#163247] text-[10px] font-black uppercase tracking-widest">Memory Capacity</span>
+                        <span className="text-xs font-mono text-[#5381A5] font-bold">{formData.settings.maxMemory}GB</span>
+                      </div>
+                      <HoverTooltip
+                        title="Memory Capacity (Max Memory)"
+                        description="Maximum memory allocation for this agent's operations. Higher values allow more complex reasoning but consume more resources."
+                      >
+                        <input 
+                          type="range" min="1" max="32" step="1"
+                          value={formData.settings.maxMemory}
+                          onChange={(e) => setFormData({ ...formData, settings: { ...formData.settings, maxMemory: parseInt(e.target.value) } })}
+                          className="w-full h-1.5 bg-white/40 rounded-lg appearance-none cursor-pointer accent-[#5381A5]"
+                        />
+                      </HoverTooltip>
+                   </div>
                 </div>
               </div>
             </section>

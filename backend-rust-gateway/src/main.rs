@@ -834,6 +834,140 @@ async fn prompt_history_proxy_handler(
     }
 }
 
+async fn prompt_current_proxy_handler(
+    State(state): State<Arc<AppState>>,
+) -> impl IntoResponse {
+    let orchestrator_endpoint = format!(
+        "{}/v1/prompt/current",
+        state.orchestrator_url.trim_end_matches('/')
+    );
+
+    match state.http_client.get(&orchestrator_endpoint).send().await {
+        Ok(r) => {
+            let status = r.status();
+            let bytes = r.bytes().await.unwrap_or_default();
+            let mut resp = Response::new(Body::from(bytes));
+            *resp.status_mut() = status;
+            resp.headers_mut().insert(
+                header::CONTENT_TYPE,
+                HeaderValue::from_static("application/json"),
+            );
+            resp.headers_mut().insert(
+                header::ACCESS_CONTROL_ALLOW_ORIGIN,
+                HeaderValue::from_static("*"),
+            );
+            resp
+        }
+        Err(e) => {
+            error!(error = %e, endpoint = %orchestrator_endpoint, "Failed to proxy prompt current");
+            let mut resp = Response::new(Body::from("Orchestrator service unavailable"));
+            *resp.status_mut() = StatusCode::BAD_GATEWAY;
+            resp.headers_mut().insert(
+                header::ACCESS_CONTROL_ALLOW_ORIGIN,
+                HeaderValue::from_static("*"),
+            );
+            resp
+        }
+    }
+}
+
+async fn prompt_update_proxy_handler(
+    State(state): State<Arc<AppState>>,
+    body: Body,
+) -> impl IntoResponse {
+    let orchestrator_endpoint = format!(
+        "{}/v1/prompt/update",
+        state.orchestrator_url.trim_end_matches('/')
+    );
+
+    let byte_stream = body.into_data_stream().map(|chunk| {
+        chunk.map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))
+    });
+
+    let req = state
+        .http_client
+        .post(&orchestrator_endpoint)
+        .header(header::CONTENT_TYPE, "application/json")
+        .body(reqwest::Body::wrap_stream(byte_stream));
+
+    match req.send().await {
+        Ok(r) => {
+            let status = r.status();
+            let bytes = r.bytes().await.unwrap_or_default();
+            let mut resp = Response::new(Body::from(bytes));
+            *resp.status_mut() = status;
+            resp.headers_mut().insert(
+                header::CONTENT_TYPE,
+                HeaderValue::from_static("application/json"),
+            );
+            resp.headers_mut().insert(
+                header::ACCESS_CONTROL_ALLOW_ORIGIN,
+                HeaderValue::from_static("*"),
+            );
+            resp
+        }
+        Err(e) => {
+            error!(error = %e, endpoint = %orchestrator_endpoint, "Failed to proxy prompt update");
+            let mut resp = Response::new(Body::from("Orchestrator service unavailable"));
+            *resp.status_mut() = StatusCode::BAD_GATEWAY;
+            resp.headers_mut().insert(
+                header::ACCESS_CONTROL_ALLOW_ORIGIN,
+                HeaderValue::from_static("*"),
+            );
+            resp
+        }
+    }
+}
+
+async fn prompt_reset_proxy_handler(
+    State(state): State<Arc<AppState>>,
+    body: Body,
+) -> impl IntoResponse {
+    let orchestrator_endpoint = format!(
+        "{}/v1/prompt/reset",
+        state.orchestrator_url.trim_end_matches('/')
+    );
+
+    // We accept an (unused) body so a client can POST JSON or empty.
+    let byte_stream = body.into_data_stream().map(|chunk| {
+        chunk.map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))
+    });
+
+    let req = state
+        .http_client
+        .post(&orchestrator_endpoint)
+        .header(header::CONTENT_TYPE, "application/json")
+        .body(reqwest::Body::wrap_stream(byte_stream));
+
+    match req.send().await {
+        Ok(r) => {
+            let status = r.status();
+            let bytes = r.bytes().await.unwrap_or_default();
+            let mut resp = Response::new(Body::from(bytes));
+            *resp.status_mut() = status;
+            resp.headers_mut().insert(
+                header::CONTENT_TYPE,
+                HeaderValue::from_static("application/json"),
+            );
+            resp.headers_mut().insert(
+                header::ACCESS_CONTROL_ALLOW_ORIGIN,
+                HeaderValue::from_static("*"),
+            );
+            resp
+        }
+        Err(e) => {
+            error!(error = %e, endpoint = %orchestrator_endpoint, "Failed to proxy prompt reset");
+            let mut resp = Response::new(Body::from("Orchestrator service unavailable"));
+            *resp.status_mut() = StatusCode::BAD_GATEWAY;
+            resp.headers_mut().insert(
+                header::ACCESS_CONTROL_ALLOW_ORIGIN,
+                HeaderValue::from_static("*"),
+            );
+            resp
+        }
+    }
+}
+
 // --- Prompt Restore Proxy Handler ---
 async fn prompt_restore_proxy_handler(
     State(state): State<Arc<AppState>>,
@@ -912,6 +1046,45 @@ async fn system_snapshot_proxy_handler(
         }
         Err(e) => {
             error!(error = %e, endpoint = %orchestrator_endpoint, "Failed to proxy system snapshot");
+            let mut resp = Response::new(Body::from("Orchestrator service unavailable"));
+            *resp.status_mut() = StatusCode::BAD_GATEWAY;
+            resp.headers_mut().insert(
+                header::ACCESS_CONTROL_ALLOW_ORIGIN,
+                HeaderValue::from_static("*"),
+            );
+            resp
+        }
+    }
+}
+
+// --- Sync Metrics Proxy Handler ---
+async fn system_sync_metrics_proxy_handler(
+    State(state): State<Arc<AppState>>,
+) -> impl IntoResponse {
+    let orchestrator_endpoint = format!(
+        "{}/api/system/sync-metrics",
+        state.orchestrator_url.trim_end_matches('/')
+    );
+
+    match state.http_client.get(&orchestrator_endpoint).send().await {
+        Ok(r) => {
+            let status = r.status();
+            let bytes = r.bytes().await.unwrap_or_default();
+
+            let mut resp = Response::new(Body::from(bytes));
+            *resp.status_mut() = status;
+            resp.headers_mut().insert(
+                header::CONTENT_TYPE,
+                HeaderValue::from_static("application/json"),
+            );
+            resp.headers_mut().insert(
+                header::ACCESS_CONTROL_ALLOW_ORIGIN,
+                HeaderValue::from_static("*"),
+            );
+            resp
+        }
+        Err(e) => {
+            error!(error = %e, endpoint = %orchestrator_endpoint, "Failed to proxy sync metrics");
             let mut resp = Response::new(Body::from("Orchestrator service unavailable"));
             *resp.status_mut() = StatusCode::BAD_GATEWAY;
             resp.headers_mut().insert(
@@ -1081,6 +1254,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let app = Router::new()
         .route("/api/health", get(health_check))
         .route("/api/system/snapshot", get(system_snapshot_proxy_handler))
+        .route("/api/system/sync-metrics", get(system_sync_metrics_proxy_handler))
         .route("/ws/chat/:user_id", get(ws_handler))
         .route("/ws/signaling/:room_id", get(signaling_ws_handler))
         .route("/v1/telemetry/stream", get(telemetry_proxy_handler))
@@ -1092,8 +1266,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/api/media/summary/:filename", get(media_summary_proxy_handler))
         .route("/api/assets/upload", post(asset_upload_proxy_handler))
         .route("/api/assets/:filename", get(asset_view_proxy_handler))
+        .route("/api/prompt/current", get(prompt_current_proxy_handler))
         .route("/api/prompt/history", get(prompt_history_proxy_handler))
+        .route("/api/prompt/update", post(prompt_update_proxy_handler))
         .route("/api/prompt/restore", post(prompt_restore_proxy_handler))
+        .route("/api/prompt/reset", post(prompt_reset_proxy_handler))
         .route("/api/memory/list", post(memory_list_proxy_handler))
         .route("/api/memory/delete", post(memory_delete_proxy_handler))
         .with_state(app_state);

@@ -26,7 +26,7 @@ export const INITIAL_TWINS: Twin[] = [
       toolAccess: ['file_write', 'vector_query'],
       maxMemory: 8,
       tokenLimit: 64,
-      memoryNamespace: 'threat_intel_v24',
+      memoryNamespace: 'threat_intel',
       aiCodeGenerationEnabled: false,
       llmProvider: 'openrouter',
       temperature: 0.7,
