@@ -2,7 +2,7 @@ use axum::{
     extract::Query,
     extract::{Multipart, State},
     response::sse::{Event, KeepAlive, Sse},
-    routing::{get, post},
+    routing::{delete, get, post},
     Json, Router,
 };
 use futures_core::stream::Stream;
@@ -48,6 +48,7 @@ struct MediaRecordedEvent {
 struct AppState {
     storage_dir: PathBuf,
     media_tx: broadcast::Sender<MediaRecordedEvent>,
+    assets_dir: PathBuf,
 }
 
 fn now_ms() -> u128 {
@@ -656,6 +657,57 @@ async fn internal_media_summary_handler(
     }))
 }
 
+async fn internal_media_delete_handler(
+    State(state): State<Arc<AppState>>,
+    axum::extract::Path(filename): axum::extract::Path<String>,
+) -> Result<Json<serde_json::Value>, (axum::http::StatusCode, String)> {
+    use axum::http::StatusCode;
+    
+    // Check in recordings directory first, then legacy media directory
+    let recordings_dir = state.storage_dir.join("recordings");
+    let legacy_media_dir = state.storage_dir.join("media");
+    
+    let file_path = recordings_dir.join(&filename);
+    let file_path_legacy = legacy_media_dir.join(&filename);
+    
+    let path = if tokio::fs::metadata(&file_path).await.is_ok() {
+        file_path
+    } else if tokio::fs::metadata(&file_path_legacy).await.is_ok() {
+        file_path_legacy
+    } else {
+        return Err((
+            StatusCode::NOT_FOUND,
+            format!("Media file not found: {}", filename),
+        ));
+    };
+    
+    // Also try to delete associated transcript and summary files
+    let transcript_path = recordings_dir.join(format!("{}.txt", filename));
+    let summary_path = recordings_dir.join(format!("{}.summary.json", filename));
+    let transcript_path_legacy = legacy_media_dir.join(format!("{}.txt", filename));
+    let summary_path_legacy = legacy_media_dir.join(format!("{}.summary.json", filename));
+    
+    // Delete main file
+    tokio::fs::remove_file(&path)
+        .await
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Failed to delete file: {}", e),
+            )
+        })?;
+    
+    // Try to delete transcript (ignore errors if it doesn't exist)
+    let _ = tokio::fs::remove_file(&transcript_path).await;
+    let _ = tokio::fs::remove_file(&transcript_path_legacy).await;
+    
+    // Try to delete summary (ignore errors if it doesn't exist)
+    let _ = tokio::fs::remove_file(&summary_path).await;
+    let _ = tokio::fs::remove_file(&summary_path_legacy).await;
+    
+    Ok(Json(serde_json::json!({ "ok": true, "filename": filename })))
+}
+
 async fn internal_media_view_handler(
     State(state): State<Arc<AppState>>,
     axum::extract::Path(filename): axum::extract::Path<String>,
@@ -722,6 +774,143 @@ async fn internal_media_view_handler(
     Ok(response)
 }
 
+async fn internal_asset_upload_handler(
+    State(state): State<Arc<AppState>>,
+    mut multipart: Multipart,
+) -> Result<Json<serde_json::Value>, (axum::http::StatusCode, String)> {
+    let mut asset_type: Option<String> = None;
+    let mut stored_path: Option<String> = None;
+
+    while let Some(field) = multipart
+        .next_field()
+        .await
+        .map_err(|e| (axum::http::StatusCode::BAD_REQUEST, format!("multipart parse error: {e}")))?
+    {
+        let name = field.name().unwrap_or("").to_string();
+
+        if name == "file" {
+            let asset_type_val = asset_type.as_deref().unwrap_or("logo");
+            
+            // Determine filename based on asset type
+            let filename = match asset_type_val {
+                "logo" => "custom-logo.svg",
+                "favicon" => "custom-favicon.ico",
+                "favicon-png" => "custom-favicon-32.png",
+                _ => return Err((
+                    axum::http::StatusCode::BAD_REQUEST,
+                    format!("Invalid asset type: {}", asset_type_val),
+                )),
+            };
+
+            let assets_dir = &state.assets_dir;
+            tokio::fs::create_dir_all(assets_dir)
+                .await
+                .map_err(|e| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, format!("mkdir failed: {e}")))?;
+
+            let stored_path_buf = assets_dir.join(&filename);
+            let mut f = tokio::fs::File::create(&stored_path_buf)
+                .await
+                .map_err(|e| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, format!("create failed: {e}")))?;
+
+            let mut size_bytes: u64 = 0;
+            let mut field = field;
+            while let Some(chunk) = field
+                .chunk()
+                .await
+                .map_err(|e| (axum::http::StatusCode::BAD_REQUEST, format!("file read error: {e}")))?
+            {
+                f.write_all(&chunk)
+                    .await
+                    .map_err(|e| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, format!("write failed: {e}")))?;
+                size_bytes = size_bytes.saturating_add(chunk.len() as u64);
+            }
+
+            f.flush()
+                .await
+                .map_err(|e| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, format!("flush failed: {e}")))?;
+            drop(f);
+
+            stored_path = Some(stored_path_buf.to_string_lossy().to_string());
+            info!(
+                asset_type = %asset_type_val,
+                path = %stored_path.as_ref().unwrap(),
+                size_bytes = size_bytes,
+                "Stored custom asset"
+            );
+            break;
+        } else if name == "asset_type" {
+            let v = field
+                .text()
+                .await
+                .map_err(|e| (axum::http::StatusCode::BAD_REQUEST, format!("field read error: {e}")))?;
+            if !v.trim().is_empty() {
+                asset_type = Some(v.trim().to_string());
+            }
+        }
+    }
+
+    let stored_path = stored_path.ok_or_else(|| {
+        (
+            axum::http::StatusCode::BAD_REQUEST,
+            "missing 'file' field".to_string(),
+        )
+    })?;
+
+    Ok(Json(serde_json::json!({
+        "ok": true,
+        "asset_type": asset_type.unwrap_or("unknown".to_string()),
+        "stored_path": stored_path
+    })))
+}
+
+async fn internal_asset_view_handler(
+    State(state): State<Arc<AppState>>,
+    axum::extract::Path(filename): axum::extract::Path<String>,
+) -> Result<axum::response::Response, (axum::http::StatusCode, String)> {
+    use axum::body::Body;
+    use axum::http::{header, HeaderValue, StatusCode};
+    use axum::response::Response;
+    
+    let asset_path = state.assets_dir.join(&filename);
+    
+    // Check if custom asset exists, otherwise return 404
+    if tokio::fs::metadata(&asset_path).await.is_err() {
+        return Err((
+            StatusCode::NOT_FOUND,
+            format!("Asset not found: {}", filename),
+        ));
+    }
+    
+    let file_bytes = tokio::fs::read(&asset_path)
+        .await
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Failed to read file: {}", e),
+            )
+        })?;
+    
+    // Determine content type from extension
+    let content_type = match asset_path.extension().and_then(|s| s.to_str()) {
+        Some("svg") => "image/svg+xml",
+        Some("ico") => "image/x-icon",
+        Some("png") => "image/png",
+        Some("jpg") | Some("jpeg") => "image/jpeg",
+        _ => "application/octet-stream",
+    };
+    
+    let mut response = Response::new(Body::from(file_bytes));
+    *response.status_mut() = StatusCode::OK;
+    response.headers_mut().insert(
+        header::CONTENT_TYPE,
+        HeaderValue::from_str(content_type).map_err(|_| {
+            (StatusCode::INTERNAL_SERVER_ERROR, "Invalid content type".to_string())
+        })?,
+    );
+    
+    Ok(response)
+}
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tracing_subscriber::fmt()
@@ -741,6 +930,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Bare-metal default: ./storage (recordings will live under ./storage/recordings).
     let storage_dir = env::var("TELEMETRY_STORAGE_DIR").unwrap_or_else(|_| "./storage".to_string());
     let storage_dir = Path::new(storage_dir.trim()).to_path_buf();
+    let assets_dir = storage_dir.join("assets");
 
     // Get gRPC service addresses for transcription worker
     let orchestrator_grpc_addr = env::var("ORCHESTRATOR_GRPC_ADDR")
@@ -749,7 +939,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .unwrap_or_else(|_| "http://127.0.0.1:50052".to_string());
 
     let (media_tx, _media_rx) = broadcast::channel::<MediaRecordedEvent>(128);
-    let state = Arc::new(AppState { storage_dir: storage_dir.clone(), media_tx });
+    let state = Arc::new(AppState { 
+        storage_dir: storage_dir.clone(), 
+        media_tx,
+        assets_dir,
+    });
 
     // Start transcription worker in background
     let storage_dir_worker = storage_dir.clone();
@@ -781,6 +975,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/internal/media/view/:filename", get(internal_media_view_handler))
         .route("/internal/media/transcript/:filename", get(internal_media_transcript_handler))
         .route("/internal/media/summary/:filename", get(internal_media_summary_handler))
+        .route("/internal/media/delete/:filename", delete(internal_media_delete_handler))
+        .route("/internal/assets/upload", post(internal_asset_upload_handler))
+        .route("/internal/assets/:filename", get(internal_asset_view_handler))
         .with_state(state);
     let addr = SocketAddr::from(([0, 0, 0, 0], port));
 

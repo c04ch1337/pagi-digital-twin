@@ -7,6 +7,7 @@ import 'prismjs/components/prism-json';
 import { Twin } from '../types';
 import { AVAILABLE_TOOLS } from '../constants';
 import HoverTooltip from './HoverTooltip';
+import { uploadAsset } from '../services/assetService';
 
 interface SettingsViewProps {
   twin: Twin;
@@ -41,6 +42,8 @@ const SettingsView: React.FC<SettingsViewProps> = ({ twin, onSave, onCancel }) =
   const [isExampleMenuOpen, setIsExampleMenuOpen] = useState(false);
   const [isProviderDropdownOpen, setIsProviderDropdownOpen] = useState(false);
   const [isProcessingImage, setIsProcessingImage] = useState(false);
+  const [uploading, setUploading] = useState<string | null>(null);
+  const [uploadStatus, setUploadStatus] = useState<Record<string, string>>({});
   
   const textAreaRef = useRef<HTMLTextAreaElement>(null);
   const preRef = useRef<HTMLPreElement>(null);
@@ -125,6 +128,26 @@ const SettingsView: React.FC<SettingsViewProps> = ({ twin, onSave, onCancel }) =
     const file = e.target.files?.[0];
     if (file) {
       processFile(file);
+    }
+  };
+
+  const handleAssetUpload = async (file: File, assetType: 'logo' | 'favicon' | 'favicon-png') => {
+    setUploading(assetType);
+    setUploadStatus(prev => ({ ...prev, [assetType]: 'Uploading...' }));
+    try {
+      const result = await uploadAsset(file, assetType);
+      setUploadStatus(prev => ({ ...prev, [assetType]: 'Uploaded successfully! Reload page to see changes.' }));
+      // Optionally reload after a delay
+      setTimeout(() => {
+        setUploadStatus(prev => ({ ...prev, [assetType]: '' }));
+      }, 3000);
+    } catch (error) {
+      setUploadStatus(prev => ({ 
+        ...prev, 
+        [assetType]: `Error: ${error instanceof Error ? error.message : 'Upload failed'}` 
+      }));
+    } finally {
+      setUploading(null);
     }
   };
 
@@ -612,6 +635,90 @@ const SettingsView: React.FC<SettingsViewProps> = ({ twin, onSave, onCancel }) =
                     </HoverTooltip>
                   ))}
                 </div>
+              </div>
+            </section>
+
+            {/* Custom Branding */}
+            <section className="bg-white/40 border border-[#5381A5]/30 rounded-2xl p-6 shadow-2xl">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="p-2 bg-white/40 rounded-lg border border-[#5381A5]/20">
+                  <span className="material-symbols-outlined text-[#5381A5] text-xl">palette</span>
+                </div>
+                <h2 className="text-[#0b1b2b] text-lg font-bold">Custom Branding</h2>
+              </div>
+              
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-[#163247] text-[10px] font-black uppercase tracking-widest mb-2">
+                    Logo (SVG recommended)
+                  </label>
+                  <input
+                    type="file"
+                    accept=".svg,.png,.jpg,.jpeg"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) handleAssetUpload(file, 'logo');
+                    }}
+                    disabled={uploading === 'logo'}
+                    className="w-full text-xs rounded-xl border border-[#5381A5]/30 bg-white/30 p-2 file:mr-4 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-[#5381A5] file:text-white hover:file:bg-[#437091] disabled:opacity-50"
+                  />
+                  {uploadStatus.logo && (
+                    <p className={`text-[9px] mt-1 ${uploadStatus.logo.includes('Error') ? 'text-rose-600' : 'text-[#5381A5]'}`}>
+                      {uploadStatus.logo}
+                    </p>
+                  )}
+                </div>
+                
+                <div>
+                  <label className="block text-[#163247] text-[10px] font-black uppercase tracking-widest mb-2">
+                    Favicon (ICO)
+                  </label>
+                  <input
+                    type="file"
+                    accept=".ico"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) handleAssetUpload(file, 'favicon');
+                    }}
+                    disabled={uploading === 'favicon'}
+                    className="w-full text-xs rounded-xl border border-[#5381A5]/30 bg-white/30 p-2 file:mr-4 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-[#5381A5] file:text-white hover:file:bg-[#437091] disabled:opacity-50"
+                  />
+                  {uploadStatus.favicon && (
+                    <p className={`text-[9px] mt-1 ${uploadStatus.favicon.includes('Error') ? 'text-rose-600' : 'text-[#5381A5]'}`}>
+                      {uploadStatus.favicon}
+                    </p>
+                  )}
+                </div>
+                
+                <div>
+                  <label className="block text-[#163247] text-[10px] font-black uppercase tracking-widest mb-2">
+                    Favicon PNG (32x32)
+                  </label>
+                  <input
+                    type="file"
+                    accept=".png"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) handleAssetUpload(file, 'favicon-png');
+                    }}
+                    disabled={uploading === 'favicon-png'}
+                    className="w-full text-xs rounded-xl border border-[#5381A5]/30 bg-white/30 p-2 file:mr-4 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-[#5381A5] file:text-white hover:file:bg-[#437091] disabled:opacity-50"
+                  />
+                  {uploadStatus['favicon-png'] && (
+                    <p className={`text-[9px] mt-1 ${uploadStatus['favicon-png'].includes('Error') ? 'text-rose-600' : 'text-[#5381A5]'}`}>
+                      {uploadStatus['favicon-png']}
+                    </p>
+                  )}
+                </div>
+
+                <HoverTooltip
+                  title="Custom Branding"
+                  description="Upload custom logo and favicon files. Logo appears in the sidebar, favicons appear in browser tabs. Changes take effect after page reload."
+                >
+                  <p className="text-[8px] text-[#163247] italic mt-2">
+                    * Uploaded assets replace default branding. Reload page to see changes.
+                  </p>
+                </HoverTooltip>
               </div>
             </section>
           </div>

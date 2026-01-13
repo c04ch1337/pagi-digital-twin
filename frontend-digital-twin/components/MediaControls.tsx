@@ -5,9 +5,10 @@ import DraggableMediaPreview from './DraggableMediaPreview';
 
 interface MediaControlsProps {
   onOpenGallery?: () => void;
+  placement?: 'floating' | 'header';
 }
 
-export default function MediaControls({ onOpenGallery }: MediaControlsProps = {}) {
+export default function MediaControls({ onOpenGallery, placement = 'floating' }: MediaControlsProps = {}) {
   const { state, actions } = useMediaStream();
 
   const [toast, setToast] = React.useState<string | null>(null);
@@ -45,7 +46,7 @@ export default function MediaControls({ onOpenGallery }: MediaControlsProps = {}
         disabled={disabled}
         onClick={onClick}
         className={
-          `h-9 w-9 rounded-full flex items-center justify-center transition-colors ` +
+          `h-8 w-8 rounded-full flex items-center justify-center transition-colors ` +
           (disabled
             ? 'opacity-40 cursor-not-allowed'
             : active
@@ -61,13 +62,19 @@ export default function MediaControls({ onOpenGallery }: MediaControlsProps = {}
   return (
     <>
       {/* Floating control bar */}
-      <div className="fixed bottom-4 right-4 z-50 flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-2 shadow-lg backdrop-blur-md">
+      <div
+        className={
+          placement === 'header'
+            ? 'flex items-center gap-1.5 rounded-full border border-white/20 bg-white/20 px-2 py-1 shadow-sm backdrop-blur-md'
+            : 'fixed bottom-4 right-4 z-50 flex items-center gap-1.5 rounded-full border border-white/20 bg-white/10 px-2 py-1.5 shadow-lg backdrop-blur-md'
+        }
+      >
         <IconButton
           title={state.micEnabled ? 'Mute microphone' : 'Enable microphone'}
           active={state.micEnabled}
           onClick={() => (state.micEnabled ? actions.disableMic() : actions.enableMic())}
         >
-          {state.micEnabled ? <Mic size={16} /> : <MicOff size={16} />}
+          {state.micEnabled ? <Mic size={14} /> : <MicOff size={14} />}
         </IconButton>
 
         <IconButton
@@ -75,7 +82,7 @@ export default function MediaControls({ onOpenGallery }: MediaControlsProps = {}
           active={state.cameraEnabled}
           onClick={() => (state.cameraEnabled ? actions.disableCamera() : actions.enableCamera())}
         >
-          {state.cameraEnabled ? <Video size={16} /> : <VideoOff size={16} />}
+          {state.cameraEnabled ? <Video size={14} /> : <VideoOff size={14} />}
         </IconButton>
 
         <IconButton
@@ -83,10 +90,10 @@ export default function MediaControls({ onOpenGallery }: MediaControlsProps = {}
           active={state.screenEnabled}
           onClick={() => (state.screenEnabled ? actions.stopScreenShare() : actions.startScreenShare())}
         >
-          <Monitor size={16} />
+          <Monitor size={14} />
         </IconButton>
 
-        <div className="mx-1 h-6 w-px bg-white/20" />
+        <div className="mx-1 h-5 w-px bg-white/20" />
 
         {onOpenGallery && (
           <IconButton
@@ -94,11 +101,11 @@ export default function MediaControls({ onOpenGallery }: MediaControlsProps = {}
             active={false}
             onClick={onOpenGallery}
           >
-            <Library size={16} />
+            <Library size={14} />
           </IconButton>
         )}
 
-        <div className="mx-1 h-6 w-px bg-white/20" />
+        <div className="mx-1 h-5 w-px bg-white/20" />
 
         <IconButton
           title={state.isRecording ? 'Stop recording' : 'Start recording'}
@@ -107,16 +114,16 @@ export default function MediaControls({ onOpenGallery }: MediaControlsProps = {}
           onClick={() => (state.isRecording ? actions.stopRecording() : actions.startRecording())}
         >
           {state.isRecording ? (
-            <Square size={16} className="text-red-50" />
+            <Square size={14} className="text-red-50" />
           ) : (
-            <Circle size={16} className="text-red-600" />
+            <Circle size={14} className="text-red-600" />
           )}
         </IconButton>
 
         {/* High-contrast recording indicator (privacy) */}
         <div
           className={
-            'ml-1 h-2.5 w-2.5 rounded-full transition-opacity ' +
+            'ml-1 h-2 w-2 rounded-full transition-opacity ' +
             (state.isRecording ? 'bg-red-500 animate-pulse opacity-100' : 'bg-white/30 opacity-60')
           }
           title={state.isRecording ? 'Recording is ON' : 'Recording is OFF'}
@@ -139,7 +146,13 @@ export default function MediaControls({ onOpenGallery }: MediaControlsProps = {}
 
       {/* Toast */}
       {toast && (
-        <div className="fixed bottom-16 right-4 z-50 rounded-lg border border-white/15 bg-black/60 px-3 py-2 text-xs text-white shadow-lg backdrop-blur-md">
+        <div
+          className={
+            placement === 'header'
+              ? 'fixed top-16 right-4 z-50 rounded-lg border border-white/15 bg-black/60 px-3 py-2 text-xs text-white shadow-lg backdrop-blur-md'
+              : 'fixed bottom-16 right-4 z-50 rounded-lg border border-white/15 bg-black/60 px-3 py-2 text-xs text-white shadow-lg backdrop-blur-md'
+          }
+        >
           {toast}
         </div>
       )}

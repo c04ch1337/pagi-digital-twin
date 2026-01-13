@@ -238,10 +238,12 @@ func NewPlanner(ctx context.Context, cfg Config) (*Planner, error) {
 
 	auditDB, err := audit.NewAuditDB(cfg.AuditDBPath)
 	if err != nil {
-		_ = rustConn.Close()
-		_ = memoryConn.Close()
-		_ = modelConn.Close()
-		return nil, fmt.Errorf("init audit db: %w", err)
+		// In some dev environments (notably Windows without a C toolchain, or when
+		// CGO is disabled), the sqlite3 driver may be unavailable at runtime.
+		// Audit logging is a best-effort feature; continue without it so the core
+		// Agent Planner stack can boot.
+		lg.Warn("audit_db_unavailable_continuing_without_audit", "path", cfg.AuditDBPath, "error", err)
+		auditDB = nil
 	}
 
 	redisClient := redis.NewClient(&redis.Options{Addr: cfg.RedisAddr})

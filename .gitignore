@@ -20,6 +20,8 @@ node_modules/
 
 # Rust
 **/target/
+**/target_*/
+**/target-*/
 
 # Local dev artifacts
 .pids.json
@@ -44,4 +46,3 @@ backend-go-agent-planner/backend-go-agent-planner.exe
 # OS
 .DS_Store
 Thumbs.db
-

@@ -229,6 +229,41 @@ type server struct {
 	requestTimeout time.Duration
 }
 
+func buildMockPlanResponse(in *pb.PlanRequest, requestStart time.Time) *pb.PlanResponse {
+	// Zero-dependency mock provider: return deterministic strict JSON.
+	// This keeps the stack usable out-of-the-box without any API keys and also
+	// serves as a resilience fallback when upstream LLM providers rate-limit.
+	prompt := strings.TrimSpace(in.GetPrompt())
+	lower := strings.ToLower(prompt)
+
+	// Heuristic: if the user asks for “latest” / “search” / “web”, emit a tool call.
+	if strings.Contains(lower, "search") || strings.Contains(lower, "web") || strings.Contains(lower, "latest") {
+		payload := map[string]any{
+			"model_type": string(providerMock),
+			"prompt":     in.GetPrompt(),
+			"tool": map[string]any{
+				"name": "web_search",
+				"args": map[string]any{"query": prompt},
+			},
+		}
+		b, _ := json.Marshal(payload)
+		return &pb.PlanResponse{Plan: string(b), ModelName: "mock", LatencyMs: time.Since(requestStart).Milliseconds()}
+	}
+
+	steps := []string{
+		"Restate the objective in one sentence and identify constraints.",
+		"Propose a minimal 3-step plan with clear inputs/outputs.",
+		"Return the plan as strict JSON for downstream parsing.",
+	}
+	payload := map[string]any{
+		"model_type": string(providerMock),
+		"prompt":     in.GetPrompt(),
+		"steps":      steps,
+	}
+	b, _ := json.Marshal(payload)
+	return &pb.PlanResponse{Plan: string(b), ModelName: "mock", LatencyMs: time.Since(requestStart).Milliseconds()}
+}
+
 // healthServer implements the standard gRPC Health Checking Protocol.
 //
 // The goal is to report NOT_SERVING if critical downstream dependencies are
@@ -311,35 +346,7 @@ func (s *server) GetPlan(ctx context.Context, in *pb.PlanRequest) (*pb.PlanRespo
 	// Zero-dependency mock provider: return deterministic strict JSON.
 	// This keeps docker-compose usable out-of-the-box without any API keys.
 	if s.llm.Provider == providerMock {
-		prompt := strings.TrimSpace(in.GetPrompt())
-		lower := strings.ToLower(prompt)
-
-		// Heuristic: if the user asks for “latest” / “search” / “web”, emit a tool call.
-		if strings.Contains(lower, "search") || strings.Contains(lower, "web") || strings.Contains(lower, "latest") {
-			payload := map[string]any{
-				"model_type": string(providerMock),
-				"prompt":     in.GetPrompt(),
-				"tool": map[string]any{
-					"name": "web_search",
-					"args": map[string]any{"query": prompt},
-				},
-			}
-			b, _ := json.Marshal(payload)
-			return &pb.PlanResponse{Plan: string(b), ModelName: "mock", LatencyMs: time.Since(requestStart).Milliseconds()}, nil
-		}
-
-		steps := []string{
-			"Restate the objective in one sentence and identify constraints.",
-			"Propose a minimal 3-step plan with clear inputs/outputs.",
-			"Return the plan as strict JSON for downstream parsing.",
-		}
-		payload := map[string]any{
-			"model_type": string(providerMock),
-			"prompt":     in.GetPrompt(),
-			"steps":      steps,
-		}
-		b, _ := json.Marshal(payload)
-		return &pb.PlanResponse{Plan: string(b), ModelName: "mock", LatencyMs: time.Since(requestStart).Milliseconds()}, nil
+		return buildMockPlanResponse(in, requestStart), nil
 	}
 
 	if s.llm.Client == nil {
@@ -405,6 +412,15 @@ func (s *server) GetPlan(ctx context.Context, in *pb.PlanRequest) (*pb.PlanRespo
 		},
 	)
 	if err != nil {
+		// Resilience: if OpenRouter is rate-limited upstream (429), fall back to the
+		// deterministic mock response so the system remains usable.
+		if s.llm.Provider == providerOpenRouter {
+			var apiErr *openai.APIError
+			if errors.As(err, &apiErr) && apiErr.HTTPStatusCode == http.StatusTooManyRequests {
+				lg.Warn("llm_rate_limited_falling_back_to_mock", "provider", provider, "model", model, "error", err)
+				return buildMockPlanResponse(in, requestStart), nil
+			}
+		}
 		return nil, err
 	}
 

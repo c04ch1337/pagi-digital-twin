@@ -36,7 +36,8 @@ def load_env():
     env.setdefault("LOG_LEVEL", "info")
 
     # LLM provider switching (core)
-    env.setdefault("LLM_PROVIDER", "openrouter")
+    # Default to mock so the backend boots without external API keys / rate limits.
+    env.setdefault("LLM_PROVIDER", "mock")
 
     # --- Legacy (BFF demo harness) ---
     env.setdefault("PY_AGENT_PORT", "8000")
@@ -50,6 +51,25 @@ def load_env():
 
 
 ENV = load_env()
+
+
+def wait_for_tcp_port(host: str, port, timeout: int = 90, interval: float = 0.5) -> bool:
+    """Wait for a TCP port to accept connections.
+
+    This is used to avoid race conditions where a downstream service (e.g. a gRPC
+    dependency) is still compiling/booting while an upstream service fails-fast
+    on startup.
+    """
+
+    port_i = int(port)
+    start = time.time()
+    while time.time() - start < timeout:
+        try:
+            with socket.create_connection((host, port_i), timeout=1):
+                return True
+        except Exception:
+            time.sleep(interval)
+    return False
 
 
 def services_core(env: dict) -> list[dict]:
@@ -87,6 +107,14 @@ def services_core(env: dict) -> list[dict]:
             "cmd": ["go", "run", "."],
             "port": env["AGENT_PLANNER_PORT"],
             "health_url": f"http://localhost:{env['AGENT_PLANNER_PORT']}/health",
+            # The Agent Planner fails-fast if it can't dial downstream gRPC deps.
+            # In bare-metal runs, Rust Sandbox can take a while to compile, so
+            # we wait for gRPC ports to be reachable before starting the planner.
+            "depends_on_ports": [
+                ("localhost", env["MODEL_GATEWAY_GRPC_PORT"]),
+                ("localhost", env["MEMORY_GRPC_PORT"]),
+                ("localhost", env["RUST_SANDBOX_GRPC_PORT"]),
+            ],
         },
     ]
 
@@ -229,6 +257,16 @@ def start_services(profile: str):
         print("\n--- Starting PAGI Chat Desktop Services (Bare Metal / Core Stack) ---")
 
     for service in services:
+        depends = service.get("depends_on_ports")
+        if depends:
+            print(f"[{service['name']}] Waiting for dependencies...")
+            for host, port in depends:
+                print(f"  Waiting for {host}:{port}...")
+                if not wait_for_tcp_port(host, port, timeout=180):
+                    print(f"[{service['name']} ERROR] Dependency {host}:{port} did not become reachable in time.")
+                    print("  Aborting start to avoid fail-fast crash loops.")
+                    sys.exit(1)
+
         print(f"[{service['name']}] Starting on port {service['port']}...")
 
         # Merge environment variables for subprocess

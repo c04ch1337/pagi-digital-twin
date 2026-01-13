@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Twin, TwinStatus, AppView } from '../types';
+import { getCustomLogoUrl, checkAssetExists } from '../services/assetService';
 
 interface SidebarLeftProps {
   twins: Twin[];
@@ -11,18 +12,36 @@ interface SidebarLeftProps {
   onSelectSearch: () => void;
   onSelectMemoryExplorer: () => void;
   onSelectEvolution: () => void;
+  onSelectSystemStatus: () => void;
 }
 
-const SidebarLeft: React.FC<SidebarLeftProps> = ({ twins, activeTwinId, currentView, onSelectTwin, onSelectOrchestrator, onOpenCreateModal, onSelectSearch, onSelectMemoryExplorer, onSelectEvolution }) => {
+const SidebarLeft: React.FC<SidebarLeftProps> = ({ twins, activeTwinId, currentView, onSelectTwin, onSelectOrchestrator, onOpenCreateModal, onSelectSearch, onSelectMemoryExplorer, onSelectEvolution, onSelectSystemStatus }) => {
+  const [logoUrl, setLogoUrl] = useState('/ferrellgas-agi-badge.svg');
+
+  useEffect(() => {
+    // Try to load custom logo, fallback to default
+    const loadCustomLogo = async () => {
+      const customLogoUrl = getCustomLogoUrl();
+      const exists = await checkAssetExists(customLogoUrl);
+      if (exists) {
+        setLogoUrl(customLogoUrl);
+      } else {
+        setLogoUrl('/ferrellgas-agi-badge.svg');
+      }
+    };
+    loadCustomLogo();
+  }, []);
+
   return (
     <aside className="w-64 bg-[#90C3EA] flex flex-col shrink-0 border-r border-[#5381A5]/30">
       <div className="p-4 border-b border-[#5381A5]/30 flex items-center gap-3">
         <img
-          src="/ferrellgas-agi-badge.svg"
+          src={logoUrl}
           alt="Ferrellgas AGI"
           className="w-9 h-9 rounded shadow-lg shadow-indigo-500/20 shrink-0"
           loading="eager"
           decoding="async"
+          onError={() => setLogoUrl('/ferrellgas-agi-badge.svg')}
         />
         <div className="flex-1 flex flex-col min-w-0">
           <span className="font-bold text-lg tracking-tight leading-none text-[#0b1b2b] font-display">Ferrellgas AGI</span>
@@ -102,6 +121,22 @@ const SidebarLeft: React.FC<SidebarLeftProps> = ({ twins, activeTwinId, currentV
               <div className="min-w-0">
                 <div className="text-xs font-bold uppercase tracking-wider">Evolution</div>
                 <div className="text-[9px] text-[#163247] truncate">Prompt Timeline</div>
+              </div>
+            </button>
+            <button
+              onClick={onSelectSystemStatus}
+              className={`w-full flex items-center gap-3 p-3 rounded-xl transition-all text-left ${
+                currentView === 'system-status' 
+                  ? 'bg-[#5381A5] text-white border border-[#5381A5]' 
+                  : 'text-[#0b1b2b] hover:bg-[#78A2C2] hover:text-[#0b1b2b] border border-transparent'
+              }`}
+            >
+              <div className="p-1.5 bg-white/40 rounded-lg">
+                <span className="material-symbols-outlined text-sm text-[#5381A5]">monitor</span>
+              </div>
+              <div className="min-w-0">
+                <div className="text-xs font-bold uppercase tracking-wider">System Status</div>
+                <div className="text-[9px] text-[#163247] truncate">Sovereign Monitor</div>
               </div>
             </button>
           </div>

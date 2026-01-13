@@ -1,0 +1,49 @@
+# Ferrellgas AGI Orchestrator - Sudoers Configuration
+# This file allows the agi-orchestrator user to manage peer services without password prompts
+#
+# Installation:
+#   1. Copy this file to /etc/sudoers.d/agi-orchestrator
+#   2. Set permissions: chmod 0440 /etc/sudoers.d/agi-orchestrator
+#   3. Validate: visudo -c -f /etc/sudoers.d/agi-orchestrator
+#
+# Security Note:
+#   This grants passwordless sudo access to specific systemctl and journalctl commands.
+#   The agi-orchestrator user should be a dedicated system account with limited shell access.
+#
+# Platform Support:
+#   - Linux (systemd): Full support via systemctl and journalctl
+#   - macOS (launchd): Requires similar sudoers configuration for launchctl
+#   - Windows: Uses sc.exe and PowerShell (requires Administrator privileges)
+
+# Linux (systemd) - Allow the Orchestrator to manage its peer services without a password
+#
+# UNLIMITED ACCESS (P54.V2 - Cross-Platform Sovereign Tools):
+# For unlimited access across research nodes, uncomment the following line and comment out
+# the restricted access section below:
+# agi-orchestrator ALL=(ALL) NOPASSWD: /usr/bin/systemctl *, /usr/bin/journalctl *
+#
+# RESTRICTED ACCESS (Recommended for production):
+# For production environments, use specific commands as shown below:
+agi-orchestrator ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart telemetry
+agi-orchestrator ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart gateway
+agi-orchestrator ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart sys_control
+agi-orchestrator ALL=(ALL) NOPASSWD: /usr/bin/systemctl start telemetry
+agi-orchestrator ALL=(ALL) NOPASSWD: /usr/bin/systemctl start gateway
+agi-orchestrator ALL=(ALL) NOPASSWD: /usr/bin/systemctl start sys_control
+agi-orchestrator ALL=(ALL) NOPASSWD: /usr/bin/systemctl stop telemetry
+agi-orchestrator ALL=(ALL) NOPASSWD: /usr/bin/systemctl stop gateway
+agi-orchestrator ALL=(ALL) NOPASSWD: /usr/bin/systemctl stop sys_control
+agi-orchestrator ALL=(ALL) NOPASSWD: /usr/bin/systemctl status telemetry
+agi-orchestrator ALL=(ALL) NOPASSWD: /usr/bin/systemctl status gateway
+agi-orchestrator ALL=(ALL) NOPASSWD: /usr/bin/systemctl status sys_control
+agi-orchestrator ALL=(ALL) NOPASSWD: /usr/bin/systemctl enable telemetry
+agi-orchestrator ALL=(ALL) NOPASSWD: /usr/bin/systemctl enable gateway
+agi-orchestrator ALL=(ALL) NOPASSWD: /usr/bin/systemctl enable sys_control
+agi-orchestrator ALL=(ALL) NOPASSWD: /usr/bin/systemctl disable telemetry
+agi-orchestrator ALL=(ALL) NOPASSWD: /usr/bin/systemctl disable gateway
+agi-orchestrator ALL=(ALL) NOPASSWD: /usr/bin/systemctl disable sys_control
+
+# Allow journalctl access for log inspection
+agi-orchestrator ALL=(ALL) NOPASSWD: /usr/bin/journalctl -u telemetry *
+agi-orchestrator ALL=(ALL) NOPASSWD: /usr/bin/journalctl -u gateway *
+agi-orchestrator ALL=(ALL) NOPASSWD: /usr/bin/journalctl -u sys_control *

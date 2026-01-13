@@ -1,0 +1,32 @@
+# Ferrellgas AGI Orchestrator - macOS Sudoers Configuration
+# This file allows the agi-orchestrator user to manage peer services without password prompts on macOS
+#
+# Installation:
+#   1. Copy this file to /etc/sudoers.d/agi-orchestrator
+#   2. Set permissions: chmod 0440 /etc/sudoers.d/agi-orchestrator
+#   3. Validate: visudo -c -f /etc/sudoers.d/agi-orchestrator
+#
+# Security Note:
+#   This grants passwordless sudo access to launchctl commands.
+#   The agi-orchestrator user should be a dedicated system account with limited shell access.
+#
+# Additional macOS Setup:
+#   - Full Disk Access: System Settings > Privacy & Security > Full Disk Access
+#     Add the Orchestrator binary to allow log and storage file access
+
+# Allow the Orchestrator to manage its peer services without a password
+agi-orchestrator ALL=(ALL) NOPASSWD: /bin/launchctl kickstart -k system/telemetry
+agi-orchestrator ALL=(ALL) NOPASSWD: /bin/launchctl kickstart -k system/gateway
+agi-orchestrator ALL=(ALL) NOPASSWD: /bin/launchctl kickstart -k system/sys_control
+agi-orchestrator ALL=(ALL) NOPASSWD: /bin/launchctl bootout system/telemetry
+agi-orchestrator ALL=(ALL) NOPASSWD: /bin/launchctl bootout system/gateway
+agi-orchestrator ALL=(ALL) NOPASSWD: /bin/launchctl bootout system/sys_control
+agi-orchestrator ALL=(ALL) NOPASSWD: /bin/launchctl print system/telemetry
+agi-orchestrator ALL=(ALL) NOPASSWD: /bin/launchctl print system/gateway
+agi-orchestrator ALL=(ALL) NOPASSWD: /bin/launchctl print system/sys_control
+agi-orchestrator ALL=(ALL) NOPASSWD: /bin/launchctl bootstrap system /Library/LaunchDaemons/telemetry.plist
+agi-orchestrator ALL=(ALL) NOPASSWD: /bin/launchctl bootstrap system /Library/LaunchDaemons/gateway.plist
+agi-orchestrator ALL=(ALL) NOPASSWD: /bin/launchctl bootstrap system /Library/LaunchDaemons/sys_control.plist
+
+# Allow log access
+agi-orchestrator ALL=(ALL) NOPASSWD: /usr/bin/log show --predicate *

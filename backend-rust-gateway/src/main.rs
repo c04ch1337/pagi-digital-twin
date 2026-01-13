@@ -471,7 +471,7 @@ async fn media_list_proxy_handler(
     Query(params): Query<HashMap<String, String>>,
 ) -> impl IntoResponse {
     let telemetry_endpoint = format!(
-        "{}/internal/media/list",
+        "{}/v1/media/list",
         state.telemetry_url.trim_end_matches('/')
     );
 
@@ -700,6 +700,97 @@ async fn media_summary_proxy_handler(
     }
 }
 
+// --- Asset Upload Proxy Handler ---
+async fn asset_upload_proxy_handler(
+    State(state): State<Arc<AppState>>,
+    headers: HeaderMap,
+    body: Body,
+) -> impl IntoResponse {
+    let telemetry_endpoint = format!(
+        "{}/internal/assets/upload",
+        state.telemetry_url.trim_end_matches('/')
+    );
+
+    let byte_stream = body.into_data_stream().map(|chunk| {
+        chunk.map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))
+    });
+
+    let mut req = state
+        .http_client
+        .post(&telemetry_endpoint)
+        .body(reqwest::Body::wrap_stream(byte_stream));
+
+    if let Some(ct) = headers.get(header::CONTENT_TYPE).cloned() {
+        req = req.header(header::CONTENT_TYPE, ct);
+    }
+
+    match req.send().await {
+        Ok(r) => {
+            let status = r.status();
+            let bytes = r.bytes().await.unwrap_or_default();
+            let mut resp = Response::new(Body::from(bytes));
+            *resp.status_mut() = status;
+            resp.headers_mut().insert(
+                header::ACCESS_CONTROL_ALLOW_ORIGIN,
+                HeaderValue::from_static("*"),
+            );
+            resp
+        }
+        Err(e) => {
+            error!(error = %e, "Failed to proxy asset upload");
+            let mut resp = Response::new(Body::from("Telemetry service unavailable"));
+            *resp.status_mut() = StatusCode::BAD_GATEWAY;
+            resp.headers_mut().insert(
+                header::ACCESS_CONTROL_ALLOW_ORIGIN,
+                HeaderValue::from_static("*"),
+            );
+            resp
+        }
+    }
+}
+
+// --- Asset View Proxy Handler ---
+async fn asset_view_proxy_handler(
+    State(state): State<Arc<AppState>>,
+    Path(filename): Path<String>,
+) -> impl IntoResponse {
+    let telemetry_endpoint = format!(
+        "{}/internal/assets/{}",
+        state.telemetry_url.trim_end_matches('/'),
+        utf8_percent_encode(&filename, NON_ALPHANUMERIC)
+    );
+
+    match state.http_client.get(&telemetry_endpoint).send().await {
+        Ok(r) => {
+            let status = r.status();
+            let headers = r.headers().clone();
+            let bytes = r.bytes().await.unwrap_or_default();
+            let mut resp = Response::new(Body::from(bytes));
+            *resp.status_mut() = status;
+            
+            if let Some(content_type) = headers.get(header::CONTENT_TYPE) {
+                resp.headers_mut().insert(header::CONTENT_TYPE, content_type.clone());
+            }
+            
+            resp.headers_mut().insert(
+                header::ACCESS_CONTROL_ALLOW_ORIGIN,
+                HeaderValue::from_static("*"),
+            );
+            resp
+        }
+        Err(e) => {
+            error!(error = %e, "Failed to proxy asset view");
+            let mut resp = Response::new(Body::from("Asset not found"));
+            *resp.status_mut() = StatusCode::NOT_FOUND;
+            resp.headers_mut().insert(
+                header::ACCESS_CONTROL_ALLOW_ORIGIN,
+                HeaderValue::from_static("*"),
+            );
+            resp
+        }
+    }
+}
+
 // --- Health Check ---
 async fn health_check() -> impl IntoResponse {
     (axum::http::StatusCode::OK, "Gateway operational")
@@ -768,6 +859,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/api/media/delete/:filename", delete(media_delete_proxy_handler))
         .route("/api/media/transcript/:filename", get(media_transcript_proxy_handler))
         .route("/api/media/summary/:filename", get(media_summary_proxy_handler))
+        .route("/api/assets/upload", post(asset_upload_proxy_handler))
+        .route("/api/assets/:filename", get(asset_view_proxy_handler))
         .with_state(app_state);
 
     let addr = SocketAddr::from(([0, 0, 0, 0], gateway_port));

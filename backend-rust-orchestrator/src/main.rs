@@ -109,6 +109,12 @@ use orchestrator::orchestrator_service_server::{
 };
 use orchestrator::{SummarizeRequest as GrpcSummarizeRequest, SummarizeResponse as GrpcSummarizeResponse};
 
+mod tools;
+mod health;
+use tools::system::{get_logs, manage_service, read_file, run_command, systemctl, write_file};
+use tools::get_system_snapshot;
+use health::HealthManager;
+
 #[derive(Clone, Debug)]
 struct SystemPromptRepository {
     path: PathBuf,
@@ -494,6 +500,9 @@ struct AppState {
 
     // Self-improvement / persona prompt
     system_prompt: SystemPromptManager,
+
+    // Health check manager
+    health_manager: HealthManager,
 }
 
 #[derive(Debug, Clone)]
@@ -540,6 +549,10 @@ pub enum LLMAction {
         #[serde(default)]
         limit: Option<u32>,
     },
+    #[serde(rename = "ActionInspectSystem")]
+    ActionInspectSystem {},
+    #[serde(rename = "ActionKillProcess")]
+    ActionKillProcess { pid: u32 },
     #[serde(rename = "ActionSelfImprove")]
     ActionSelfImprove {
         new_prompt: String,
@@ -551,6 +564,17 @@ pub enum LLMAction {
 /// This mirrors the assumptions in [`tests/e2e_test_script.md`](tests/e2e_test_script.md:1).
 fn llm_plan_mock(user_message: &str) -> LLMAction {
     let msg = user_message.to_lowercase();
+
+    // Deterministic system-health routing.
+    if msg.contains("ram")
+        || msg.contains("memory")
+        || msg.contains("cpu")
+        || msg.contains("process")
+        || msg.contains("slow")
+        || msg.contains("performance")
+    {
+        return LLMAction::ActionInspectSystem {};
+    }
 
     if msg.contains("list") && msg.contains("record") {
         return LLMAction::ActionListRecordings {
@@ -613,7 +637,78 @@ fn build_tool_args_vec(tool_name: &str, args: &HashMap<String, String>) -> Vec<S
 }
 
 fn is_supported_tool_name(tool_name: &str) -> bool {
-    matches!(tool_name, "command_exec" | "file_write" | "vector_query")
+    matches!(
+        tool_name,
+        "command_exec" | "file_write" | "vector_query" | "run_command" | "read_file" | "write_file" | "systemctl" | "manage_service" | "get_logs" | "agi-doctor"
+    )
+}
+
+/// Check if a tool is a system tool that should be executed directly in the orchestrator
+/// rather than through the Tools Service.
+pub fn is_system_tool(tool_name: &str) -> bool {
+    matches!(tool_name, "run_command" | "read_file" | "write_file" | "systemctl" | "manage_service" | "get_logs" | "agi-doctor")
+}
+
+/// Execute a system tool directly in the orchestrator.
+pub async fn execute_system_tool(
+    tool_name: &str,
+    args: &HashMap<String, String>,
+) -> Result<String, String> {
+    match tool_name {
+        "run_command" => {
+            let cmd = args
+                .get("cmd")
+                .or_else(|| args.get("command"))
+                .or_else(|| args.get("cmdline"))
+                .ok_or_else(|| "Missing 'cmd' parameter for run_command".to_string())?;
+            run_command(cmd.clone()).await
+        }
+        "read_file" => {
+            let path = args
+                .get("path")
+                .ok_or_else(|| "Missing 'path' parameter for read_file".to_string())?;
+            read_file(path.clone()).await
+        }
+        "write_file" => {
+            let path = args
+                .get("path")
+                .ok_or_else(|| "Missing 'path' parameter for write_file".to_string())?;
+            let content = args
+                .get("content")
+                .ok_or_else(|| "Missing 'content' parameter for write_file".to_string())?;
+            write_file(path.clone(), content.clone()).await?;
+            Ok(format!("File '{}' written successfully", path))
+        }
+        "systemctl" | "manage_service" => {
+            let action = args
+                .get("action")
+                .ok_or_else(|| "Missing 'action' parameter for manage_service".to_string())?;
+            let service = args
+                .get("service")
+                .or_else(|| args.get("service_name"))
+                .ok_or_else(|| "Missing 'service' parameter for manage_service".to_string())?;
+            crate::tools::system::manage_service(service, action).await
+        }
+        "get_logs" => {
+            let service = args
+                .get("service")
+                .or_else(|| args.get("service_name"))
+                .ok_or_else(|| "Missing 'service' parameter for get_logs".to_string())?;
+            crate::tools::system::get_logs(service).await
+        }
+        "agi-doctor" => {
+            // agi-doctor takes no parameters - it runs a full diagnostic
+            match crate::tools::doctor::agi_doctor().await {
+                Ok(result) => Ok(result),
+                Err(error_json) => {
+                    // Even errors are returned as JSON, so we return them as-is
+                    // The orchestrator can parse the JSON error object
+                    Ok(error_json)
+                }
+            }
+        }
+        _ => Err(format!("Unknown system tool: {}", tool_name)),
+    }
 }
 
 fn maybe_handle_builtin(user_message: &str) -> Option<LLMAction> {
@@ -641,8 +736,23 @@ fn maybe_handle_builtin(user_message: &str) -> Option<LLMAction> {
     None
 }
 
+fn is_system_query(user_message: &str) -> bool {
+    let msg = user_message.to_lowercase();
+    let system_keywords = [
+        "ram",
+        "memory",
+        "cpu",
+        "process",
+        "processes",
+        "slow",
+        "disk",
+        "reboot",
+    ];
+    system_keywords.iter().any(|k| msg.contains(k))
+}
+
 /// OpenRouter LLM planning function that uses real AI for decision-making
-async fn llm_plan_openrouter(
+pub async fn llm_plan_openrouter(
     user_message: &str,
     twin_id: &str,
     state: &AppState,
@@ -931,6 +1041,43 @@ async fn handle_chat_request(
 
             info!(job_id = %job_id, tool_name = %tool_name, "Tool authorization received; executing tool");
 
+            // Check if this is a system tool that should be executed directly
+            if is_system_tool(&pending.tool_name) {
+                match execute_system_tool(&pending.tool_name, &pending.args).await {
+                    Ok(output) => {
+                        let mut actions_taken = vec![
+                            format!("Tool execution: {} authorized", tool_name),
+                            format!("Tool execution: {} completed", tool_name),
+                        ];
+                        let response_message = format!(
+                            "System tool '{}' executed successfully. Output:\n{}",
+                            tool_name, output
+                        );
+
+                        return Ok(ResponseJson(ChatResponse {
+                            response: response_message,
+                            job_id: Some(job_id.to_string()),
+                            actions_taken,
+                            status: "completed".to_string(),
+                            issued_command: None,
+                            raw_orchestrator_decision: None,
+                        }));
+                    }
+                    Err(e) => {
+                        error!(job_id = %job_id, error = %e, "System tool execution failed");
+                        return Ok(ResponseJson(ChatResponse {
+                            response: format!("System tool '{}' execution failed: {}", tool_name, e),
+                            job_id: Some(job_id.to_string()),
+                            actions_taken: vec![format!("System tool execution failed: {}", tool_name)],
+                            status: "error".to_string(),
+                            issued_command: None,
+                            raw_orchestrator_decision: None,
+                        }));
+                    }
+                }
+            }
+
+            // For non-system tools, execute via Tools Service
             let args_vec = build_tool_args_vec(&pending.tool_name, &pending.args);
             let mut tools_client = state.tools_client.clone();
             let tool_request = tonic::Request::new(ExecutionRequest {
@@ -1165,11 +1312,22 @@ async fn handle_chat_request(
         }));
     }
 
+    // P58: Deterministic pre-router for system health queries.
+    // This prevents the planner from hallucinating media recordings when the user is asking about system performance.
+    let forced_system_action: Option<LLMAction> = if is_system_query(&request.message) {
+        Some(LLMAction::ActionInspectSystem {})
+    } else {
+        None
+    };
+
     // LLM Planning (we also keep the raw decision text for UI transparency)
     //
     // IMPORTANT: Do not silently fall back to the mock planner when OpenRouter fails.
     // That produces an "echo" response (`I understand you said: ...`) and masks the real issue.
-    let (action, raw_decision): (LLMAction, String) = if state.llm_provider == "openrouter" {
+    let (action, raw_decision): (LLMAction, String) = if let Some(forced) = forced_system_action {
+        let raw = serde_json::to_string(&forced).unwrap_or_else(|_| "{}".to_string());
+        (forced, raw)
+    } else if state.llm_provider == "openrouter" {
         match llm_plan_openrouter(&request.message, &request.twin_id, &state, request.media_active).await {
             Ok((action, raw)) => (action, raw),
             Err(e) => {
@@ -1261,7 +1419,7 @@ async fn handle_chat_request(
 
                 return Ok(ResponseJson(ChatResponse {
                     response: format!(
-                        "Tool '{}' is not available. Supported tools: command_exec, file_write, vector_query.",
+                        "Tool '{}' is not available. Supported tools: command_exec, file_write, vector_query, run_command, read_file, write_file, systemctl, manage_service, get_logs.",
                         tool_name
                     ),
                     job_id: Some(job_id.to_string()),
@@ -1394,6 +1552,103 @@ async fn handle_chat_request(
                     actions_taken.push("list_recordings_failed".to_string());
                     raw_orchestrator_decision = Some(raw_decision);
                 }
+            }
+        }
+
+        LLMAction::ActionInspectSystem {} => {
+            actions_taken.push("inspect_system".to_string());
+
+            match get_system_snapshot().await {
+                Ok(snapshot) => {
+                    let used_mib = snapshot.memory.used_kib as f64 / 1024.0;
+                    let total_mib = snapshot.memory.total_kib as f64 / 1024.0;
+                    let cpu_global = snapshot.cpu.global_usage_percent;
+
+                    let mut lines: Vec<String> = Vec::new();
+                    lines.push(format!(
+                        "Memory: {:.1} MiB / {:.1} MiB used ({:.1}%)",
+                        used_mib,
+                        total_mib,
+                        if total_mib > 0.0 { (used_mib / total_mib) * 100.0 } else { 0.0 }
+                    ));
+                    lines.push(format!("CPU: {:.1}% global", cpu_global));
+
+                    let per_core = snapshot
+                        .cpu
+                        .per_core_usage_percent
+                        .iter()
+                        .enumerate()
+                        .map(|(i, u)| format!("core{}={:.1}%", i, u))
+                        .collect::<Vec<_>>()
+                        .join(", ");
+                    if !per_core.is_empty() {
+                        lines.push(format!("CPU cores: {}", per_core));
+                    }
+
+                    lines.push("Top 10 processes by memory:".to_string());
+                    for p in snapshot.top_processes.iter() {
+                        let mib = p.memory_kib as f64 / 1024.0;
+                        lines.push(format!("- {} (PID {}): {:.1} MiB", p.name, p.pid, mib));
+                    }
+
+                    response_message = lines.join("\n");
+                }
+                Err(e) => {
+                    actions_taken.push("inspect_system_failed".to_string());
+                    response_message = format!("Failed to inspect system: {}", e);
+                }
+            }
+
+            raw_orchestrator_decision = Some(raw_decision);
+        }
+
+        LLMAction::ActionKillProcess { pid } => {
+            // P59: Safety + HITL gate. We do NOT kill immediately; we require tool authorization.
+            let current_pid = std::process::id();
+            if pid <= 4 || pid == current_pid {
+                actions_taken.push("kill_process_blocked".to_string());
+                response_message = format!(
+                    "Refusing to terminate PID {} (blocked by safety rules).",
+                    pid
+                );
+                raw_orchestrator_decision = Some(raw_decision);
+                // Continue to job completion below.
+            } else {
+                let kill_cmd = if cfg!(target_os = "windows") {
+                    format!("taskkill /PID {} /F", pid)
+                } else {
+                    format!("kill -9 {}", pid)
+                };
+
+                let mut args: HashMap<String, String> = HashMap::new();
+                args.insert("cmd".to_string(), kill_cmd.clone());
+
+                {
+                    let mut pending_map = state.pending_tools.write().await;
+                    pending_map.insert(
+                        pkey.clone(),
+                        PendingToolCall {
+                            tool_name: "run_command".to_string(),
+                            args: args.clone(),
+                            namespace: namespace.clone(),
+                        },
+                    );
+                }
+
+                actions_taken.push(format!("kill_process_authorization_requested: pid={}", pid));
+                response_message = format!(
+                    "Authorization required to terminate process PID {}. Please approve or deny in the UI.",
+                    pid
+                );
+
+                issued_command = Some(json!({
+                    "command": "execute_tool",
+                    "tool_name": "run_command",
+                    "arguments": {"cmd": kill_cmd},
+                    "purpose": "kill_process"
+                }));
+
+                raw_orchestrator_decision = Some(raw_decision);
             }
         }
 
@@ -1735,6 +1990,17 @@ async fn health_check() -> ResponseJson<HealthResponse> {
     })
 }
 
+/// System snapshot endpoint handler
+async fn handle_system_snapshot() -> Result<ResponseJson<tools::SystemSnapshot>, StatusCode> {
+    match get_system_snapshot().await {
+        Ok(snapshot) => Ok(ResponseJson(snapshot)),
+        Err(e) => {
+            error!(error = %e, "Failed to get system snapshot");
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
+        }
+    }
+}
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Initialize tracing
@@ -1860,8 +2126,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         history: Arc::new(RwLock::new(Vec::new())),
     };
 
+    // Create health manager first
+    let health_manager = HealthManager::new();
+
     // Create application state
-    let state = AppState {
+    let state = Arc::new(AppState {
         memory_client,
         tools_client,
         job_queue,
@@ -1875,7 +2144,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         openrouter_model,
         telemetry_url,
         system_prompt,
-    };
+        health_manager,
+    });
 
     // We'll use the same internal prompt manager for both:
     // - HTTP chat planning (reads current prompt)
@@ -1897,8 +2167,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/v1/memory/delete", post(handle_memory_delete))
         .route("/v1/prompt/history", get(handle_prompt_history))
         .route("/v1/prompt/restore", post(handle_prompt_restore))
+        .route("/api/system/snapshot", get(handle_system_snapshot))
         .layer(cors)
-        .with_state(state.clone());
+        .with_state((*state).clone());
 
     let addr: std::net::SocketAddr = format!("0.0.0.0:{}", http_port)
         .parse()
@@ -1924,12 +2195,20 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let admin_svc = OrchestratorAdminServiceImpl { prompt_mgr };
     let orchestrator_svc = OrchestratorServiceImpl {
-        state: Arc::new(state.clone()),
+        state: Arc::clone(&state),
     };
 
     info!(addr = %admin_addr, port = admin_grpc_port, "Starting Orchestrator Admin gRPC server");
     info!(addr = %orchestrator_grpc_addr, port = orchestrator_grpc_port, "Starting Orchestrator gRPC server");
     info!(addr = %addr, port = http_port, "Starting Orchestrator HTTP server");
+
+    // Start periodic health checks (every 30 seconds)
+    let health_check_interval = env::var("HEALTH_CHECK_INTERVAL_SECS")
+        .unwrap_or_else(|_| "30".to_string())
+        .parse::<u64>()
+        .unwrap_or(30);
+    state.health_manager.start_periodic_checks(Arc::clone(&state), health_check_interval);
+    info!(interval = health_check_interval, "Started periodic health checks");
 
     let listener = tokio::net::TcpListener::bind(&addr).await?;
 

@@ -4,7 +4,6 @@ use tonic::transport::Channel;
 use tracing::{error, info, warn};
 use notify::{Config, Event, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 use notify::event::{AccessKind, AccessMode};
-use std::sync::Arc;
 use tokio::sync::mpsc;
 
 // Import orchestrator client module
@@ -30,7 +29,7 @@ struct SummaryJson {
 async fn process_transcript(
     transcript_path: &Path,
     twin_id: &str,
-    timestamp: u128,
+    _timestamp: u128,
     orchestrator_addr: &str,
     memory_client: &mut MemoryServiceClient<Channel>,
     storage_dir: &Path,
@@ -199,9 +198,13 @@ pub async fn start_transcription_watcher(
     while let Ok(Some(entry)) = entries.next_entry().await {
         let path = entry.path();
         if path.is_file() && path.extension().and_then(|s| s.to_str()) == Some("txt") {
-            let base_name = path.file_stem()
+            // IMPORTANT: keep filename parts owned so they can be moved into
+            // tokio::spawn (requires 'static).
+            let base_name = path
+                .file_stem()
                 .and_then(|s| s.to_str())
-                .unwrap_or("");
+                .unwrap_or("")
+                .to_string();
             
             // Check if summary already exists
             let summary_path = recordings_dir.join(format!("{}.summary.json", base_name));
@@ -218,6 +221,7 @@ pub async fn start_transcription_watcher(
                 .strip_prefix("rec_")
                 .and_then(|s| s.rsplit_once('_'))
             {
+                let twin_id = twin_id.to_string();
                 if let Ok(timestamp) = timestamp_str.parse::<u128>() {
                     let storage_dir_clone = storage_dir.clone();
                     let path_clone = path.clone();
@@ -237,7 +241,7 @@ pub async fn start_transcription_watcher(
 
                         match process_transcript(
                             &path_clone,
-                            twin_id,
+                            &twin_id,
                             timestamp,
                             &orchestrator_addr_clone,
                             &mut memory_client,
@@ -302,14 +306,17 @@ pub async fn start_transcription_watcher(
                                 }
 
                                 // Extract twin_id and timestamp from filename: rec_{twin_id}_{timestamp}.txt
-                                let base_name = path.file_stem()
+                                let base_name = path
+                                    .file_stem()
                                     .and_then(|s| s.to_str())
-                                    .unwrap_or("");
+                                    .unwrap_or("")
+                                    .to_string();
 
                                 if let Some((twin_id, timestamp_str)) = base_name
                                     .strip_prefix("rec_")
                                     .and_then(|s| s.rsplit_once('_'))
                                 {
+                                    let twin_id = twin_id.to_string();
                                     if let Ok(timestamp) = timestamp_str.parse::<u128>() {
                                         // Mark as processed to avoid duplicate processing
                                         processed_files.insert(path.clone());
@@ -332,7 +339,7 @@ pub async fn start_transcription_watcher(
 
                                             match process_transcript(
                                                 &path_clone,
-                                                twin_id,
+                                                &twin_id,
                                                 timestamp,
                                                 &orchestrator_addr_clone,
                                                 &mut memory_client,

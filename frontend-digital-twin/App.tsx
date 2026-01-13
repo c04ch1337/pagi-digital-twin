@@ -14,10 +14,12 @@ import MediaControls from './components/MediaControls';
 import MemoryExplorer from './pages/memory-explorer';
 import Evolution from './pages/evolution';
 import MediaGallery from './pages/MediaGallery';
+import SystemMonitor from './components/SystemMonitor';
 import { executeJobLifecycle } from './services/orchestrator';
 import { usePagi } from './context/PagiContext';
 import { useTelemetry } from './context/TelemetryContext';
 import { convertChatResponseToMessage } from './utils/messageConverter';
+import { updateFaviconLinks } from './utils/updateFavicon';
 import { ChatResponse, CompleteMessage, AgentCommand, ChatRequest } from './types/protocol';
 
 const App: React.FC = () => {
@@ -39,6 +41,11 @@ const App: React.FC = () => {
   const [activeCommand, setActiveCommand] = useState<AgentCommand | null>(null);
   const [commandMessageId, setCommandMessageId] = useState<string | null>(null);
   const [activeDecisionTrace, setActiveDecisionTrace] = useState<string | null>(null);
+
+  // Update favicon links on mount
+  useEffect(() => {
+    updateFaviconLinks();
+  }, []);
 
   // Notify orchestrator when gallery is open (for context awareness)
   useEffect(() => {
@@ -403,6 +410,12 @@ const App: React.FC = () => {
             onClose={() => setView('orchestrator')}
           />
         );
+      case 'system-status':
+        return (
+          <SystemMonitor 
+            onClose={() => setView('orchestrator')}
+          />
+        );
       case 'chat':
       default:
         return (
@@ -432,6 +445,7 @@ const App: React.FC = () => {
           onSelectSearch={() => setView('search')}
           onSelectMemoryExplorer={() => setView('memory-explorer')}
           onSelectEvolution={() => setView('evolution')}
+          onSelectSystemStatus={() => setView('system-status')}
         />
       )}
 
@@ -459,6 +473,8 @@ const App: React.FC = () => {
                   ? 'Evolutionary Timeline'
                   : view === 'gallery'
                   ? 'Neural Archive'
+                  : view === 'system-status'
+                  ? 'System Status'
                   : 'Tactical Agent'}
               </h1>
             </div>
@@ -475,6 +491,10 @@ const App: React.FC = () => {
                 {view === 'chat' ? 'Configure Agent' : 'Agent Chat'}
               </button>
             )}
+
+            {/* Audio/Video/Recording controls moved into the top-right title panel */}
+            <MediaControls placement="header" onOpenGallery={() => setView('gallery')} />
+
             <button 
               onClick={() => setIsSidebarRightOpen(!isSidebarRightOpen)}
               className="p-1.5 hover:bg-[#78A2C2] rounded-md transition-colors"
@@ -519,7 +539,7 @@ const App: React.FC = () => {
         onDeny={handleCommandDeny}
       />
 
-      <MediaControls onOpenGallery={() => setView('gallery')} />
+      {/* MediaControls moved into header */}
     </div>
   );
 };
