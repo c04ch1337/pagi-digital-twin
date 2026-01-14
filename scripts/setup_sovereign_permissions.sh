@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Ferrellgas AGI - Sovereign Permissions Setup Script
+# Ferrellgas AGI - Phoenix Permissions Setup Script
 # This script configures the bare-metal environment to allow the Orchestrator
 # service to execute system commands without manual password entry.
 #
@@ -24,7 +24,7 @@ ORCHESTRATOR_USER="agi-orchestrator"
 SUDOERS_FILE="/etc/sudoers.d/${ORCHESTRATOR_USER}"
 TELEMETRY_STORAGE_DIR="${1:-./storage}"
 
-echo -e "${GREEN}🚀 Setting up Sovereign Permissions for AGI Orchestrator${NC}"
+echo -e "${GREEN}🚀 Setting up Phoenix Permissions for AGI Orchestrator${NC}"
 echo "=================================================="
 echo ""
 
@@ -124,7 +124,7 @@ if [ ! -d "${RECORDINGS_DIR}" ]; then
 fi
 
 echo ""
-echo -e "${GREEN}✅ Sovereign Permissions Setup Complete!${NC}"
+echo -e "${GREEN}✅ Phoenix Permissions Setup Complete!${NC}"
 echo ""
 echo "Summary:"
 echo "  - User created: ${ORCHESTRATOR_USER}"

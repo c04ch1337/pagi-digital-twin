@@ -1,0 +1,4507 @@
+[
+  {
+    "file": "App.tsx",
+    "line": 781,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "App.tsx",
+    "line": 782,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\AgentLeaderboard.tsx",
+    "line": 99,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\AgentLeaderboard.tsx",
+    "line": 99,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\AgentLeaderboard.tsx",
+    "line": 102,
+    "match": "transparent"
+  },
+  {
+    "file": "components\\AgentLeaderboard.tsx",
+    "line": 110,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\AgentLeaderboard.tsx",
+    "line": 112,
+    "match": "rgb(var(--danger-rgb)"
+  },
+  {
+    "file": "components\\AgentLeaderboard.tsx",
+    "line": 135,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\AgentLeaderboard.tsx",
+    "line": 153,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\AgentLeaderboard.tsx",
+    "line": 158,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\AgentLeaderboard.tsx",
+    "line": 158,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\AgentLeaderboard.tsx",
+    "line": 215,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\AgentLeaderboard.tsx",
+    "line": 220,
+    "match": "rgb(var(--text-on-accent-rgb)"
+  },
+  {
+    "file": "components\\AgentLeaderboard.tsx",
+    "line": 248,
+    "match": "rgb(var(--bg-muted-rgb)"
+  },
+  {
+    "file": "components\\AgentLeaderboard.tsx",
+    "line": 263,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\AgentLeaderboard.tsx",
+    "line": 263,
+    "match": "rgb(var(--bg-secondary-rgb)"
+  },
+  {
+    "file": "components\\AgentWarRoom.tsx",
+    "line": 196,
+    "match": "rgb(var(--bg-muted-rgb)"
+  },
+  {
+    "file": "components\\ChatArea.tsx",
+    "line": 104,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\ChatArea.tsx",
+    "line": 104,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\ChatArea.tsx",
+    "line": 113,
+    "match": "#437091"
+  },
+  {
+    "file": "components\\ChatArea.tsx",
+    "line": 132,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\ChatArea.tsx",
+    "line": 132,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\ChatArea.tsx",
+    "line": 147,
+    "match": "rgb(var(--danger-rgb)"
+  },
+  {
+    "file": "components\\ChatArea.tsx",
+    "line": 147,
+    "match": "rgb(var(--danger-rgb)"
+  },
+  {
+    "file": "components\\ChatArea.tsx",
+    "line": 147,
+    "match": "rgb(var(--danger-rgb)"
+  },
+  {
+    "file": "components\\ChatArea.tsx",
+    "line": 148,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\ChatArea.tsx",
+    "line": 148,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\ChatArea.tsx",
+    "line": 159,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\ChatArea.tsx",
+    "line": 159,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\ChatArea.tsx",
+    "line": 159,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\ChatArea.tsx",
+    "line": 175,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\ChatArea.tsx",
+    "line": 175,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\ChatArea.tsx",
+    "line": 184,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\ChatArea.tsx",
+    "line": 184,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\ChatArea.tsx",
+    "line": 185,
+    "match": "#5381A5"
+  },
+  {
+    "file": "components\\ChatArea.tsx",
+    "line": 187,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\ChatArea.tsx",
+    "line": 187,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\ChatArea.tsx",
+    "line": 194,
+    "match": "transparent"
+  },
+  {
+    "file": "components\\ChatArea.tsx",
+    "line": 198,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\ChatArea.tsx",
+    "line": 198,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\ChatArea.tsx",
+    "line": 198,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\ChatArea.tsx",
+    "line": 209,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\ChatArea.tsx",
+    "line": 215,
+    "match": "transparent"
+  },
+  {
+    "file": "components\\ChatArea.tsx",
+    "line": 261,
+    "match": "rgb(var(--danger-rgb)"
+  },
+  {
+    "file": "components\\ChatArea.tsx",
+    "line": 261,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\CommandModal.tsx",
+    "line": 98,
+    "match": "rgb(var(--bg-primary-rgb)"
+  },
+  {
+    "file": "components\\CommandModal.tsx",
+    "line": 102,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\CommandModal.tsx",
+    "line": 108,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\CommandModal.tsx",
+    "line": 108,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\CommandModal.tsx",
+    "line": 142,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\CommandModal.tsx",
+    "line": 142,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\CommandModal.tsx",
+    "line": 142,
+    "match": "rgb(var(--text-secondary-rgb)"
+  },
+  {
+    "file": "components\\CommandModal.tsx",
+    "line": 142,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\CommandModal.tsx",
+    "line": 142,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\CommandModal.tsx",
+    "line": 150,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\CommandModal.tsx",
+    "line": 150,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\CommandModal.tsx",
+    "line": 168,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\CommandModal.tsx",
+    "line": 168,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\CommandModal.tsx",
+    "line": 168,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\CommandModal.tsx",
+    "line": 178,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\CommandModal.tsx",
+    "line": 178,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\CommandModal.tsx",
+    "line": 190,
+    "match": "#437091"
+  },
+  {
+    "file": "components\\CommandModal.tsx",
+    "line": 201,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\CommandModal.tsx",
+    "line": 201,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\CommandModal.tsx",
+    "line": 201,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\CommandModal.tsx",
+    "line": 210,
+    "match": "rgb(var(--text-secondary-rgb)"
+  },
+  {
+    "file": "components\\CreateTwinModal.tsx",
+    "line": 51,
+    "match": "rgb(var(--bg-primary-rgb)"
+  },
+  {
+    "file": "components\\CreateTwinModal.tsx",
+    "line": 52,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\CreateTwinModal.tsx",
+    "line": 52,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\CreateTwinModal.tsx",
+    "line": 53,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\CreateTwinModal.tsx",
+    "line": 66,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\CreateTwinModal.tsx",
+    "line": 72,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\CreateTwinModal.tsx",
+    "line": 72,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\CreateTwinModal.tsx",
+    "line": 82,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\CreateTwinModal.tsx",
+    "line": 82,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\CreateTwinModal.tsx",
+    "line": 91,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\CreateTwinModal.tsx",
+    "line": 91,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\CreateTwinModal.tsx",
+    "line": 103,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\CreateTwinModal.tsx",
+    "line": 103,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\CreateTwinModal.tsx",
+    "line": 110,
+    "match": "rgb(var(--bg-muted-rgb)"
+  },
+  {
+    "file": "components\\CreateTwinModal.tsx",
+    "line": 110,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\CreateTwinModal.tsx",
+    "line": 121,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\CreateTwinModal.tsx",
+    "line": 132,
+    "match": "#3d6a8a"
+  },
+  {
+    "file": "components\\CreateTwinModal.tsx",
+    "line": 132,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\CrewList.tsx",
+    "line": 80,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\CrewList.tsx",
+    "line": 80,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\CrewList.tsx",
+    "line": 98,
+    "match": "rgb(var(--danger-rgb)"
+  },
+  {
+    "file": "components\\CrewList.tsx",
+    "line": 98,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\CrewList.tsx",
+    "line": 113,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\CrewList.tsx",
+    "line": 113,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\CrewList.tsx",
+    "line": 121,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\CrewList.tsx",
+    "line": 122,
+    "match": "rgb(var(--bg-muted-rgb)"
+  },
+  {
+    "file": "components\\CrewList.tsx",
+    "line": 152,
+    "match": "rgb(var(--danger-rgb)"
+  },
+  {
+    "file": "components\\CrewList.tsx",
+    "line": 152,
+    "match": "rgb(var(--danger-rgb)"
+  },
+  {
+    "file": "components\\CrewList.tsx",
+    "line": 164,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\CrewList.tsx",
+    "line": 181,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\CrewList.tsx",
+    "line": 181,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\CrewList.tsx",
+    "line": 186,
+    "match": "rgb(var(--bg-secondary-rgb)"
+  },
+  {
+    "file": "components\\CrewList.tsx",
+    "line": 196,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\CrewList.tsx",
+    "line": 196,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\DraggableMediaPreview.tsx",
+    "line": 81,
+    "match": "rgb(var(--text-on-accent-rgb)"
+  },
+  {
+    "file": "components\\DraggableMediaPreview.tsx",
+    "line": 81,
+    "match": "rgb(var(--overlay-rgb)"
+  },
+  {
+    "file": "components\\DraggableMediaPreview.tsx",
+    "line": 90,
+    "match": "rgb(var(--text-on-accent-rgb)"
+  },
+  {
+    "file": "components\\FileProcessingMonitor.tsx",
+    "line": 37,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\FileProcessingMonitor.tsx",
+    "line": 37,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\FileProcessingMonitor.tsx",
+    "line": 38,
+    "match": "rgb(var(--text-secondary-rgb)"
+  },
+  {
+    "file": "components\\FileProcessingMonitor.tsx",
+    "line": 38,
+    "match": "rgb(var(--text-secondary-rgb)"
+  },
+  {
+    "file": "components\\FileProcessingMonitor.tsx",
+    "line": 39,
+    "match": "rgb(var(--bg-muted-rgb)"
+  },
+  {
+    "file": "components\\FileProcessingMonitor.tsx",
+    "line": 39,
+    "match": "rgb(var(--bg-muted-rgb)"
+  },
+  {
+    "file": "components\\FileProcessingMonitor.tsx",
+    "line": 40,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\FileProcessingMonitor.tsx",
+    "line": 40,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\FileProcessingMonitor.tsx",
+    "line": 70,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\FileProcessingMonitor.tsx",
+    "line": 70,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\FileProcessingMonitor.tsx",
+    "line": 76,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\FileProcessingMonitor.tsx",
+    "line": 109,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\FileProcessingMonitor.tsx",
+    "line": 109,
+    "match": "rgb(var(--text-secondary-rgb)"
+  },
+  {
+    "file": "components\\FileProcessingMonitor.tsx",
+    "line": 117,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\FileProcessingMonitor.tsx",
+    "line": 117,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\FileProcessingMonitor.tsx",
+    "line": 139,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\FileProcessingMonitor.tsx",
+    "line": 170,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\FileProcessingMonitor.tsx",
+    "line": 170,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\FileProcessingMonitor.tsx",
+    "line": 170,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\FragmentationHeatmap.tsx",
+    "line": 54,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\FragmentationHeatmap.tsx",
+    "line": 54,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\FragmentationHeatmap.tsx",
+    "line": 57,
+    "match": "transparent"
+  },
+  {
+    "file": "components\\FragmentationHeatmap.tsx",
+    "line": 65,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\FragmentationHeatmap.tsx",
+    "line": 67,
+    "match": "rgb(var(--danger-rgb)"
+  },
+  {
+    "file": "components\\FragmentationHeatmap.tsx",
+    "line": 82,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\FragmentationHeatmap.tsx",
+    "line": 82,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\FragmentationHeatmap.tsx",
+    "line": 103,
+    "match": "rgba(144, 195, 234, ${baseOpacity + 0.2})"
+  },
+  {
+    "file": "components\\FragmentationHeatmap.tsx",
+    "line": 103,
+    "match": "#90C3EA"
+  },
+  {
+    "file": "components\\FragmentationHeatmap.tsx",
+    "line": 106,
+    "match": "rgba(120, 162, 194, ${baseOpacity + density * 0.3})"
+  },
+  {
+    "file": "components\\FragmentationHeatmap.tsx",
+    "line": 106,
+    "match": "#78A2C2"
+  },
+  {
+    "file": "components\\FragmentationHeatmap.tsx",
+    "line": 109,
+    "match": "rgba(22, 50, 71, ${baseOpacity + density * 0.3})"
+  },
+  {
+    "file": "components\\FragmentationHeatmap.tsx",
+    "line": 109,
+    "match": "#163247"
+  },
+  {
+    "file": "components\\FragmentationHeatmap.tsx",
+    "line": 113,
+    "match": "rgba(83, 129, 165, ${baseOpacity + density * 0.3})"
+  },
+  {
+    "file": "components\\FragmentationHeatmap.tsx",
+    "line": 113,
+    "match": "#5381A5"
+  },
+  {
+    "file": "components\\FragmentationHeatmap.tsx",
+    "line": 125,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\FragmentationHeatmap.tsx",
+    "line": 125,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\FragmentationHeatmap.tsx",
+    "line": 162,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\FragmentationHeatmap.tsx",
+    "line": 167,
+    "match": "rgba(83, 129, 165, 0.6)"
+  },
+  {
+    "file": "components\\FragmentationHeatmap.tsx",
+    "line": 168,
+    "match": "rgba(0, 0, 0, 0.1)"
+  },
+  {
+    "file": "components\\FragmentationHeatmap.tsx",
+    "line": 179,
+    "match": "rgba(0,0,0,${density * 0.2})"
+  },
+  {
+    "file": "components\\FragmentationHeatmap.tsx",
+    "line": 179,
+    "match": "transparent"
+  },
+  {
+    "file": "components\\FragmentationHeatmap.tsx",
+    "line": 194,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\FragmentationHeatmap.tsx",
+    "line": 219,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\FragmentationHeatmap.tsx",
+    "line": 231,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\GlobalSyncDashboard.tsx",
+    "line": 120,
+    "match": "transparent"
+  },
+  {
+    "file": "components\\GlobalSyncDashboard.tsx",
+    "line": 121,
+    "match": "transparent"
+  },
+  {
+    "file": "components\\GlobalSyncDashboard.tsx",
+    "line": 128,
+    "match": "transparent"
+  },
+  {
+    "file": "components\\GlobalSyncDashboard.tsx",
+    "line": 139,
+    "match": "transparent"
+  },
+  {
+    "file": "components\\GlobalSyncDashboard.tsx",
+    "line": 140,
+    "match": "transparent"
+  },
+  {
+    "file": "components\\GlobalSyncDashboard.tsx",
+    "line": 164,
+    "match": "transparent"
+  },
+  {
+    "file": "components\\GlobalSyncDashboard.tsx",
+    "line": 165,
+    "match": "transparent"
+  },
+  {
+    "file": "components\\GlobalSyncDashboard.tsx",
+    "line": 229,
+    "match": "#0ea5e9"
+  },
+  {
+    "file": "components\\GlobalSyncDashboard.tsx",
+    "line": 232,
+    "match": "#0ea5e9"
+  },
+  {
+    "file": "components\\GlobalSyncDashboard.tsx",
+    "line": 234,
+    "match": "#67e8f9"
+  },
+  {
+    "file": "components\\GlobalSyncDashboard.tsx",
+    "line": 237,
+    "match": "#0ea5e9"
+  },
+  {
+    "file": "components\\GlobalSyncDashboard.tsx",
+    "line": 239,
+    "match": "#67e8f9"
+  },
+  {
+    "file": "components\\GlobalSyncDashboard.tsx",
+    "line": 243,
+    "match": "rgba(15, 23, 42, 0.95)"
+  },
+  {
+    "file": "components\\GlobalSyncDashboard.tsx",
+    "line": 244,
+    "match": "#06b6d4"
+  },
+  {
+    "file": "components\\GlobalSyncDashboard.tsx",
+    "line": 246,
+    "match": "#67e8f9"
+  },
+  {
+    "file": "components\\GlobalSyncDashboard.tsx",
+    "line": 250,
+    "match": "#67e8f9"
+  },
+  {
+    "file": "components\\GlobalSyncDashboard.tsx",
+    "line": 255,
+    "match": "#06b6d4"
+  },
+  {
+    "file": "components\\GlobalSyncDashboard.tsx",
+    "line": 257,
+    "match": "#06b6d4"
+  },
+  {
+    "file": "components\\HoverTooltip.tsx",
+    "line": 128,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\HoverTooltip.tsx",
+    "line": 128,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\HoverTooltip.tsx",
+    "line": 130,
+    "match": "black"
+  },
+  {
+    "file": "components\\HoverTooltip.tsx",
+    "line": 139,
+    "match": "transparent"
+  },
+  {
+    "file": "components\\HoverTooltip.tsx",
+    "line": 142,
+    "match": "rgba(83,129,165,0.35)"
+  },
+  {
+    "file": "components\\HoverTooltip.tsx",
+    "line": 143,
+    "match": "rgba(83,129,165,0.35)"
+  },
+  {
+    "file": "components\\JobLogsView.tsx",
+    "line": 21,
+    "match": "rgb(var(--bg-secondary-rgb)"
+  },
+  {
+    "file": "components\\JobLogsView.tsx",
+    "line": 21,
+    "match": "rgb(var(--bg-secondary-rgb)"
+  },
+  {
+    "file": "components\\JobLogsView.tsx",
+    "line": 22,
+    "match": "rgb(var(--bg-muted-rgb)"
+  },
+  {
+    "file": "components\\JobLogsView.tsx",
+    "line": 22,
+    "match": "rgb(var(--bg-muted-rgb)"
+  },
+  {
+    "file": "components\\JobLogsView.tsx",
+    "line": 23,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\JobLogsView.tsx",
+    "line": 23,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\JobLogsView.tsx",
+    "line": 24,
+    "match": "rgb(var(--text-secondary-rgb)"
+  },
+  {
+    "file": "components\\JobLogsView.tsx",
+    "line": 24,
+    "match": "rgb(var(--text-secondary-rgb)"
+  },
+  {
+    "file": "components\\JobLogsView.tsx",
+    "line": 25,
+    "match": "rgb(var(--bg-muted-rgb)"
+  },
+  {
+    "file": "components\\JobLogsView.tsx",
+    "line": 25,
+    "match": "rgb(var(--bg-muted-rgb)"
+  },
+  {
+    "file": "components\\JobLogsView.tsx",
+    "line": 26,
+    "match": "rgb(var(--text-secondary-rgb)"
+  },
+  {
+    "file": "components\\JobLogsView.tsx",
+    "line": 26,
+    "match": "rgb(var(--text-secondary-rgb)"
+  },
+  {
+    "file": "components\\JobLogsView.tsx",
+    "line": 42,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\JobLogsView.tsx",
+    "line": 50,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\JobLogsView.tsx",
+    "line": 76,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\JobLogsView.tsx",
+    "line": 79,
+    "match": "rgb(var(--text-secondary-rgb)"
+  },
+  {
+    "file": "components\\JobLogsView.tsx",
+    "line": 107,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\MediaControls.tsx",
+    "line": 54,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\MediaControls.tsx",
+    "line": 54,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\MediaControls.tsx",
+    "line": 68,
+    "match": "rgb(var(--text-on-accent-rgb)"
+  },
+  {
+    "file": "components\\MediaControls.tsx",
+    "line": 68,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\MediaControls.tsx",
+    "line": 69,
+    "match": "rgb(var(--text-on-accent-rgb)"
+  },
+  {
+    "file": "components\\MediaControls.tsx",
+    "line": 69,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\MediaControls.tsx",
+    "line": 96,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\MediaControls.tsx",
+    "line": 117,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\MediaControls.tsx",
+    "line": 136,
+    "match": "rgb(var(--danger-rgb)"
+  },
+  {
+    "file": "components\\MediaControls.tsx",
+    "line": 136,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\MediaControls.tsx",
+    "line": 143,
+    "match": "rgb(var(--text-on-accent-rgb)"
+  },
+  {
+    "file": "components\\MediaControls.tsx",
+    "line": 161,
+    "match": "rgb(var(--text-on-accent-rgb)"
+  },
+  {
+    "file": "components\\MediaControls.tsx",
+    "line": 161,
+    "match": "rgb(var(--overlay-rgb)"
+  },
+  {
+    "file": "components\\MediaControls.tsx",
+    "line": 162,
+    "match": "rgb(var(--text-on-accent-rgb)"
+  },
+  {
+    "file": "components\\MediaControls.tsx",
+    "line": 162,
+    "match": "rgb(var(--overlay-rgb)"
+  },
+  {
+    "file": "components\\MemoryHealth.tsx",
+    "line": 44,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\MemoryHealth.tsx",
+    "line": 44,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\MemoryHealth.tsx",
+    "line": 52,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\MemoryHealth.tsx",
+    "line": 53,
+    "match": "rgb(var(--danger-rgb)"
+  },
+  {
+    "file": "components\\MemoryHealth.tsx",
+    "line": 75,
+    "match": "#5381A5"
+  },
+  {
+    "file": "components\\MemoryHealth.tsx",
+    "line": 75,
+    "match": "#78A2C2"
+  },
+  {
+    "file": "components\\MemoryHealth.tsx",
+    "line": 75,
+    "match": "#163247"
+  },
+  {
+    "file": "components\\MemoryHealth.tsx",
+    "line": 86,
+    "match": "#5381A5"
+  },
+  {
+    "file": "components\\MemoryHealth.tsx",
+    "line": 87,
+    "match": "#78A2C2"
+  },
+  {
+    "file": "components\\MemoryHealth.tsx",
+    "line": 88,
+    "match": "#163247"
+  },
+  {
+    "file": "components\\MemoryHealth.tsx",
+    "line": 89,
+    "match": "#90C3EA"
+  },
+  {
+    "file": "components\\MemoryHealth.tsx",
+    "line": 111,
+    "match": "#5381A5"
+  },
+  {
+    "file": "components\\MemoryHealth.tsx",
+    "line": 113,
+    "match": "#78A2C2"
+  },
+  {
+    "file": "components\\MemoryHealth.tsx",
+    "line": 115,
+    "match": "#163247"
+  },
+  {
+    "file": "components\\MemoryHealth.tsx",
+    "line": 117,
+    "match": "#90C3EA"
+  },
+  {
+    "file": "components\\MemoryHealth.tsx",
+    "line": 119,
+    "match": "#9EC9D9"
+  },
+  {
+    "file": "components\\MemoryHealth.tsx",
+    "line": 126,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\MemoryHealth.tsx",
+    "line": 126,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\MemoryHealth.tsx",
+    "line": 144,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\MemoryHealth.tsx",
+    "line": 144,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\MemoryHealth.tsx",
+    "line": 197,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\MemoryHealth.tsx",
+    "line": 197,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\MemoryHealth.tsx",
+    "line": 252,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\NetworkMap.tsx",
+    "line": 16,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\NetworkMap.tsx",
+    "line": 17,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\NetworkMap.tsx",
+    "line": 17,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\NetworkMap.tsx",
+    "line": 32,
+    "match": "black"
+  },
+  {
+    "file": "components\\NetworkMap.tsx",
+    "line": 52,
+    "match": "rgb(var(--bg-muted-rgb)"
+  },
+  {
+    "file": "components\\NetworkMap.tsx",
+    "line": 52,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\NetworkMap.tsx",
+    "line": 53,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\NetworkMap.tsx",
+    "line": 53,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\NetworkMap.tsx",
+    "line": 70,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\NetworkMap.tsx",
+    "line": 70,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\NetworkMap.tsx",
+    "line": 82,
+    "match": "rgb(var(--danger-rgb)"
+  },
+  {
+    "file": "components\\NetworkMap.tsx",
+    "line": 82,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\NeuralMemorySearch.tsx",
+    "line": 87,
+    "match": "rgb(var(--text-secondary-rgb)"
+  },
+  {
+    "file": "components\\NeuralMemorySearch.tsx",
+    "line": 87,
+    "match": "rgb(var(--text-secondary-rgb)"
+  },
+  {
+    "file": "components\\NeuralMemorySearch.tsx",
+    "line": 88,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\NeuralMemorySearch.tsx",
+    "line": 88,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\NeuralMemorySearch.tsx",
+    "line": 89,
+    "match": "rgb(var(--bg-muted-rgb)"
+  },
+  {
+    "file": "components\\NeuralMemorySearch.tsx",
+    "line": 89,
+    "match": "rgb(var(--bg-muted-rgb)"
+  },
+  {
+    "file": "components\\NeuralMemorySearch.tsx",
+    "line": 90,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\NeuralMemorySearch.tsx",
+    "line": 90,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\NeuralMemorySearch.tsx",
+    "line": 108,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\NeuralMemorySearch.tsx",
+    "line": 108,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\NeuralMemorySearch.tsx",
+    "line": 108,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\NeuralMemorySearch.tsx",
+    "line": 108,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\NeuralMemorySearch.tsx",
+    "line": 108,
+    "match": "rgb(var(--text-secondary-rgb)"
+  },
+  {
+    "file": "components\\NeuralMemorySearch.tsx",
+    "line": 117,
+    "match": "transparent"
+  },
+  {
+    "file": "components\\NeuralMemorySearch.tsx",
+    "line": 127,
+    "match": "#437091"
+  },
+  {
+    "file": "components\\NeuralMemorySearch.tsx",
+    "line": 154,
+    "match": "rgb(var(--text-secondary-rgb)"
+  },
+  {
+    "file": "components\\NeuralMemorySearch.tsx",
+    "line": 160,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\NeuralMemorySearch.tsx",
+    "line": 201,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\OrchestratorHub.tsx",
+    "line": 51,
+    "match": "#5381A5"
+  },
+  {
+    "file": "components\\OrchestratorHub.tsx",
+    "line": 51,
+    "match": "transparent"
+  },
+  {
+    "file": "components\\OrchestratorHub.tsx",
+    "line": 51,
+    "match": "#5381A5"
+  },
+  {
+    "file": "components\\OrchestratorHub.tsx",
+    "line": 51,
+    "match": "transparent"
+  },
+  {
+    "file": "components\\OrchestratorHub.tsx",
+    "line": 54,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\OrchestratorHub.tsx",
+    "line": 60,
+    "match": "transparent"
+  },
+  {
+    "file": "components\\OrchestratorHub.tsx",
+    "line": 60,
+    "match": "rgb(var(--text-secondary-rgb)"
+  },
+  {
+    "file": "components\\OrchestratorHub.tsx",
+    "line": 60,
+    "match": "rgb(var(--bg-muted-rgb)"
+  },
+  {
+    "file": "components\\OrchestratorHub.tsx",
+    "line": 71,
+    "match": "transparent"
+  },
+  {
+    "file": "components\\OrchestratorHub.tsx",
+    "line": 71,
+    "match": "rgb(var(--text-secondary-rgb)"
+  },
+  {
+    "file": "components\\OrchestratorHub.tsx",
+    "line": 71,
+    "match": "rgb(var(--bg-muted-rgb)"
+  },
+  {
+    "file": "components\\OrchestratorHub.tsx",
+    "line": 84,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\OrchestratorHub.tsx",
+    "line": 99,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\OrchestratorHub.tsx",
+    "line": 99,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\OrchestratorHub.tsx",
+    "line": 101,
+    "match": "rgb(var(--danger-rgb)"
+  },
+  {
+    "file": "components\\OrchestratorHub.tsx",
+    "line": 101,
+    "match": "rgb(var(--danger-rgb)"
+  },
+  {
+    "file": "components\\OrchestratorHub.tsx",
+    "line": 101,
+    "match": "rgb(var(--danger-rgb)"
+  },
+  {
+    "file": "components\\OrchestratorHub.tsx",
+    "line": 102,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\OrchestratorHub.tsx",
+    "line": 112,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\OrchestratorHub.tsx",
+    "line": 112,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\OrchestratorHub.tsx",
+    "line": 119,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\OrchestratorHub.tsx",
+    "line": 125,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\OrchestratorHub.tsx",
+    "line": 125,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\OrchestratorHub.tsx",
+    "line": 125,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\OrchestratorHub.tsx",
+    "line": 149,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\OrchestratorHub.tsx",
+    "line": 151,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\OrchestratorHub.tsx",
+    "line": 154,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\OrchestratorHub.tsx",
+    "line": 154,
+    "match": "white"
+  },
+  {
+    "file": "components\\OrchestratorHub.tsx",
+    "line": 169,
+    "match": "rgb(var(--danger-rgb)"
+  },
+  {
+    "file": "components\\OrchestratorHub.tsx",
+    "line": 169,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\PhoenixMemoryFlow.tsx",
+    "line": 178,
+    "match": "rgba(0, 255, 136, 0.2)"
+  },
+  {
+    "file": "components\\PhoenixMemoryFlow.tsx",
+    "line": 194,
+    "match": "rgba(0, 255, 136, 0.8)"
+  },
+  {
+    "file": "components\\PhoenixMemoryFlow.tsx",
+    "line": 196,
+    "match": "rgba(0, 255, 136, 1)"
+  },
+  {
+    "file": "components\\PhoenixMemoryFlow.tsx",
+    "line": 201,
+    "match": "rgba(255, 255, 255, 0.9)"
+  },
+  {
+    "file": "components\\PhoenixMemoryFlow.tsx",
+    "line": 224,
+    "match": "rgba(0, 255, 136, 0.8)"
+  },
+  {
+    "file": "components\\PhoenixMemoryFlow.tsx",
+    "line": 225,
+    "match": "rgba(0, 255, 136, 0.4)"
+  },
+  {
+    "file": "components\\PhoenixMemoryFlow.tsx",
+    "line": 226,
+    "match": "rgba(0, 255, 136, 0)"
+  },
+  {
+    "file": "components\\PhoenixMemoryFlow.tsx",
+    "line": 260,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\PhoenixMemoryFlow.tsx",
+    "line": 260,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\PhoenixMemoryFlow.tsx",
+    "line": 278,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\PhoenixMemoryFlow.tsx",
+    "line": 296,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\PhoenixMemoryFlow.tsx",
+    "line": 338,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\PhoenixMemoryFlow.tsx",
+    "line": 356,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\PhoenixMemoryFlow.tsx",
+    "line": 372,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\PhoenixMemoryFlow.tsx",
+    "line": 372,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\RootAdminSettings.tsx",
+    "line": 717,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\RootAdminSettings.tsx",
+    "line": 731,
+    "match": "#3d6a8a"
+  },
+  {
+    "file": "components\\RootAdminSettings.tsx",
+    "line": 739,
+    "match": "white"
+  },
+  {
+    "file": "components\\RootAdminSettings.tsx",
+    "line": 750,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\RootAdminSettings.tsx",
+    "line": 750,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\RootAdminSettings.tsx",
+    "line": 769,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\RootAdminSettings.tsx",
+    "line": 769,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\RootAdminSettings.tsx",
+    "line": 780,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\RootAdminSettings.tsx",
+    "line": 780,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\RootAdminSettings.tsx",
+    "line": 794,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\RootAdminSettings.tsx",
+    "line": 794,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\RootAdminSettings.tsx",
+    "line": 805,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\RootAdminSettings.tsx",
+    "line": 805,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\RootAdminSettings.tsx",
+    "line": 812,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\RootAdminSettings.tsx",
+    "line": 812,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\RootAdminSettings.tsx",
+    "line": 820,
+    "match": "black"
+  },
+  {
+    "file": "components\\RootAdminSettings.tsx",
+    "line": 834,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\RootAdminSettings.tsx",
+    "line": 841,
+    "match": "black"
+  },
+  {
+    "file": "components\\RootAdminSettings.tsx",
+    "line": 855,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\RootAdminSettings.tsx",
+    "line": 862,
+    "match": "black"
+  },
+  {
+    "file": "components\\RootAdminSettings.tsx",
+    "line": 876,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\RootAdminSettings.tsx",
+    "line": 883,
+    "match": "black"
+  },
+  {
+    "file": "components\\RootAdminSettings.tsx",
+    "line": 897,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\RootAdminSettings.tsx",
+    "line": 903,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\RootAdminSettings.tsx",
+    "line": 913,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\RootAdminSettings.tsx",
+    "line": 913,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\RootAdminSettings.tsx",
+    "line": 940,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\RootAdminSettings.tsx",
+    "line": 940,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\RootAdminSettings.tsx",
+    "line": 948,
+    "match": "white"
+  },
+  {
+    "file": "components\\RootAdminSettings.tsx",
+    "line": 956,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\RootAdminSettings.tsx",
+    "line": 956,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\RootAdminSettings.tsx",
+    "line": 956,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\RootAdminSettings.tsx",
+    "line": 972,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\RootAdminSettings.tsx",
+    "line": 972,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\RootAdminSettings.tsx",
+    "line": 984,
+    "match": "#3d6a8a"
+  },
+  {
+    "file": "components\\RootAdminSettings.tsx",
+    "line": 1005,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\RootAdminSettings.tsx",
+    "line": 1005,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\RootAdminSettings.tsx",
+    "line": 1033,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\RootAdminSettings.tsx",
+    "line": 1033,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\RootAdminSettings.tsx",
+    "line": 1052,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\RootAdminSettings.tsx",
+    "line": 1052,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\RootAdminSettings.tsx",
+    "line": 1076,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\RootAdminSettings.tsx",
+    "line": 1076,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\RootAdminSettings.tsx",
+    "line": 1094,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\RootAdminSettings.tsx",
+    "line": 1107,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\RootAdminSettings.tsx",
+    "line": 1115,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\RootAdminSettings.tsx",
+    "line": 1127,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\RootAdminSettings.tsx",
+    "line": 1127,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\RootAdminSettings.tsx",
+    "line": 1141,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\RootAdminSettings.tsx",
+    "line": 1141,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\RootAdminSettings.tsx",
+    "line": 1155,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\RootAdminSettings.tsx",
+    "line": 1155,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\RootAdminSettings.tsx",
+    "line": 1163,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\RootAdminSettings.tsx",
+    "line": 1172,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\RootAdminSettings.tsx",
+    "line": 1172,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\RootAdminSettings.tsx",
+    "line": 1181,
+    "match": "white"
+  },
+  {
+    "file": "components\\RootAdminSettings.tsx",
+    "line": 1192,
+    "match": "#3d6a8a"
+  },
+  {
+    "file": "components\\RootAdminSettings.tsx",
+    "line": 1218,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\RootAdminSettings.tsx",
+    "line": 1218,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\RootAdminSettings.tsx",
+    "line": 1233,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\RootAdminSettings.tsx",
+    "line": 1233,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\RootAdminSettings.tsx",
+    "line": 1245,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\RootAdminSettings.tsx",
+    "line": 1245,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\RootAdminSettings.tsx",
+    "line": 1256,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\RootAdminSettings.tsx",
+    "line": 1256,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\RootAdminSettings.tsx",
+    "line": 1267,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\RootAdminSettings.tsx",
+    "line": 1267,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\RootAdminSettings.tsx",
+    "line": 1278,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\RootAdminSettings.tsx",
+    "line": 1278,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\RootAdminSettings.tsx",
+    "line": 1285,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\RootAdminSettings.tsx",
+    "line": 1285,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\RootAdminSettings.tsx",
+    "line": 1291,
+    "match": "rgb(var(--bg-secondary-rgb)"
+  },
+  {
+    "file": "components\\RootAdminSettings.tsx",
+    "line": 1297,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\RootAdminSettings.tsx",
+    "line": 1313,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\RootAdminSettings.tsx",
+    "line": 1313,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\RootAdminSettings.tsx",
+    "line": 1328,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\RootAdminSettings.tsx",
+    "line": 1328,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\RootAdminSettings.tsx",
+    "line": 1343,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\RootAdminSettings.tsx",
+    "line": 1343,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\RootAdminSettings.tsx",
+    "line": 1358,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\RootAdminSettings.tsx",
+    "line": 1358,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\RootAdminSettings.tsx",
+    "line": 1373,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\RootAdminSettings.tsx",
+    "line": 1373,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\RootAdminSettings.tsx",
+    "line": 1388,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\RootAdminSettings.tsx",
+    "line": 1388,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\RootAdminSettings.tsx",
+    "line": 1403,
+    "match": "#3d6a8a"
+  },
+  {
+    "file": "components\\RootAdminSettings.tsx",
+    "line": 1447,
+    "match": "white"
+  },
+  {
+    "file": "components\\RootAdminSettings.tsx",
+    "line": 1457,
+    "match": "rgb(var(--bg-secondary-rgb)"
+  },
+  {
+    "file": "components\\RootAdminSettings.tsx",
+    "line": 1478,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\RootAdminSettings.tsx",
+    "line": 1478,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\RootAdminSettings.tsx",
+    "line": 1486,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\RootAdminSettings.tsx",
+    "line": 1486,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\RootAdminSettings.tsx",
+    "line": 1497,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\RootAdminSettings.tsx",
+    "line": 1497,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\RootAdminSettings.tsx",
+    "line": 1523,
+    "match": "#3d6a8a"
+  },
+  {
+    "file": "components\\RootAdminSettings.tsx",
+    "line": 1543,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\RootAdminSettings.tsx",
+    "line": 1543,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\RootAdminSettings.tsx",
+    "line": 1554,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\RootAdminSettings.tsx",
+    "line": 1560,
+    "match": "rgb(var(--bg-secondary-rgb)"
+  },
+  {
+    "file": "components\\RootAdminSettings.tsx",
+    "line": 1562,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\RootAdminSettings.tsx",
+    "line": 1571,
+    "match": "white"
+  },
+  {
+    "file": "components\\RootAdminSettings.tsx",
+    "line": 1582,
+    "match": "#3d6a8a"
+  },
+  {
+    "file": "components\\RootAdminSettings.tsx",
+    "line": 1613,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\RootAdminSettings.tsx",
+    "line": 1628,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\RootAdminSettings.tsx",
+    "line": 1628,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\RootAdminSettings.tsx",
+    "line": 1641,
+    "match": "black"
+  },
+  {
+    "file": "components\\RootAdminSettings.tsx",
+    "line": 1641,
+    "match": "rgb(var(--danger-rgb)"
+  },
+  {
+    "file": "components\\RootAdminSettings.tsx",
+    "line": 1654,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\RootAdminSettings.tsx",
+    "line": 1659,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\RootAdminSettings.tsx",
+    "line": 1673,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\RootAdminSettings.tsx",
+    "line": 1673,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\SearchView.tsx",
+    "line": 44,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\SearchView.tsx",
+    "line": 65,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\SearchView.tsx",
+    "line": 65,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\SearchView.tsx",
+    "line": 65,
+    "match": "rgb(var(--text-secondary-rgb)"
+  },
+  {
+    "file": "components\\SearchView.tsx",
+    "line": 65,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\SearchView.tsx",
+    "line": 65,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\SearchView.tsx",
+    "line": 69,
+    "match": "black"
+  },
+  {
+    "file": "components\\SearchView.tsx",
+    "line": 69,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\SearchView.tsx",
+    "line": 69,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\SearchView.tsx",
+    "line": 81,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\SearchView.tsx",
+    "line": 81,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\SearchView.tsx",
+    "line": 97,
+    "match": "black"
+  },
+  {
+    "file": "components\\SearchView.tsx",
+    "line": 98,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\SearchView.tsx",
+    "line": 105,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\SearchView.tsx",
+    "line": 105,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\SearchView.tsx",
+    "line": 105,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\SearchView.tsx",
+    "line": 109,
+    "match": "rgb(var(--text-secondary-rgb)"
+  },
+  {
+    "file": "components\\SearchView.tsx",
+    "line": 125,
+    "match": "black"
+  },
+  {
+    "file": "components\\SearchView.tsx",
+    "line": 126,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\SearchView.tsx",
+    "line": 133,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\SearchView.tsx",
+    "line": 133,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\SearchView.tsx",
+    "line": 133,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\SearchView.tsx",
+    "line": 139,
+    "match": "rgb(var(--text-secondary-rgb)"
+  },
+  {
+    "file": "components\\SearchView.tsx",
+    "line": 139,
+    "match": "rgb(var(--text-secondary-rgb)"
+  },
+  {
+    "file": "components\\SearchView.tsx",
+    "line": 140,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\SearchView.tsx",
+    "line": 140,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\SearchView.tsx",
+    "line": 141,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\SearchView.tsx",
+    "line": 141,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\SettingsView.tsx",
+    "line": 190,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\SettingsView.tsx",
+    "line": 199,
+    "match": "rgb(var(--text-secondary-rgb)"
+  },
+  {
+    "file": "components\\SettingsView.tsx",
+    "line": 205,
+    "match": "black"
+  },
+  {
+    "file": "components\\SettingsView.tsx",
+    "line": 213,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\SettingsView.tsx",
+    "line": 213,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\SettingsView.tsx",
+    "line": 219,
+    "match": "#437091"
+  },
+  {
+    "file": "components\\SettingsView.tsx",
+    "line": 219,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\SettingsView.tsx",
+    "line": 229,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\SettingsView.tsx",
+    "line": 229,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\SettingsView.tsx",
+    "line": 230,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\SettingsView.tsx",
+    "line": 230,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\SettingsView.tsx",
+    "line": 232,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\SettingsView.tsx",
+    "line": 232,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\SettingsView.tsx",
+    "line": 245,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\SettingsView.tsx",
+    "line": 245,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\SettingsView.tsx",
+    "line": 245,
+    "match": "black"
+  },
+  {
+    "file": "components\\SettingsView.tsx",
+    "line": 260,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\SettingsView.tsx",
+    "line": 260,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\SettingsView.tsx",
+    "line": 260,
+    "match": "black"
+  },
+  {
+    "file": "components\\SettingsView.tsx",
+    "line": 267,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\SettingsView.tsx",
+    "line": 282,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\SettingsView.tsx",
+    "line": 282,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\SettingsView.tsx",
+    "line": 291,
+    "match": "black"
+  },
+  {
+    "file": "components\\SettingsView.tsx",
+    "line": 293,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\SettingsView.tsx",
+    "line": 307,
+    "match": "rgb(var(--text-primary-rgb)"
+  },
+  {
+    "file": "components\\SettingsView.tsx",
+    "line": 307,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\SettingsView.tsx",
+    "line": 307,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\SettingsView.tsx",
+    "line": 357,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\SettingsView.tsx",
+    "line": 357,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\SettingsView.tsx",
+    "line": 359,
+    "match": "black"
+  },
+  {
+    "file": "components\\SettingsView.tsx",
+    "line": 363,
+    "match": "black"
+  },
+  {
+    "file": "components\\SettingsView.tsx",
+    "line": 369,
+    "match": "black"
+  },
+  {
+    "file": "components\\SettingsView.tsx",
+    "line": 376,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\SettingsView.tsx",
+    "line": 376,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\SettingsView.tsx",
+    "line": 377,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\SettingsView.tsx",
+    "line": 377,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\SettingsView.tsx",
+    "line": 379,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\SettingsView.tsx",
+    "line": 379,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\SettingsView.tsx",
+    "line": 387,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\SettingsView.tsx",
+    "line": 387,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\SettingsView.tsx",
+    "line": 387,
+    "match": "black"
+  },
+  {
+    "file": "components\\SettingsView.tsx",
+    "line": 391,
+    "match": "transparent"
+  },
+  {
+    "file": "components\\SettingsView.tsx",
+    "line": 395,
+    "match": "rgb(var(--overlay-rgb)"
+  },
+  {
+    "file": "components\\SettingsView.tsx",
+    "line": 411,
+    "match": "black"
+  },
+  {
+    "file": "components\\SettingsView.tsx",
+    "line": 413,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\SettingsView.tsx",
+    "line": 413,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\SettingsView.tsx",
+    "line": 413,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\SettingsView.tsx",
+    "line": 419,
+    "match": "black"
+  },
+  {
+    "file": "components\\SettingsView.tsx",
+    "line": 421,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\SettingsView.tsx",
+    "line": 421,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\SettingsView.tsx",
+    "line": 421,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\SettingsView.tsx",
+    "line": 427,
+    "match": "black"
+  },
+  {
+    "file": "components\\SettingsView.tsx",
+    "line": 429,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\SettingsView.tsx",
+    "line": 429,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\SettingsView.tsx",
+    "line": 429,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\SettingsView.tsx",
+    "line": 441,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\SettingsView.tsx",
+    "line": 441,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\SettingsView.tsx",
+    "line": 443,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\SettingsView.tsx",
+    "line": 443,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\SettingsView.tsx",
+    "line": 450,
+    "match": "black"
+  },
+  {
+    "file": "components\\SettingsView.tsx",
+    "line": 457,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\SettingsView.tsx",
+    "line": 457,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\SettingsView.tsx",
+    "line": 457,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\SettingsView.tsx",
+    "line": 475,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\SettingsView.tsx",
+    "line": 484,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\SettingsView.tsx",
+    "line": 484,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\SettingsView.tsx",
+    "line": 494,
+    "match": "black"
+  },
+  {
+    "file": "components\\SettingsView.tsx",
+    "line": 508,
+    "match": "black"
+  },
+  {
+    "file": "components\\SettingsView.tsx",
+    "line": 517,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\SettingsView.tsx",
+    "line": 517,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\SettingsView.tsx",
+    "line": 517,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\SettingsView.tsx",
+    "line": 530,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\SettingsView.tsx",
+    "line": 533,
+    "match": "black"
+  },
+  {
+    "file": "components\\SettingsView.tsx",
+    "line": 544,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\SettingsView.tsx",
+    "line": 551,
+    "match": "black"
+  },
+  {
+    "file": "components\\SettingsView.tsx",
+    "line": 562,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\SettingsView.tsx",
+    "line": 569,
+    "match": "black"
+  },
+  {
+    "file": "components\\SettingsView.tsx",
+    "line": 580,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\SettingsView.tsx",
+    "line": 587,
+    "match": "black"
+  },
+  {
+    "file": "components\\SettingsView.tsx",
+    "line": 598,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\SettingsView.tsx",
+    "line": 607,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\SettingsView.tsx",
+    "line": 607,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\SettingsView.tsx",
+    "line": 609,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\SettingsView.tsx",
+    "line": 609,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\SettingsView.tsx",
+    "line": 618,
+    "match": "black"
+  },
+  {
+    "file": "components\\SettingsView.tsx",
+    "line": 627,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\SettingsView.tsx",
+    "line": 627,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\SettingsView.tsx",
+    "line": 628,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\SettingsView.tsx",
+    "line": 628,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\SettingsView.tsx",
+    "line": 637,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\SettingsView.tsx",
+    "line": 638,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\SettingsView.tsx",
+    "line": 646,
+    "match": "black"
+  },
+  {
+    "file": "components\\SettingsView.tsx",
+    "line": 657,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\SettingsView.tsx",
+    "line": 657,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\SettingsView.tsx",
+    "line": 658,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\SettingsView.tsx",
+    "line": 658,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\SettingsView.tsx",
+    "line": 678,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\SettingsView.tsx",
+    "line": 678,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\SettingsView.tsx",
+    "line": 680,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\SettingsView.tsx",
+    "line": 680,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\SettingsView.tsx",
+    "line": 688,
+    "match": "black"
+  },
+  {
+    "file": "components\\SettingsView.tsx",
+    "line": 699,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\SettingsView.tsx",
+    "line": 699,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\SettingsView.tsx",
+    "line": 699,
+    "match": "white"
+  },
+  {
+    "file": "components\\SettingsView.tsx",
+    "line": 699,
+    "match": "#437091"
+  },
+  {
+    "file": "components\\SettingsView.tsx",
+    "line": 709,
+    "match": "black"
+  },
+  {
+    "file": "components\\SettingsView.tsx",
+    "line": 720,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\SettingsView.tsx",
+    "line": 720,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\SettingsView.tsx",
+    "line": 720,
+    "match": "white"
+  },
+  {
+    "file": "components\\SettingsView.tsx",
+    "line": 720,
+    "match": "#437091"
+  },
+  {
+    "file": "components\\SettingsView.tsx",
+    "line": 730,
+    "match": "black"
+  },
+  {
+    "file": "components\\SettingsView.tsx",
+    "line": 741,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\SettingsView.tsx",
+    "line": 741,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\SettingsView.tsx",
+    "line": 741,
+    "match": "white"
+  },
+  {
+    "file": "components\\SettingsView.tsx",
+    "line": 741,
+    "match": "#437091"
+  },
+  {
+    "file": "components\\SidebarLeft.tsx",
+    "line": 94,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\SidebarLeft.tsx",
+    "line": 95,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\SidebarLeft.tsx",
+    "line": 119,
+    "match": "transparent"
+  },
+  {
+    "file": "components\\SidebarLeft.tsx",
+    "line": 122,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\SidebarLeft.tsx",
+    "line": 135,
+    "match": "transparent"
+  },
+  {
+    "file": "components\\SidebarLeft.tsx",
+    "line": 138,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\SidebarLeft.tsx",
+    "line": 157,
+    "match": "transparent"
+  },
+  {
+    "file": "components\\SidebarLeft.tsx",
+    "line": 160,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\SidebarLeft.tsx",
+    "line": 173,
+    "match": "transparent"
+  },
+  {
+    "file": "components\\SidebarLeft.tsx",
+    "line": 176,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\SidebarLeft.tsx",
+    "line": 189,
+    "match": "transparent"
+  },
+  {
+    "file": "components\\SidebarLeft.tsx",
+    "line": 192,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\SidebarLeft.tsx",
+    "line": 206,
+    "match": "transparent"
+  },
+  {
+    "file": "components\\SidebarLeft.tsx",
+    "line": 209,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\SidebarLeft.tsx",
+    "line": 224,
+    "match": "transparent"
+  },
+  {
+    "file": "components\\SidebarLeft.tsx",
+    "line": 227,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\SidebarLeft.tsx",
+    "line": 246,
+    "match": "transparent"
+  },
+  {
+    "file": "components\\SidebarLeft.tsx",
+    "line": 247,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\SidebarLeft.tsx",
+    "line": 251,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\SidebarLeft.tsx",
+    "line": 258,
+    "match": "black"
+  },
+  {
+    "file": "components\\SidebarLeft.tsx",
+    "line": 270,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\SidebarLeft.tsx",
+    "line": 272,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\SidebarLeft.tsx",
+    "line": 272,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\SidebarLeft.tsx",
+    "line": 284,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\SidebarLeft.tsx",
+    "line": 284,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\SidebarLeft.tsx",
+    "line": 287,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\SidebarLeft.tsx",
+    "line": 287,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\SidebarLeft.tsx",
+    "line": 316,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\SidebarLeft.tsx",
+    "line": 316,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\SidebarLeft.tsx",
+    "line": 327,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\SidebarLeft.tsx",
+    "line": 346,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\SidebarLeft.tsx",
+    "line": 362,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\SidebarLeft.tsx",
+    "line": 384,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\SidebarLeft.tsx",
+    "line": 386,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\SidebarLeft.tsx",
+    "line": 386,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\SidebarLeft.tsx",
+    "line": 395,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\SidebarLeft.tsx",
+    "line": 396,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\SidebarLeft.tsx",
+    "line": 396,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\SidebarLeft.tsx",
+    "line": 397,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\SidebarLeft.tsx",
+    "line": 399,
+    "match": "black"
+  },
+  {
+    "file": "components\\SidebarRight.tsx",
+    "line": 51,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\SidebarRight.tsx",
+    "line": 61,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\SidebarRight.tsx",
+    "line": 68,
+    "match": "rgb(var(--danger-rgb)"
+  },
+  {
+    "file": "components\\SidebarRight.tsx",
+    "line": 138,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\SidebarRight.tsx",
+    "line": 141,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\SidebarRight.tsx",
+    "line": 148,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\SidebarRight.tsx",
+    "line": 172,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\SidebarRight.tsx",
+    "line": 172,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\SidebarRight.tsx",
+    "line": 190,
+    "match": "black"
+  },
+  {
+    "file": "components\\SidebarRight.tsx",
+    "line": 192,
+    "match": "rgb(var(--danger-rgb)"
+  },
+  {
+    "file": "components\\SidebarRight.tsx",
+    "line": 219,
+    "match": "black"
+  },
+  {
+    "file": "components\\SidebarRight.tsx",
+    "line": 221,
+    "match": "rgb(var(--danger-rgb)"
+  },
+  {
+    "file": "components\\SidebarRight.tsx",
+    "line": 240,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\SidebarRight.tsx",
+    "line": 246,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\SidebarRight.tsx",
+    "line": 259,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\SidebarRight.tsx",
+    "line": 259,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\SidebarRight.tsx",
+    "line": 272,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\SidebarRight.tsx",
+    "line": 303,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\SidebarRight.tsx",
+    "line": 309,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\SidebarRight.tsx",
+    "line": 316,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\SidebarRight.tsx",
+    "line": 316,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\SidebarRight.tsx",
+    "line": 326,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\SidebarRight.tsx",
+    "line": 341,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\SidebarRight.tsx",
+    "line": 381,
+    "match": "black"
+  },
+  {
+    "file": "components\\SystemMonitor.tsx",
+    "line": 134,
+    "match": "#78A2C2"
+  },
+  {
+    "file": "components\\SystemMonitor.tsx",
+    "line": 135,
+    "match": "#90C3EA"
+  },
+  {
+    "file": "components\\SystemMonitor.tsx",
+    "line": 136,
+    "match": "#FFA500"
+  },
+  {
+    "file": "components\\SystemMonitor.tsx",
+    "line": 137,
+    "match": "#FF4444"
+  },
+  {
+    "file": "components\\SystemMonitor.tsx",
+    "line": 145,
+    "match": "transparent"
+  },
+  {
+    "file": "components\\SystemMonitor.tsx",
+    "line": 154,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\SystemMonitor.tsx",
+    "line": 154,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\SystemMonitor.tsx",
+    "line": 176,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\SystemMonitor.tsx",
+    "line": 203,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\SystemMonitor.tsx",
+    "line": 203,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\SystemMonitor.tsx",
+    "line": 224,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\SystemMonitor.tsx",
+    "line": 224,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\SystemMonitor.tsx",
+    "line": 224,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\SystemMonitor.tsx",
+    "line": 232,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\SystemMonitor.tsx",
+    "line": 232,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\SystemMonitor.tsx",
+    "line": 232,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\SystemMonitor.tsx",
+    "line": 241,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\SystemMonitor.tsx",
+    "line": 241,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\SystemMonitor.tsx",
+    "line": 241,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\SystemMonitor.tsx",
+    "line": 266,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\SystemMonitor.tsx",
+    "line": 266,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\SystemMonitor.tsx",
+    "line": 266,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\SystemMonitor.tsx",
+    "line": 280,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\SystemMonitor.tsx",
+    "line": 280,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\SystemMonitor.tsx",
+    "line": 295,
+    "match": "#E5E7EB"
+  },
+  {
+    "file": "components\\SystemMonitor.tsx",
+    "line": 330,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\SystemMonitor.tsx",
+    "line": 330,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\SystemMonitor.tsx",
+    "line": 345,
+    "match": "#E5E7EB"
+  },
+  {
+    "file": "components\\SystemMonitor.tsx",
+    "line": 378,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\SystemMonitor.tsx",
+    "line": 378,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\SystemMonitor.tsx",
+    "line": 379,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\SystemMonitor.tsx",
+    "line": 386,
+    "match": "rgb(var(--bg-muted-rgb)"
+  },
+  {
+    "file": "components\\SystemMonitor.tsx",
+    "line": 398,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\SystemMonitor.tsx",
+    "line": 398,
+    "match": "rgb(var(--bg-secondary-rgb)"
+  },
+  {
+    "file": "components\\SystemMonitor.tsx",
+    "line": 408,
+    "match": "rgb(var(--danger-rgb)"
+  },
+  {
+    "file": "components\\TelemetryCharts.tsx",
+    "line": 13,
+    "match": "#163247"
+  },
+  {
+    "file": "components\\TelemetryCharts.tsx",
+    "line": 14,
+    "match": "#163247"
+  },
+  {
+    "file": "components\\TelemetryCharts.tsx",
+    "line": 33,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "components\\TelemetryCharts.tsx",
+    "line": 33,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\TelemetryCharts.tsx",
+    "line": 133,
+    "match": "#5381A5"
+  },
+  {
+    "file": "components\\TelemetryCharts.tsx",
+    "line": 137,
+    "match": "#163247"
+  },
+  {
+    "file": "components\\TelemetryCharts.tsx",
+    "line": 145,
+    "match": "#163247"
+  },
+  {
+    "file": "components\\TelemetryCharts.tsx",
+    "line": 153,
+    "match": "#5381A5"
+  },
+  {
+    "file": "components\\TelemetryCharts.tsx",
+    "line": 191,
+    "match": "#5381A5"
+  },
+  {
+    "file": "components\\TelemetryCharts.tsx",
+    "line": 195,
+    "match": "#163247"
+  },
+  {
+    "file": "components\\TelemetryCharts.tsx",
+    "line": 203,
+    "match": "#163247"
+  },
+  {
+    "file": "components\\TelemetryCharts.tsx",
+    "line": 211,
+    "match": "#78A2C2"
+  },
+  {
+    "file": "components\\TelemetryCharts.tsx",
+    "line": 250,
+    "match": "#5381A5"
+  },
+  {
+    "file": "components\\TelemetryCharts.tsx",
+    "line": 254,
+    "match": "#163247"
+  },
+  {
+    "file": "components\\TelemetryCharts.tsx",
+    "line": 262,
+    "match": "#163247"
+  },
+  {
+    "file": "components\\TelemetryCharts.tsx",
+    "line": 270,
+    "match": "#90C3EA"
+  },
+  {
+    "file": "components\\TrustNetworkMap.tsx",
+    "line": 145,
+    "match": "#00ff88"
+  },
+  {
+    "file": "components\\TrustNetworkMap.tsx",
+    "line": 147,
+    "match": "#ffaa00"
+  },
+  {
+    "file": "components\\TrustNetworkMap.tsx",
+    "line": 149,
+    "match": "#ff4444"
+  },
+  {
+    "file": "components\\TrustNetworkMap.tsx",
+    "line": 151,
+    "match": "#888888"
+  },
+  {
+    "file": "components\\TrustNetworkMap.tsx",
+    "line": 158,
+    "match": "#ffaa00"
+  },
+  {
+    "file": "components\\TrustNetworkMap.tsx",
+    "line": 160,
+    "match": "#00ff88"
+  },
+  {
+    "file": "components\\TrustNetworkMap.tsx",
+    "line": 173,
+    "match": "#0088ff"
+  },
+  {
+    "file": "components\\TrustNetworkMap.tsx",
+    "line": 173,
+    "match": "#000000"
+  },
+  {
+    "file": "components\\TrustNetworkMap.tsx",
+    "line": 184,
+    "match": "#0088ff"
+  },
+  {
+    "file": "components\\TrustNetworkMap.tsx",
+    "line": 185,
+    "match": "transparent"
+  },
+  {
+    "file": "components\\TrustNetworkMap.tsx",
+    "line": 196,
+    "match": "#ffffff"
+  },
+  {
+    "file": "components\\TrustNetworkMap.tsx",
+    "line": 214,
+    "match": "rgb(var(--overlay-rgb)"
+  },
+  {
+    "file": "components\\TrustNetworkMap.tsx",
+    "line": 226,
+    "match": "rgb(var(--overlay-rgb)"
+  },
+  {
+    "file": "components\\TrustNetworkMap.tsx",
+    "line": 227,
+    "match": "rgb(var(--text-on-accent-rgb)"
+  },
+  {
+    "file": "components\\TrustNetworkMap.tsx",
+    "line": 245,
+    "match": "#000000"
+  },
+  {
+    "file": "components\\TrustNetworkMap.tsx",
+    "line": 259,
+    "match": "#1a1a2e"
+  },
+  {
+    "file": "components\\TrustNetworkMap.tsx",
+    "line": 259,
+    "match": "#16213e"
+  },
+  {
+    "file": "components\\TrustNetworkMap.tsx",
+    "line": 270,
+    "match": "rgb(var(--text-primary-rgb)"
+  },
+  {
+    "file": "components\\TrustNetworkMap.tsx",
+    "line": 270,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\TrustNetworkMap.tsx",
+    "line": 277,
+    "match": "rgb(var(--text-on-accent-rgb)"
+  },
+  {
+    "file": "components\\TrustNetworkMap.tsx",
+    "line": 277,
+    "match": "white"
+  },
+  {
+    "file": "components\\TrustNetworkMap.tsx",
+    "line": 345,
+    "match": "rgb(var(--text-primary-rgb)"
+  },
+  {
+    "file": "components\\TrustNetworkMap.tsx",
+    "line": 345,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\TrustNetworkMap.tsx",
+    "line": 353,
+    "match": "rgb(var(--text-on-accent-rgb)"
+  },
+  {
+    "file": "components\\TrustNetworkMap.tsx",
+    "line": 357,
+    "match": "rgb(var(--text-on-accent-rgb)"
+  },
+  {
+    "file": "components\\TrustNetworkMap.tsx",
+    "line": 361,
+    "match": "rgb(var(--text-on-accent-rgb)"
+  },
+  {
+    "file": "components\\TrustNetworkMap.tsx",
+    "line": 365,
+    "match": "rgb(var(--text-on-accent-rgb)"
+  },
+  {
+    "file": "components\\TrustNetworkMap.tsx",
+    "line": 370,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\TrustNetworkMap.tsx",
+    "line": 370,
+    "match": "rgb(var(--text-on-accent-rgb)"
+  },
+  {
+    "file": "components\\TrustNetworkMap.tsx",
+    "line": 386,
+    "match": "rgb(var(--overlay-rgb)"
+  },
+  {
+    "file": "components\\TrustNetworkMap.tsx",
+    "line": 387,
+    "match": "rgb(var(--text-on-accent-rgb)"
+  },
+  {
+    "file": "components\\TrustNetworkMap.tsx",
+    "line": 390,
+    "match": "rgb(var(--text-on-accent-rgb)"
+  },
+  {
+    "file": "components\\TrustNetworkMap.tsx",
+    "line": 393,
+    "match": "rgb(var(--text-on-accent-rgb)"
+  },
+  {
+    "file": "components\\TrustNetworkMap.tsx",
+    "line": 396,
+    "match": "rgb(var(--text-on-accent-rgb)"
+  },
+  {
+    "file": "components\\TrustNetworkMap.tsx",
+    "line": 399,
+    "match": "rgb(var(--text-on-accent-rgb)"
+  },
+  {
+    "file": "components\\TrustNetworkMap.tsx",
+    "line": 405,
+    "match": "rgb(var(--text-on-accent-rgb)"
+  },
+  {
+    "file": "components\\TrustNetworkMap.tsx",
+    "line": 414,
+    "match": "rgb(var(--text-primary-rgb)"
+  },
+  {
+    "file": "components\\TrustNetworkMap.tsx",
+    "line": 414,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "components\\TrustNetworkMap.tsx",
+    "line": 420,
+    "match": "#00ff88"
+  },
+  {
+    "file": "components\\TrustNetworkMap.tsx",
+    "line": 421,
+    "match": "rgb(var(--text-on-accent-rgb)"
+  },
+  {
+    "file": "components\\TrustNetworkMap.tsx",
+    "line": 424,
+    "match": "#ffaa00"
+  },
+  {
+    "file": "components\\TrustNetworkMap.tsx",
+    "line": 425,
+    "match": "rgb(var(--text-on-accent-rgb)"
+  },
+  {
+    "file": "components\\TrustNetworkMap.tsx",
+    "line": 428,
+    "match": "#ff4444"
+  },
+  {
+    "file": "components\\TrustNetworkMap.tsx",
+    "line": 429,
+    "match": "rgb(var(--text-on-accent-rgb)"
+  },
+  {
+    "file": "index.css",
+    "line": 12,
+    "match": "#9EC9D9"
+  },
+  {
+    "file": "index.css",
+    "line": 13,
+    "match": "#90C3EA"
+  },
+  {
+    "file": "index.css",
+    "line": 14,
+    "match": "#78A2C2"
+  },
+  {
+    "file": "index.css",
+    "line": 15,
+    "match": "#5381A5"
+  },
+  {
+    "file": "index.css",
+    "line": 16,
+    "match": "#0b1b2b"
+  },
+  {
+    "file": "index.css",
+    "line": 17,
+    "match": "#163247"
+  },
+  {
+    "file": "index.css",
+    "line": 18,
+    "match": "rgba(22, 50, 71, 0.55)"
+  },
+  {
+    "file": "index.css",
+    "line": 19,
+    "match": "rgba(83, 129, 165, 0.3)"
+  },
+  {
+    "file": "index.css",
+    "line": 20,
+    "match": "#78A2C2"
+  },
+  {
+    "file": "index.css",
+    "line": 21,
+    "match": "#5381A5"
+  },
+  {
+    "file": "index.css",
+    "line": 22,
+    "match": "rgba(255, 255, 255, 0.25)"
+  },
+  {
+    "file": "index.css",
+    "line": 23,
+    "match": "#5381A5"
+  },
+  {
+    "file": "index.css",
+    "line": 24,
+    "match": "rgba(83, 129, 165, 0.28)"
+  },
+  {
+    "file": "index.css",
+    "line": 26,
+    "match": "rgb(var(--*-rgb)"
+  },
+  {
+    "file": "index.css",
+    "line": 37,
+    "match": "#ffffff"
+  },
+  {
+    "file": "index.css",
+    "line": 41,
+    "match": "#ef4444"
+  },
+  {
+    "file": "index.css",
+    "line": 42,
+    "match": "#f59e0b"
+  },
+  {
+    "file": "index.css",
+    "line": 43,
+    "match": "#10b981"
+  },
+  {
+    "file": "index.css",
+    "line": 51,
+    "match": "#0b1b2b"
+  },
+  {
+    "file": "index.css",
+    "line": 52,
+    "match": "#163247"
+  },
+  {
+    "file": "index.css",
+    "line": 53,
+    "match": "#214a6b"
+  },
+  {
+    "file": "index.css",
+    "line": 54,
+    "match": "#5381A5"
+  },
+  {
+    "file": "index.css",
+    "line": 55,
+    "match": "#9EC9D9"
+  },
+  {
+    "file": "index.css",
+    "line": 56,
+    "match": "#78A2C2"
+  },
+  {
+    "file": "index.css",
+    "line": 57,
+    "match": "rgba(158, 201, 217, 0.55)"
+  },
+  {
+    "file": "index.css",
+    "line": 58,
+    "match": "rgba(158, 201, 217, 0.2)"
+  },
+  {
+    "file": "index.css",
+    "line": 59,
+    "match": "#5381A5"
+  },
+  {
+    "file": "index.css",
+    "line": 60,
+    "match": "#78A2C2"
+  },
+  {
+    "file": "index.css",
+    "line": 61,
+    "match": "rgba(22, 50, 71, 0.4)"
+  },
+  {
+    "file": "index.css",
+    "line": 62,
+    "match": "#90C3EA"
+  },
+  {
+    "file": "index.css",
+    "line": 63,
+    "match": "rgba(144, 195, 234, 0.28)"
+  },
+  {
+    "file": "index.css",
+    "line": 76,
+    "match": "#ffffff"
+  },
+  {
+    "file": "index.css",
+    "line": 78,
+    "match": "white"
+  },
+  {
+    "file": "index.css",
+    "line": 81,
+    "match": "#ef4444"
+  },
+  {
+    "file": "index.css",
+    "line": 82,
+    "match": "#f59e0b"
+  },
+  {
+    "file": "index.css",
+    "line": 83,
+    "match": "#10b981"
+  },
+  {
+    "file": "index.css",
+    "line": 129,
+    "match": "transparent"
+  },
+  {
+    "file": "index.css",
+    "line": 153,
+    "match": "white"
+  },
+  {
+    "file": "index.css",
+    "line": 158,
+    "match": "transparent"
+  },
+  {
+    "file": "index.css",
+    "line": 163,
+    "match": "transparent"
+  },
+  {
+    "file": "index.css",
+    "line": 165,
+    "match": "transparent"
+  },
+  {
+    "file": "index.css",
+    "line": 188,
+    "match": "transparent"
+  },
+  {
+    "file": "index.css",
+    "line": 218,
+    "match": "#7c2d12"
+  },
+  {
+    "file": "index.css",
+    "line": 227,
+    "match": "#0f766e"
+  },
+  {
+    "file": "index.css",
+    "line": 235,
+    "match": "#0b1b2b"
+  },
+  {
+    "file": "index.css",
+    "line": 241,
+    "match": "#5381A5"
+  },
+  {
+    "file": "index.css",
+    "line": 246,
+    "match": "#214a6b"
+  },
+  {
+    "file": "index.css",
+    "line": 252,
+    "match": "#7c3aed"
+  },
+  {
+    "file": "pages\\AgentForge.tsx",
+    "line": 124,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "pages\\AgentForge.tsx",
+    "line": 131,
+    "match": "rgb(var(--text-primary-rgb)"
+  },
+  {
+    "file": "pages\\AgentForge.tsx",
+    "line": 148,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "pages\\AgentForge.tsx",
+    "line": 148,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "pages\\AgentForge.tsx",
+    "line": 155,
+    "match": "rgb(var(--text-primary-rgb)"
+  },
+  {
+    "file": "pages\\AgentForge.tsx",
+    "line": 163,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "pages\\AgentForge.tsx",
+    "line": 163,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "pages\\AgentForge.tsx",
+    "line": 167,
+    "match": "rgb(var(--text-primary-rgb)"
+  },
+  {
+    "file": "pages\\AgentForge.tsx",
+    "line": 175,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "pages\\AgentForge.tsx",
+    "line": 175,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "pages\\AgentForge.tsx",
+    "line": 179,
+    "match": "rgb(var(--text-primary-rgb)"
+  },
+  {
+    "file": "pages\\AgentForge.tsx",
+    "line": 185,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "pages\\AgentForge.tsx",
+    "line": 185,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "pages\\AgentForge.tsx",
+    "line": 197,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "pages\\AgentForge.tsx",
+    "line": 197,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "pages\\AgentForge.tsx",
+    "line": 206,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "pages\\AgentForge.tsx",
+    "line": 206,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "pages\\AgentForge.tsx",
+    "line": 211,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "pages\\AgentForge.tsx",
+    "line": 211,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "pages\\AgentForge.tsx",
+    "line": 218,
+    "match": "rgb(var(--text-primary-rgb)"
+  },
+  {
+    "file": "pages\\AgentForge.tsx",
+    "line": 223,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "pages\\AgentForge.tsx",
+    "line": 223,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "pages\\AgentForge.tsx",
+    "line": 233,
+    "match": "rgb(var(--text-primary-rgb)"
+  },
+  {
+    "file": "pages\\AgentForge.tsx",
+    "line": 244,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "pages\\AgentForge.tsx",
+    "line": 244,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "pages\\AgentForge.tsx",
+    "line": 251,
+    "match": "rgb(var(--text-primary-rgb)"
+  },
+  {
+    "file": "pages\\AgentForge.tsx",
+    "line": 258,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "pages\\AgentForge.tsx",
+    "line": 258,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "pages\\AgentForge.tsx",
+    "line": 264,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "pages\\AgentForge.tsx",
+    "line": 271,
+    "match": "rgb(var(--text-primary-rgb)"
+  },
+  {
+    "file": "pages\\AgentForge.tsx",
+    "line": 274,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "pages\\AgentForge.tsx",
+    "line": 274,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "pages\\AgentForge.tsx",
+    "line": 283,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "pages\\AgentForge.tsx",
+    "line": 283,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "pages\\AgentForge.tsx",
+    "line": 297,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "pages\\AgentForge.tsx",
+    "line": 298,
+    "match": "rgb(var(--text-primary-rgb)"
+  },
+  {
+    "file": "pages\\AgentForge.tsx",
+    "line": 304,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "pages\\AgentForge.tsx",
+    "line": 304,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "pages\\AgentForge.tsx",
+    "line": 311,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "pages\\AgentForge.tsx",
+    "line": 311,
+    "match": "rgb(var(--bg-muted-rgb)"
+  },
+  {
+    "file": "pages\\evolution.tsx",
+    "line": 149,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "pages\\evolution.tsx",
+    "line": 161,
+    "match": "#3d6a8a"
+  },
+  {
+    "file": "pages\\evolution.tsx",
+    "line": 168,
+    "match": "#3d6a8a"
+  },
+  {
+    "file": "pages\\evolution.tsx",
+    "line": 177,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "pages\\evolution.tsx",
+    "line": 177,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "pages\\evolution.tsx",
+    "line": 199,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "pages\\evolution.tsx",
+    "line": 207,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "pages\\evolution.tsx",
+    "line": 207,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "pages\\evolution.tsx",
+    "line": 214,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "pages\\evolution.tsx",
+    "line": 218,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "pages\\evolution.tsx",
+    "line": 225,
+    "match": "#3d6a8a"
+  },
+  {
+    "file": "pages\\evolution.tsx",
+    "line": 239,
+    "match": "#f0f0f0"
+  },
+  {
+    "file": "pages\\evolution.tsx",
+    "line": 247,
+    "match": "#e8f4f8"
+  },
+  {
+    "file": "pages\\evolution.tsx",
+    "line": 253,
+    "match": "#3d6a8a"
+  },
+  {
+    "file": "pages\\evolution.tsx",
+    "line": 264,
+    "match": "#f0f0f0"
+  },
+  {
+    "file": "pages\\evolution.tsx",
+    "line": 272,
+    "match": "#e8f4f8"
+  },
+  {
+    "file": "pages\\evolution.tsx",
+    "line": 278,
+    "match": "#3d6a8a"
+  },
+  {
+    "file": "pages\\MediaGallery.tsx",
+    "line": 287,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "pages\\MediaGallery.tsx",
+    "line": 303,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "pages\\MediaGallery.tsx",
+    "line": 316,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "pages\\MediaGallery.tsx",
+    "line": 327,
+    "match": "rgb(var(--text-on-accent-rgb)"
+  },
+  {
+    "file": "pages\\MediaGallery.tsx",
+    "line": 332,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "pages\\MediaGallery.tsx",
+    "line": 332,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "pages\\MediaGallery.tsx",
+    "line": 355,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "pages\\MediaGallery.tsx",
+    "line": 363,
+    "match": "rgb(var(--text-primary-rgb)"
+  },
+  {
+    "file": "pages\\MediaGallery.tsx",
+    "line": 373,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "pages\\MediaGallery.tsx",
+    "line": 392,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "pages\\MediaGallery.tsx",
+    "line": 536,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "pages\\MediaGallery.tsx",
+    "line": 536,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "pages\\MediaGallery.tsx",
+    "line": 537,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "pages\\MediaGallery.tsx",
+    "line": 537,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "pages\\MediaGallery.tsx",
+    "line": 580,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "pages\\MediaGallery.tsx",
+    "line": 596,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "pages\\MediaGallery.tsx",
+    "line": 608,
+    "match": "rgb(var(--text-secondary-rgb)"
+  },
+  {
+    "file": "pages\\MediaGallery.tsx",
+    "line": 643,
+    "match": "rgb(var(--text-primary-rgb)"
+  },
+  {
+    "file": "pages\\memory-explorer.tsx",
+    "line": 38,
+    "match": "rgb(var(--overlay-rgb)"
+  },
+  {
+    "file": "pages\\memory-explorer.tsx",
+    "line": 39,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "pages\\memory-explorer.tsx",
+    "line": 44,
+    "match": "#f0f0f0"
+  },
+  {
+    "file": "pages\\memory-explorer.tsx",
+    "line": 61,
+    "match": "rgb(var(--danger-rgb)"
+  },
+  {
+    "file": "pages\\memory-explorer.tsx",
+    "line": 61,
+    "match": "rgb(var(--danger-rgb)"
+  },
+  {
+    "file": "pages\\memory-explorer.tsx",
+    "line": 246,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "pages\\memory-explorer.tsx",
+    "line": 257,
+    "match": "#3d6a8a"
+  },
+  {
+    "file": "pages\\memory-explorer.tsx",
+    "line": 276,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "pages\\memory-explorer.tsx",
+    "line": 276,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "pages\\memory-explorer.tsx",
+    "line": 283,
+    "match": "#3d6a8a"
+  },
+  {
+    "file": "pages\\memory-explorer.tsx",
+    "line": 299,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "pages\\memory-explorer.tsx",
+    "line": 299,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "pages\\memory-explorer.tsx",
+    "line": 306,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "pages\\memory-explorer.tsx",
+    "line": 306,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "pages\\memory-explorer.tsx",
+    "line": 332,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "pages\\memory-explorer.tsx",
+    "line": 334,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "pages\\memory-explorer.tsx",
+    "line": 353,
+    "match": "#5381A5"
+  },
+  {
+    "file": "pages\\memory-explorer.tsx",
+    "line": 357,
+    "match": "rgb(var(--bg-primary-rgb)"
+  },
+  {
+    "file": "pages\\memory-explorer.tsx",
+    "line": 398,
+    "match": "#3d6a8a"
+  },
+  {
+    "file": "pages\\memory-explorer.tsx",
+    "line": 408,
+    "match": "#3d6a8a"
+  },
+  {
+    "file": "pages\\OAuthCallback.tsx",
+    "line": 111,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "pages\\OAuthCallback.tsx",
+    "line": 111,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "pages\\OAuthCallback.tsx",
+    "line": 130,
+    "match": "rgb(var(--text-secondary-rgb)"
+  },
+  {
+    "file": "pages\\ToolForge.tsx",
+    "line": 123,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "pages\\ToolForge.tsx",
+    "line": 130,
+    "match": "rgb(var(--text-primary-rgb)"
+  },
+  {
+    "file": "pages\\ToolForge.tsx",
+    "line": 147,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "pages\\ToolForge.tsx",
+    "line": 147,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "pages\\ToolForge.tsx",
+    "line": 154,
+    "match": "rgb(var(--text-primary-rgb)"
+  },
+  {
+    "file": "pages\\ToolForge.tsx",
+    "line": 162,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "pages\\ToolForge.tsx",
+    "line": 162,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "pages\\ToolForge.tsx",
+    "line": 166,
+    "match": "rgb(var(--text-primary-rgb)"
+  },
+  {
+    "file": "pages\\ToolForge.tsx",
+    "line": 173,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "pages\\ToolForge.tsx",
+    "line": 173,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "pages\\ToolForge.tsx",
+    "line": 177,
+    "match": "rgb(var(--text-primary-rgb)"
+  },
+  {
+    "file": "pages\\ToolForge.tsx",
+    "line": 183,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "pages\\ToolForge.tsx",
+    "line": 183,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "pages\\ToolForge.tsx",
+    "line": 193,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "pages\\ToolForge.tsx",
+    "line": 193,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "pages\\ToolForge.tsx",
+    "line": 199,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "pages\\ToolForge.tsx",
+    "line": 199,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "pages\\ToolForge.tsx",
+    "line": 209,
+    "match": "rgb(var(--text-primary-rgb)"
+  },
+  {
+    "file": "pages\\ToolForge.tsx",
+    "line": 213,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "pages\\ToolForge.tsx",
+    "line": 213,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "pages\\ToolForge.tsx",
+    "line": 223,
+    "match": "rgb(var(--text-primary-rgb)"
+  },
+  {
+    "file": "pages\\ToolForge.tsx",
+    "line": 227,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "pages\\ToolForge.tsx",
+    "line": 227,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "pages\\ToolForge.tsx",
+    "line": 237,
+    "match": "rgb(var(--text-primary-rgb)"
+  },
+  {
+    "file": "pages\\ToolForge.tsx",
+    "line": 244,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "pages\\ToolForge.tsx",
+    "line": 244,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "pages\\ToolForge.tsx",
+    "line": 257,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "pages\\ToolForge.tsx",
+    "line": 257,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "pages\\ToolForge.tsx",
+    "line": 258,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "pages\\ToolForge.tsx",
+    "line": 258,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "pages\\ToolForge.tsx",
+    "line": 266,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "pages\\ToolForge.tsx",
+    "line": 292,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "pages\\ToolForge.tsx",
+    "line": 292,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "pages\\ToolForge.tsx",
+    "line": 293,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "pages\\ToolForge.tsx",
+    "line": 293,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "pages\\ToolForge.tsx",
+    "line": 308,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "pages\\ToolForge.tsx",
+    "line": 309,
+    "match": "rgb(var(--text-primary-rgb)"
+  },
+  {
+    "file": "pages\\ToolForge.tsx",
+    "line": 315,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "pages\\ToolForge.tsx",
+    "line": 315,
+    "match": "rgb(var(--surface-rgb)"
+  },
+  {
+    "file": "pages\\ToolForge.tsx",
+    "line": 322,
+    "match": "rgb(var(--bg-steel-rgb)"
+  },
+  {
+    "file": "pages\\ToolForge.tsx",
+    "line": 322,
+    "match": "rgb(var(--bg-muted-rgb)"
+  }
+]

@@ -9,16 +9,20 @@
 1. [Overview](#overview)
 2. [Architecture Diagram](#architecture-diagram)
 3. [Services Overview](#services-overview)
-4. [Request Flow](#request-flow)
-5. [Technology Stack](#technology-stack)
-6. [Getting Started](#getting-started)
-7. [Frontend Application & User Interface](#-frontend-application--user-interface)
-8. [Audio/Video & Screenshare Recording](#-audiovideo--screenshare-recording)
-9. [Service Details](#service-details)
-10. [API Endpoints](#api-endpoints)
-11. [Development Guide](#development-guide)
-12. [Troubleshooting](#troubleshooting)
-13. [Appendix: Production Build & Deployment](#appendix-production-build--deployment)
+4. [Blue Flame Decentralized Network](#blue-flame-decentralized-network)
+   - [Phoenix Consensus Sync](#6-phoenix-consensus-sync-)
+   - [Phoenix Memory Exchange](#7-phoenix-memory-exchange-)
+5. [Request Flow](#request-flow)
+6. [Technology Stack](#technology-stack)
+7. [Getting Started](#getting-started)
+8. [Long-Term Memory & Evolving Playbooks](#long-term-memory--evolving-playbooks)
+9. [Frontend Application & User Interface](#-frontend-application--user-interface)
+10. [Audio/Video & Screenshare Recording](#-audiovideo--screenshare-recording)
+11. [Service Details](#service-details)
+12. [API Endpoints](#api-endpoints)
+13. [Development Guide](#development-guide)
+14. [Troubleshooting](#troubleshooting)
+15. [Appendix: Production Build & Deployment](#appendix-production-build--deployment)
 
 > **📚 For detailed architecture documentation, implementation choices, and production recommendations, see [`docs/PROJECT_DELIVERY_SUMMARY.md`](docs/PROJECT_DELIVERY_SUMMARY.md)**
 
@@ -26,7 +30,7 @@
 
 ## Overview
 
-PAGI Digital Twin implements a **Tri-Layer Sovereign Architecture** with an explicit observability plane, designed for production-grade agent orchestration, secure tool execution, and persistent memory management.
+PAGI Digital Twin implements a **Tri-Layer Phoenix Architecture** with an explicit observability plane, designed for production-grade agent orchestration, secure tool execution, and persistent memory management. The system features **Phoenix Consensus Sync** for mesh-wide agent update voting and **Phoenix Memory Exchange** for secure peer-to-peer knowledge transfer.
 
 ### Architecture Layers
 
@@ -86,7 +90,7 @@ This repo supports multiple deployment profiles:
 
 ## Architecture Diagram
 
-### Tri-Layer Sovereign Architecture (Production Stack)
+### Tri-Layer Phoenix Architecture (Production Stack)
 
 ```mermaid
 graph TB
@@ -229,7 +233,7 @@ graph TB
 
 | Service | Language | Framework | Ports | Purpose | Key Features |
 |---------|----------|-----------|-------|---------|--------------|
-| **Rust Orchestrator** | Rust | Axum | 8182 (HTTP) | Planning + policy mediation | • Structured planning via OpenRouter or mock<br>• Human-in-the-loop (HITL) gating<br>• Deterministic fallback for offline work<br>• Typed JSON action contracts<br>• Multi-modal awareness (media recordings)<br>• Transcript summarization (gRPC) |
+| **Rust Orchestrator** | Rust | Axum | 8182 (HTTP) | Planning + policy mediation | • Structured planning via OpenRouter or mock<br>• Human-in-the-loop (HITL) gating<br>• Deterministic fallback for offline work<br>• Typed JSON action contracts<br>• Multi-modal awareness (media recordings)<br>• Transcript summarization (gRPC)<br>• Sub-agent factory with episodic memory logging<br>• Weekly playbook distillation and GitHub integration<br>• **Blue Flame P2P network** (mDNS discovery, handshake protocol, quarantine system)<br>• **Mesh health reporting** (alignment metrics, network status)<br>• **Phoenix Consensus Sync** (mesh-wide voting for agent updates)<br>• **Phoenix Memory Exchange** (peer-to-peer knowledge transfer with redaction) |
 
 #### Infrastructure Layer
 
@@ -269,6 +273,211 @@ graph TB
 | **Rust Sandbox** | Rust | Axum/Tokio | 8001 | Demo HTTP tool execution |
 | **Mock Memory** | Python | FastAPI | 8003 | Mock memory service for local dev demo |
 | **Go Model Gateway** | Go | gRPC | 50051 | LLM model gateway (gRPC service) |
+
+---
+
+## Blue Flame Decentralized Network
+
+PAGI Digital Twin implements a **"Blue Flame"** decentralized AGI network that enables multiple orchestrator nodes to discover, verify, and trust each other automatically. This creates a self-organizing, transparent, and auditable distributed intelligence system.
+
+### Network Features
+
+#### 1. **3D Trust Network Visualization**
+- **Component:** `TrustNetworkMap.tsx` (React + Three.js)
+- **Location:** Frontend Network tab in OrchestratorHub
+- **Features:**
+  - Real-time 3D visualization of network topology using `react-force-graph-3d`
+  - Node representation:
+    - **Verified Nodes:** Green spheres with blue emissive glow (pulsing effect)
+    - **Pending Nodes:** Yellow spheres with dashed borders
+    - **Quarantined Nodes:** Red spheres with cross indicators
+  - Link representation:
+    - **Trust Links:** Green lines between verified nodes
+    - **Weak Links:** Dashed yellow lines to pending nodes
+  - Interactive node details on hover/click
+  - Dark grid-patterned background with orbital controls
+  - **Mesh Health Summary Card:** Displays real-time network metrics
+
+#### 2. **mDNS Service Discovery**
+- **Service:** `backend-rust-orchestrator/src/network/mdns.rs`
+- **Purpose:** Automatic peer discovery on local network
+- **Features:**
+  - Service registration: Announces node as `_blueflame._tcp.local`
+  - Service discovery: Browses for other Blue Flame nodes
+  - TXT records include: `node_id`, `software_version`, `guardrail_version`
+  - Automatic handshake initiation on discovery
+  - Long-lived tokio task for continuous operation
+
+#### 3. **Node Handshake Protocol**
+- **Service:** `backend-rust-orchestrator/src/network/handshake.rs`
+- **Port:** 8285 (gRPC) - Configurable via `HANDSHAKE_GRPC_PORT`
+- **Protocol Flow:**
+  1. **Initiation:** Node A sends `HandshakeRequest` (NodeID, SoftwareVersion, ManifestHash)
+  2. **Challenge:** Node B responds with nonce that must be signed
+  3. **Verification:** Both nodes exchange Alignment Token (hash of system_prompt + KB)
+  4. **Validation:** If validation fails, connection is dropped and event is broadcast
+- **Security:**
+  - ED25519 signature verification
+  - Manifest hash validation
+  - Alignment token matching (ensures same values/guardrails)
+  - Nonce-based challenge-response (30-second TTL)
+
+#### 4. **Quarantine System**
+- **Service:** `backend-rust-orchestrator/src/network/quarantine.rs`
+- **Purpose:** Safety guard for network isolation
+- **Features:**
+  - Automatic quarantine of nodes with failed handshakes
+  - Persistent storage in Qdrant `quarantine_list` collection
+  - IP-based and node-ID-based blocking
+  - Re-integration support for recovered nodes
+  - Event broadcasting on quarantine/reintegration
+
+#### 5. **Mesh Health Reporting**
+- **Service:** `backend-rust-orchestrator/src/analytics/mesh_health.rs`
+- **Endpoint:** `GET /api/network/mesh-health`
+- **Metrics:**
+  - **Total Nodes:** Count of unique node IDs
+  - **Aligned Nodes:** Count of verified nodes (not quarantined)
+  - **Quarantined Nodes:** Count of isolated nodes
+  - **Alignment Drift:** Percentage of nodes with outdated manifest hashes
+  - **Last Updated:** Timestamp of report generation
+- **Performance:** 1-minute caching to reduce database load
+- **UI Integration:** Displayed in TrustNetworkMap component
+
+#### 6. **Phoenix Consensus Sync** 🏛️
+- **Service:** `backend-rust-orchestrator/src/network/consensus.rs`
+- **Purpose:** Mesh-wide voting mechanism for agent library updates
+- **Flow:**
+  1. **Commit Detection:** Node detects new commit in `pagi-agent-repo` → broadcasts `ConsensusRequest`
+  2. **Mesh Voting:** Peers respond with `ConsensusVote` containing local compliance scores
+  3. **Automatic Adoption:** If average score ≥ 70% AND ≥ 50% approval → auto `git pull` + `DiscoveryRefresh`
+  4. **Quarantine Sync:** Rejected commits added to mesh-wide quarantine list
+- **Configuration:**
+  - `min_average_score`: 70.0 (minimum compliance score to approve)
+  - `min_approval_percentage`: 50.0 (minimum % of nodes that must approve)
+  - `vote_timeout_seconds`: 30 (timeout for collecting votes)
+- **Events:**
+  - `ConsensusRequest`: Broadcast when new commit detected
+  - `ConsensusVote`: Peer responses with compliance scores
+  - `ConsensusResult`: Final consensus decision (approved/rejected)
+- **Integration:** Automatically triggered when `sync_library` detects new commits
+- **Documentation:** See [`docs/PHOENIX_CONSENSUS_AND_MEMORY_EXCHANGE.md`](backend-rust-orchestrator/docs/PHOENIX_CONSENSUS_AND_MEMORY_EXCHANGE.md)
+
+#### 7. **Phoenix Memory Exchange** 🧠
+- **Service:** `backend-rust-orchestrator/src/network/memory_exchange.rs`
+- **Proto:** `backend-rust-orchestrator/proto/memory_exchange.proto`
+- **Purpose:** Peer-to-peer knowledge transfer with automatic redaction
+- **Flow:**
+  1. **Knowledge Request:** Node A requests vectors via `PhoenixEvent::MemoryExchangeRequest`
+  2. **Sovereign Scrubbing:** Node B retrieves Qdrant data → applies **Phoenix-Redacted** filter
+  3. **Identity Verification:** Only verified peers (via `PhoenixHandshake`) can exchange
+  4. **Streaming Transfer:** Clean embeddings streamed via gRPC to Node A
+- **Security:**
+  - Alignment token verification required
+  - All content scrubbed using `PrivacyFilter` (hostnames, IPs, secrets)
+  - Only verified peers can participate
+- **gRPC Service:**
+  - `ExchangeMemory`: Stream redacted memory vectors for a topic
+  - `VerifyAlignment`: Verify alignment token before exchange
+- **Events:**
+  - `MemoryExchangeRequest`: Request for memory vectors on specific topic
+- **Documentation:** See [`docs/PHOENIX_CONSENSUS_AND_MEMORY_EXCHANGE.md`](backend-rust-orchestrator/docs/PHOENIX_CONSENSUS_AND_MEMORY_EXCHANGE.md)
+
+### Network API Endpoints
+
+| Endpoint | Method | Purpose | Response |
+|----------|--------|---------|----------|
+| `/api/network/topology` | GET | Get network graph data (nodes + links) | JSON with nodes and links arrays |
+| `/api/network/mesh-health` | GET | Get mesh health metrics | JSON with health metrics |
+| `/api/network/peers` | GET | List all discovered peers | JSON with peers array |
+| `/api/network/quarantine` | GET | List quarantined nodes | JSON with quarantined array |
+| `/api/network/quarantine` | POST | Quarantine a node | JSON success response |
+| `/api/network/quarantine/:node_id` | DELETE | Reintegrate a node | JSON success response |
+
+### Network Architecture
+
+```mermaid
+graph TB
+    subgraph "Node A"
+        OR1[Rust Orchestrator<br/>:8182]
+        MDNS1[mDNS Service<br/>Discovery + Registration]
+        HS1[Handshake Service<br/>gRPC :8285]
+        QM1[Quarantine Manager]
+    end
+
+    subgraph "Node B"
+        OR2[Rust Orchestrator<br/>:8182]
+        MDNS2[mDNS Service<br/>Discovery + Registration]
+        HS2[Handshake Service<br/>gRPC :8285]
+        QM2[Quarantine Manager]
+    end
+
+    subgraph "Network Discovery"
+        MDNS[Multicast DNS<br/>_blueflame._tcp.local]
+    end
+
+    subgraph "Storage"
+        QD[Qdrant DB<br/>audit_logs + quarantine_list]
+    end
+
+    MDNS1 <-->|mDNS| MDNS
+    MDNS2 <-->|mDNS| MDNS
+    MDNS1 -.->|NodeDiscovered Event| OR1
+    MDNS2 -.->|NodeDiscovered Event| OR2
+    OR1 -->|Handshake Request| HS2
+    HS2 -->|Challenge| OR1
+    OR1 -->|Signed Response| HS2
+    HS2 -->|Verification| QM2
+    HS1 -->|Log Success| QD
+    HS2 -->|Log Success| QD
+    QM1 -->|Check Quarantine| QD
+    QM2 -->|Check Quarantine| QD
+
+    style OR1 fill:#CE412B,stroke:#8B2E1F,stroke-width:2px,color:#fff
+    style OR2 fill:#CE412B,stroke:#8B2E1F,stroke-width:2px,color:#fff
+    style MDNS fill:#4A90E2,stroke:#2E5C8A,stroke-width:2px,color:#fff
+    style QD fill:#FF6B6B,stroke:#CC5555,stroke-width:2px,color:#fff
+```
+
+### Configuration
+
+#### Environment Variables
+
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `NODE_ID` | Auto-generated UUID | Unique node identifier |
+| `HANDSHAKE_GRPC_PORT` | 8285 | gRPC port for handshake service |
+| `SOFTWARE_VERSION` | 2.1.0 | Software version for handshake |
+| `GUARDRAIL_VERSION` | 2.1.0 | Guardrail version for handshake |
+
+#### Node Identity
+
+Each node generates an ED25519 key pair on first startup:
+- **Location:** `backend-rust-orchestrator/config/node_identity.key`
+- **Purpose:** Cryptographic signing for handshake challenges
+- **Persistence:** Key is stored locally and reused across restarts
+
+### Network Events
+
+The system uses a `GlobalMessageBus` to broadcast network events:
+
+- **`NodeDiscovered`**: New node discovered via mDNS
+- **`PeerVerified`**: Node successfully verified and added to trusted peers
+- **`UnauthorizedNodeDetected`**: Node failed handshake validation
+- **`NodeIsolated`**: Node quarantined
+- **`NodeReintegrated`**: Node removed from quarantine
+- **`ConsensusRequest`**: Request for consensus on a new commit
+- **`ConsensusVote`**: Vote from a peer on a commit (with compliance score)
+- **`ConsensusResult`**: Final consensus decision (approved/rejected with metrics)
+- **`MemoryExchangeRequest`**: Request for memory vectors from a peer
+
+### Frontend Integration
+
+The network visualization is accessible via:
+1. Navigate to **OrchestratorHub** in the frontend
+2. Click the **"Network"** tab
+3. View the 3D trust network map with real-time updates
+4. Monitor mesh health metrics in the summary card
 
 ---
 
@@ -604,7 +813,247 @@ The Tri-Layer architecture includes several critical implementation choices:
 3. **Register/Execute:** Tools Service registers and executes the new tool
 4. **Self-Improve:** Orchestrator updates its system prompt for enhanced capabilities
 
+6. **Long-Term Memory & Evolving Playbooks**
+   - **Episodic Memory Logging:** Every sub-agent task (success/failure) is automatically logged to Qdrant
+   - **Weekly Playbook Distillation:** Analyzes episodic memories and generates Markdown playbooks
+   - **GitHub Integration:** Automatically commits and pushes playbooks for global knowledge sharing
+   - See [Long-Term Memory & Evolving Playbooks](#long-term-memory--evolving-playbooks) section for complete documentation
+
 For complete architecture documentation, see [`docs/PROJECT_DELIVERY_SUMMARY.md`](docs/PROJECT_DELIVERY_SUMMARY.md).
+
+---
+
+## Long-Term Memory & Evolving Playbooks
+
+The orchestrator implements a **Playbook Feedback Loop** that enables agents to learn from their successes and failures over time, creating evolving knowledge that improves performance across all nodes.
+
+### Overview
+
+This system automatically:
+1. **Logs Episodic Memory:** Every sub-agent task completion (success or failure) is stored in Qdrant
+2. **Distills Playbooks:** Weekly analysis of episodic memories generates Markdown playbooks
+3. **Commits to GitHub:** Playbooks are automatically committed and pushed to your repository
+4. **Global Knowledge Sharing:** Other nodes/users pull the repo to inherit learned wisdom
+
+### How It Works
+
+#### 1. Episodic Memory Logging
+
+Every time a sub-agent completes a task, the system automatically logs:
+- **Agent Information:** Agent ID, name, and mission
+- **Task Details:** The task that was executed
+- **Outcome:** Success or Failure
+- **Result:** The complete result or error message
+- **Timestamp:** When the task was completed
+
+This data is stored in Qdrant under the `episodic_memory` namespace, enabling semantic search and analysis.
+
+**Example Episodic Memory Entry:**
+```
+Agent: Log Analyst
+Task: Analyze system logs for errors
+Outcome: Success
+Result: Found 3 critical errors in /var/log/syslog...
+```
+
+#### 2. Playbook Distillation
+
+Once per week, the orchestrator:
+- Queries all episodic memories from the past 7 days
+- Groups memories by task pattern (e.g., "analyze_logs", "optimize_memory")
+- Generates Markdown playbooks with:
+  - ✅ **Successful Patterns:** What worked and how
+  - ❌ **Failure Patterns:** What failed and lessons learned
+  - 📋 **Best Practices:** Success rates and recommendations
+
+**Example Playbook Structure:**
+```markdown
+# Playbook: analyze_system_logs
+
+## ✅ Successful Patterns
+### Success #1
+**Agent:** Log Analyst
+**Task:** Analyze system logs for errors
+**Result:** [successful approach details]
+
+## ❌ Failure Patterns (Lessons Learned)
+### Failure #1
+**Agent:** Log Analyst
+**Task:** Analyze system logs for errors
+**Error:** [what went wrong]
+
+## 📋 Best Practices
+- Total attempts: 15
+- Success rate: 86.7%
+```
+
+#### 3. GitHub Integration
+
+Generated playbooks are automatically:
+- Committed to the repository with descriptive messages
+- Pushed to the configured remote (default: `origin/main`)
+- Available for other nodes to pull and learn from
+
+**Git Commit Example:**
+```
+Weekly playbook update: 5 playbooks generated
+```
+
+### Configuration
+
+#### Prerequisites
+
+1. **Qdrant Running:** Episodic memory requires Qdrant to be accessible
+2. **Git Repository:** Your project must be a git repository
+3. **Git Remote (Optional):** For auto-push, configure GitHub remote:
+   ```bash
+   git remote add origin <your-github-repo-url>
+   ```
+
+#### Environment Variables
+
+No additional environment variables are required. The system uses:
+- `MEMORY_GRPC_ADDR` - For connecting to memory service (default: `http://127.0.0.1:50052`)
+- Current working directory - For playbook storage and git operations
+
+#### Playbook Storage
+
+Playbooks are stored in `./playbooks/` directory (created automatically):
+```
+playbooks/
+├── analyze_system_logs.md
+├── optimize_windows_ram.md
+├── network_scanning.md
+└── ...
+```
+
+### Usage
+
+#### Automatic Operation
+
+The system runs automatically:
+- **Episodic Memory:** Logged immediately after each agent task
+- **Playbook Generation:** Runs weekly (every 7 days)
+- **Git Commit/Push:** Executed after playbook generation
+
+#### Manual Trigger (via Chat)
+
+You can manually trigger playbook generation and git push via the chat interface:
+
+```json
+{
+  "action_type": "ActionGitPush",
+  "details": {
+    "repo_path": "/path/to/repo",
+    "playbooks_dir": "./playbooks",
+    "commit_message": "Manual playbook update",
+    "remote_name": "origin",
+    "branch": "main"
+  }
+}
+```
+
+Or simply ask the orchestrator:
+> "Generate playbooks from episodic memory and push to GitHub"
+
+#### Querying Episodic Memory
+
+You can query episodic memories via the memory service:
+
+```bash
+# List recent episodic memories
+curl -X POST http://localhost:8182/v1/memory/list \
+  -H "Content-Type: application/json" \
+  -d '{
+    "namespace": "episodic_memory",
+    "twin_id": "orchestrator",
+    "page": 1,
+    "page_size": 50
+  }'
+```
+
+### Benefits
+
+1. **Continuous Learning:** Agents improve over time by learning from past experiences
+2. **Knowledge Sharing:** Playbooks can be shared across multiple nodes/deployments
+3. **Pattern Recognition:** Identifies successful and failed approaches automatically
+4. **Documentation:** Self-documenting system that creates knowledge base automatically
+5. **Global Intelligence:** One node's learning benefits all nodes via GitHub sync
+
+### Architecture
+
+```
+┌─────────────────┐
+│  Sub-Agent      │
+│  Task Execution │
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│ Episodic Memory │
+│   (Qdrant)      │
+│  Namespace:     │
+│ episodic_memory │
+└────────┬────────┘
+         │
+         │ (Weekly)
+         ▼
+┌─────────────────┐
+│ Playbook        │
+│ Distiller       │
+│ (Analysis)       │
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│ Markdown        │
+│ Playbooks       │
+│ ./playbooks/    │
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│ Git Commit      │
+│ & Push          │
+│ (GitHub)        │
+└─────────────────┘
+```
+
+### Implementation Details
+
+- **Episodic Memory Logging:** [`backend-rust-orchestrator/src/agents/factory.rs`](backend-rust-orchestrator/src/agents/factory.rs)
+- **Playbook Distillation:** [`backend-rust-orchestrator/src/playbook_distiller.rs`](backend-rust-orchestrator/src/playbook_distiller.rs)
+- **Git Operations:** [`backend-rust-orchestrator/src/tools/git.rs`](backend-rust-orchestrator/src/tools/git.rs)
+- **Weekly Scheduler:** [`backend-rust-orchestrator/src/main.rs`](backend-rust-orchestrator/src/main.rs) (lines ~4138-4194)
+
+### Troubleshooting
+
+**Playbooks not generating:**
+- Check that Qdrant is running and accessible
+- Verify episodic memories exist: Query `episodic_memory` namespace
+- Check orchestrator logs for errors
+
+**Git push failing:**
+- Ensure git repository is initialized: `git init`
+- Configure remote: `git remote add origin <url>`
+- Set up authentication (SSH keys or GitHub token)
+- Check logs: Push failures are logged but don't crash the system
+
+**No episodic memories:**
+- Verify sub-agents are being spawned and completing tasks
+- Check memory service connectivity
+- Review orchestrator logs for "Episodic memory logged" messages
+
+### Future Enhancements
+
+- **LLM-Based Summarization:** Use AI to generate more sophisticated playbook summaries
+- **Playbook Consumption:** Load playbooks into agent context for better decision-making
+- **Pattern Extraction:** Advanced NLP for better task pattern recognition
+- **Success Rate Thresholds:** Only generate playbooks if success rate exceeds threshold
+- **Playbook Versioning:** Track playbook evolution over time
+- **Cross-Node Sync:** Automatic playbook pulling on orchestrator startup
+
+---
 
 ### Frontend Access
 

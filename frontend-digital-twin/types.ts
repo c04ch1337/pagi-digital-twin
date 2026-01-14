@@ -80,4 +80,4 @@ export interface TelemetryData {
   timestamp: string;
 }
 
-export type AppView = 'chat' | 'settings' | 'orchestrator' | 'logs' | 'search' | 'memory-explorer' | 'evolution' | 'gallery' | 'system-status' | 'orchestrator-settings' | 'file-processing-monitor';
+export type AppView = 'chat' | 'settings' | 'orchestrator' | 'logs' | 'search' | 'memory-explorer' | 'evolution' | 'gallery' | 'system-status' | 'orchestrator-settings' | 'file-processing-monitor' | 'agent-forge' | 'tool-forge' | 'phoenix' | 'audit' | 'knowledge-atlas';

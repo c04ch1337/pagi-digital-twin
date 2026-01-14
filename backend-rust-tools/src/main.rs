@@ -65,14 +65,24 @@ impl PolicyConfig {
 
     /// Check if a twin is authorized to execute a command
     fn is_authorized(&self, twin_id: &str, command: &str) -> (bool, String) {
+        // Security gate: Check if restricted commands are allowed via env var
+        let allow_restricted = env::var("ALLOW_RESTRICTED_COMMANDS")
+            .unwrap_or_else(|_| "false".to_string())
+            .to_lowercase();
+        let allow_restricted = matches!(allow_restricted.as_str(), "1" | "true" | "yes" | "on");
+        
         // Check safe mode
         if self.safe_mode && self.restricted_commands.contains(&command.to_string()) {
-            return (false, format!("Command '{}' is restricted in safe mode", command));
+            if !allow_restricted {
+                return (false, format!("Command '{}' is restricted in safe mode. Set ALLOW_RESTRICTED_COMMANDS=1 to enable (research project only)", command));
+            }
         }
 
         // Check if command is in restricted list
         if self.restricted_commands.contains(&command.to_string()) {
-            return (false, format!("Command '{}' is restricted", command));
+            if !allow_restricted {
+                return (false, format!("Command '{}' is restricted. Set ALLOW_RESTRICTED_COMMANDS=1 to enable (research project only)", command));
+            }
         }
 
         // Get allowed commands for this twin

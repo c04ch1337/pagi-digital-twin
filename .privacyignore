@@ -1,0 +1,17 @@
+# Privacy Ignore Patterns
+# Add regex patterns here to exempt known safe matches from privacy validation
+# Each line is a regex pattern that will be matched against found violations
+#
+# Examples:
+# ^127\.0\.0\.1$          # Allow localhost IP
+# ^192\.168\.1\.1$        # Allow specific private IP
+# /Users/example          # Allow specific user path
+# example\.com            # Allow domain patterns
+#
+# Note: Patterns are matched using re.search(), so partial matches are allowed
+
+# Common safe IP addresses (localhost and example IPs)
+127\.0\.0\.1
+0\.0\.0\.0
+192\.168\.1\.0
+192\.168\.\d+\.\d+

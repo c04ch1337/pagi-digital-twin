@@ -10,6 +10,14 @@ export type AgentCommand =
     }
   | {
       /**
+       * Navigate/show the Orchestrator crew list.
+       * Optionally includes an agent id to highlight/scroll to.
+       */
+      command: 'crew_list';
+      agent_id?: string;
+    }
+  | {
+      /**
        * Create (or select) a project and start a new chat session under it.
        * This is handled fully client-side by switching `session_id`.
        */

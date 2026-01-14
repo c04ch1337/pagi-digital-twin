@@ -50,8 +50,8 @@ export default function MediaControls({ onOpenGallery, placement = 'floating' }:
           (disabled
             ? 'opacity-40 cursor-not-allowed'
             : active
-              ? 'bg-[#5381A5] text-white'
-              : 'bg-white/15 text-[#0b1b2b] hover:bg-white/25')
+              ? 'bg-[var(--bg-steel)] text-[var(--text-on-accent)]'
+              : 'bg-[rgb(var(--surface-rgb)/0.15)] text-[var(--text-primary)] hover:bg-[rgb(var(--surface-rgb)/0.25)]')
         }
       >
         {children}
@@ -65,8 +65,8 @@ export default function MediaControls({ onOpenGallery, placement = 'floating' }:
       <div
         className={
           placement === 'header'
-            ? 'flex items-center gap-1.5 rounded-full border border-white/20 bg-white/20 px-2 py-1 shadow-sm backdrop-blur-md'
-            : 'fixed bottom-4 right-4 z-50 flex items-center gap-1.5 rounded-full border border-white/20 bg-white/10 px-2 py-1.5 shadow-lg backdrop-blur-md'
+            ? 'flex items-center gap-1.5 rounded-full border border-[rgb(var(--text-on-accent-rgb)/0.2)] bg-[rgb(var(--surface-rgb)/0.2)] px-2 py-1 shadow-sm backdrop-blur-md'
+            : 'fixed bottom-4 right-4 z-50 flex items-center gap-1.5 rounded-full border border-[rgb(var(--text-on-accent-rgb)/0.2)] bg-[rgb(var(--surface-rgb)/0.1)] px-2 py-1.5 shadow-lg backdrop-blur-md'
         }
       >
         <IconButton
@@ -93,7 +93,7 @@ export default function MediaControls({ onOpenGallery, placement = 'floating' }:
           <Monitor size={14} />
         </IconButton>
 
-        <div className="mx-1 h-5 w-px bg-white/20" />
+        <div className="mx-1 h-5 w-px bg-[rgb(var(--surface-rgb)/0.2)]" />
 
         {onOpenGallery && (
           <IconButton
@@ -114,7 +114,7 @@ export default function MediaControls({ onOpenGallery, placement = 'floating' }:
           </IconButton>
         )}
 
-        <div className="mx-1 h-5 w-px bg-white/20" />
+        <div className="mx-1 h-5 w-px bg-[rgb(var(--surface-rgb)/0.2)]" />
 
         <IconButton
           title={state.isRecording ? 'Stop recording' : 'Start recording'}
@@ -123,9 +123,9 @@ export default function MediaControls({ onOpenGallery, placement = 'floating' }:
           onClick={() => (state.isRecording ? actions.stopRecording() : actions.startRecording())}
         >
           {state.isRecording ? (
-            <Square size={14} className="text-red-50" />
+            <Square size={14} className="text-[rgb(var(--text-on-accent-rgb)/0.95)]" />
           ) : (
-            <Circle size={14} className="text-red-600" />
+            <Circle size={14} className="text-[var(--danger)]" />
           )}
         </IconButton>
 
@@ -133,17 +133,17 @@ export default function MediaControls({ onOpenGallery, placement = 'floating' }:
         <div
           className={
             'ml-1 h-2 w-2 rounded-full transition-opacity ' +
-            (state.isRecording ? 'bg-red-500 animate-pulse opacity-100' : 'bg-white/30 opacity-60')
+            (state.isRecording ? 'bg-[rgb(var(--danger-rgb)/1)] animate-pulse opacity-100' : 'bg-[rgb(var(--surface-rgb)/0.3)] opacity-60')
           }
           title={state.isRecording ? 'Recording is ON' : 'Recording is OFF'}
           aria-label={state.isRecording ? 'Recording is ON' : 'Recording is OFF'}
         />
 
         <div className="ml-1 flex items-center gap-2">
-          {state.isUploading && <span className="text-[10px] text-white/80">uploading…</span>}
+          {state.isUploading && <span className="text-[10px] text-[rgb(var(--text-on-accent-rgb)/0.8)]">uploading…</span>}
           {state.error && (
             <span
-              className="max-w-[220px] truncate text-[10px] text-red-100"
+              className="max-w-[220px] truncate text-[10px] text-[rgb(var(--danger-rgb)/0.9)]"
               title={state.error}
               onClick={actions.clearError}
             >
@@ -158,8 +158,8 @@ export default function MediaControls({ onOpenGallery, placement = 'floating' }:
         <div
           className={
             placement === 'header'
-              ? 'fixed top-16 right-4 z-50 rounded-lg border border-white/15 bg-black/60 px-3 py-2 text-xs text-white shadow-lg backdrop-blur-md'
-              : 'fixed bottom-16 right-4 z-50 rounded-lg border border-white/15 bg-black/60 px-3 py-2 text-xs text-white shadow-lg backdrop-blur-md'
+              ? 'fixed top-16 right-4 z-50 rounded-lg border border-[rgb(var(--text-on-accent-rgb)/0.15)] bg-[rgb(var(--overlay-rgb)/0.6)] px-3 py-2 text-xs text-[var(--text-on-accent)] shadow-lg backdrop-blur-md'
+              : 'fixed bottom-16 right-4 z-50 rounded-lg border border-[rgb(var(--text-on-accent-rgb)/0.15)] bg-[rgb(var(--overlay-rgb)/0.6)] px-3 py-2 text-xs text-[var(--text-on-accent)] shadow-lg backdrop-blur-md'
           }
         >
           {toast}

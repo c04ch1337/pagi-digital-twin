@@ -2,9 +2,9 @@
 
 This document consolidates the final, high-level architecture and the most critical non-trivial implementation choices for research and operations.
 
-## 1) Architecture Summary: Tri-Layer Sovereign Architecture
+## 1) Architecture Summary: Tri-Layer Phoenix Architecture
 
-The delivered system implements a “Tri-Layer Sovereign Architecture” with an explicit observability plane:
+The delivered system implements a "Tri-Layer Phoenix Architecture" with an explicit observability plane:
 
 1. **Gateway** (edge protocol + UI integration)
 2. **Orchestrator** (planning + policy mediation)

@@ -125,12 +125,12 @@ const HoverTooltip: React.FC<HoverTooltipProps> = ({ title, description, childre
                 left: pos.left,
                 zIndex: 9999,
               }}
-              className="pointer-events-none max-w-[280px] rounded-lg border border-[#5381A5]/35 bg-white/90 p-2 shadow-2xl text-left"
+              className="pointer-events-none max-w-[280px] rounded-lg border border-[rgb(var(--bg-steel-rgb)/0.35)] bg-[rgb(var(--surface-rgb)/0.9)] p-2 shadow-2xl text-left"
             >
-              <div className="text-[10px] font-black text-[#5381A5] uppercase tracking-widest mb-1">
+              <div className="text-[10px] font-black text-[var(--bg-steel)] uppercase tracking-widest mb-1">
                 {title}
               </div>
-              <div className="text-[10px] text-[#163247] leading-snug whitespace-normal break-words">
+              <div className="text-[10px] text-[var(--text-secondary)] leading-snug whitespace-normal break-words">
                 {description}
               </div>
 
@@ -139,8 +139,8 @@ const HoverTooltip: React.FC<HoverTooltipProps> = ({ title, description, childre
                 className="absolute left-1/2 -translate-x-1/2 border-8 border-transparent"
                 style={
                   pos.placement === 'top'
-                    ? { top: '100%', borderTopColor: 'rgba(83,129,165,0.35)' }
-                    : { bottom: '100%', borderBottomColor: 'rgba(83,129,165,0.35)' }
+                    ? { top: '100%', borderTopColor: 'rgb(var(--bg-steel-rgb) / 0.35)' }
+                    : { bottom: '100%', borderBottomColor: 'rgb(var(--bg-steel-rgb) / 0.35)' }
                 }
               />
             </div>,

@@ -1,4 +1,4 @@
-# Ferrellgas AGI - Sovereign Permissions Setup Script (PowerShell)
+# Ferrellgas AGI - Phoenix Permissions Setup Script (PowerShell)
 # This script configures the Windows environment for the Orchestrator service.
 # Note: Windows uses a different permission model than Linux.
 #
@@ -21,7 +21,7 @@ if (-not $isAdmin) {
     exit 1
 }
 
-Write-Host "🚀 Setting up Sovereign Permissions for AGI Orchestrator" -ForegroundColor Green
+Write-Host "🚀 Setting up Phoenix Permissions for AGI Orchestrator" -ForegroundColor Green
 Write-Host "==================================================" -ForegroundColor Green
 Write-Host ""
 
@@ -76,7 +76,7 @@ if (-not (Test-Path $recordingsDir)) {
 }
 
 Write-Host ""
-Write-Host "✅ Sovereign Permissions Setup Complete!" -ForegroundColor Green
+Write-Host "✅ Phoenix Permissions Setup Complete!" -ForegroundColor Green
 Write-Host ""
 Write-Host "Summary:"
 Write-Host "  - User created: $OrchestratorUser"

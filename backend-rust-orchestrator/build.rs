@@ -27,6 +27,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             &[
                 "proto/orchestrator.proto",
                 "proto/orchestrator_admin.proto",
+                "proto/handshake.proto",
+                "proto/memory_exchange.proto",
             ],
             &["proto/"],
         )?;

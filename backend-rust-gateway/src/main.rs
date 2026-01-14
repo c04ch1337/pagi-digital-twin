@@ -26,6 +26,7 @@ use percent_encoding::{utf8_percent_encode, NON_ALPHANUMERIC};
 struct AppState {
     orchestrator_url: String, // e.g., http://127.0.0.1:8182
     telemetry_url: String,   // e.g., http://127.0.0.1:8183
+    qdrant_url: String,      // e.g., http://127.0.0.1:6334
     http_client: reqwest::Client,
     signaling_rooms: Mutex<HashMap<String, broadcast::Sender<String>>>,
 }
@@ -968,6 +969,151 @@ async fn prompt_reset_proxy_handler(
     }
 }
 
+// --- Preferences Proxy Handlers ---
+
+#[derive(Debug, Deserialize)]
+struct PreferencesGetQuery {
+    #[serde(default)]
+    twin_id: String,
+}
+
+async fn preferences_get_proxy_handler(
+    State(state): State<Arc<AppState>>,
+    Query(query): Query<PreferencesGetQuery>,
+) -> impl IntoResponse {
+    let base = format!(
+        "{}/v1/preferences/get",
+        state.orchestrator_url.trim_end_matches('/')
+    );
+    if query.twin_id.trim().is_empty() {
+        let mut resp = Response::new(Body::from("twin_id is required"));
+        *resp.status_mut() = StatusCode::BAD_REQUEST;
+        resp.headers_mut().insert(
+            header::ACCESS_CONTROL_ALLOW_ORIGIN,
+            HeaderValue::from_static("*"),
+        );
+        return resp;
+    }
+    let endpoint = format!(
+        "{}?twin_id={}",
+        base,
+        utf8_percent_encode(query.twin_id.trim(), NON_ALPHANUMERIC)
+    );
+
+    match state.http_client.get(&endpoint).send().await {
+        Ok(r) => {
+            let status = r.status();
+            let bytes = r.bytes().await.unwrap_or_default();
+            let mut resp = Response::new(Body::from(bytes));
+            *resp.status_mut() = status;
+            resp.headers_mut().insert(
+                header::CONTENT_TYPE,
+                HeaderValue::from_static("application/json"),
+            );
+            resp.headers_mut().insert(
+                header::ACCESS_CONTROL_ALLOW_ORIGIN,
+                HeaderValue::from_static("*"),
+            );
+            resp
+        }
+        Err(e) => {
+            error!(error = %e, endpoint = %endpoint, "Failed to proxy preferences get");
+            let mut resp = Response::new(Body::from("Orchestrator service unavailable"));
+            *resp.status_mut() = StatusCode::BAD_GATEWAY;
+            resp.headers_mut().insert(
+                header::ACCESS_CONTROL_ALLOW_ORIGIN,
+                HeaderValue::from_static("*"),
+            );
+            resp
+        }
+    }
+}
+
+async fn preferences_update_proxy_handler(
+    State(state): State<Arc<AppState>>,
+    body: Body,
+) -> impl IntoResponse {
+    let orchestrator_endpoint = format!(
+        "{}/v1/preferences/update",
+        state.orchestrator_url.trim_end_matches('/')
+    );
+
+    let byte_stream = body.into_data_stream().map(|chunk| {
+        chunk.map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))
+    });
+
+    let req = state
+        .http_client
+        .post(&orchestrator_endpoint)
+        .header(header::CONTENT_TYPE, "application/json")
+        .body(reqwest::Body::wrap_stream(byte_stream));
+
+    match req.send().await {
+        Ok(r) => {
+            let status = r.status();
+            let bytes = r.bytes().await.unwrap_or_default();
+            let mut resp = Response::new(Body::from(bytes));
+            *resp.status_mut() = status;
+            resp.headers_mut().insert(
+                header::CONTENT_TYPE,
+                HeaderValue::from_static("application/json"),
+            );
+            resp.headers_mut().insert(
+                header::ACCESS_CONTROL_ALLOW_ORIGIN,
+                HeaderValue::from_static("*"),
+            );
+            resp
+        }
+        Err(e) => {
+            error!(error = %e, endpoint = %orchestrator_endpoint, "Failed to proxy preferences update");
+            let mut resp = Response::new(Body::from("Orchestrator service unavailable"));
+            *resp.status_mut() = StatusCode::BAD_GATEWAY;
+            resp.headers_mut().insert(
+                header::ACCESS_CONTROL_ALLOW_ORIGIN,
+                HeaderValue::from_static("*"),
+            );
+            resp
+        }
+    }
+}
+
+async fn preferences_presets_proxy_handler(
+    State(state): State<Arc<AppState>>,
+) -> impl IntoResponse {
+    let orchestrator_endpoint = format!(
+        "{}/v1/preferences/presets",
+        state.orchestrator_url.trim_end_matches('/')
+    );
+
+    match state.http_client.get(&orchestrator_endpoint).send().await {
+        Ok(r) => {
+            let status = r.status();
+            let bytes = r.bytes().await.unwrap_or_default();
+            let mut resp = Response::new(Body::from(bytes));
+            *resp.status_mut() = status;
+            resp.headers_mut().insert(
+                header::CONTENT_TYPE,
+                HeaderValue::from_static("application/json"),
+            );
+            resp.headers_mut().insert(
+                header::ACCESS_CONTROL_ALLOW_ORIGIN,
+                HeaderValue::from_static("*"),
+            );
+            resp
+        }
+        Err(e) => {
+            error!(error = %e, endpoint = %orchestrator_endpoint, "Failed to proxy preferences presets");
+            let mut resp = Response::new(Body::from("Orchestrator service unavailable"));
+            *resp.status_mut() = StatusCode::BAD_GATEWAY;
+            resp.headers_mut().insert(
+                header::ACCESS_CONTROL_ALLOW_ORIGIN,
+                HeaderValue::from_static("*"),
+            );
+            resp
+        }
+    }
+}
+
 // --- Prompt Restore Proxy Handler ---
 async fn prompt_restore_proxy_handler(
     State(state): State<Arc<AppState>>,
@@ -1194,6 +1340,84 @@ async fn memory_delete_proxy_handler(
     }
 }
 
+// --- Memory Stats Proxy Handler (Qdrant Collection Stats) ---
+async fn memory_stats_proxy_handler(
+    State(state): State<Arc<AppState>>,
+    Path(collection_name): Path<String>,
+) -> impl IntoResponse {
+    let qdrant_endpoint = format!(
+        "{}/collections/{}",
+        state.qdrant_url.trim_end_matches('/'),
+        collection_name
+    );
+
+    match state.http_client.get(&qdrant_endpoint).send().await {
+        Ok(r) => {
+            let status = r.status();
+            let bytes = r.bytes().await.unwrap_or_default();
+            let mut resp = Response::new(Body::from(bytes));
+            *resp.status_mut() = status;
+            resp.headers_mut().insert(
+                header::CONTENT_TYPE,
+                HeaderValue::from_static("application/json"),
+            );
+            resp.headers_mut().insert(
+                header::ACCESS_CONTROL_ALLOW_ORIGIN,
+                HeaderValue::from_static("*"),
+            );
+            resp
+        }
+        Err(e) => {
+            error!(error = %e, endpoint = %qdrant_endpoint, "Failed to proxy Qdrant collection stats");
+            let mut resp = Response::new(Body::from("Qdrant service unavailable"));
+            *resp.status_mut() = StatusCode::BAD_GATEWAY;
+            resp.headers_mut().insert(
+                header::ACCESS_CONTROL_ALLOW_ORIGIN,
+                HeaderValue::from_static("*"),
+            );
+            resp
+        }
+    }
+}
+
+// --- Agents Leaderboard Proxy Handler ---
+async fn agents_leaderboard_proxy_handler(
+    State(state): State<Arc<AppState>>,
+) -> impl IntoResponse {
+    let orchestrator_endpoint = format!(
+        "{}/api/agents/leaderboard",
+        state.orchestrator_url.trim_end_matches('/')
+    );
+
+    match state.http_client.get(&orchestrator_endpoint).send().await {
+        Ok(r) => {
+            let status = r.status();
+            let bytes = r.bytes().await.unwrap_or_default();
+            let mut resp = Response::new(Body::from(bytes));
+            *resp.status_mut() = status;
+            resp.headers_mut().insert(
+                header::CONTENT_TYPE,
+                HeaderValue::from_static("application/json"),
+            );
+            resp.headers_mut().insert(
+                header::ACCESS_CONTROL_ALLOW_ORIGIN,
+                HeaderValue::from_static("*"),
+            );
+            resp
+        }
+        Err(e) => {
+            error!(error = %e, endpoint = %orchestrator_endpoint, "Failed to proxy agents leaderboard");
+            let mut resp = Response::new(Body::from("Orchestrator service unavailable"));
+            *resp.status_mut() = StatusCode::BAD_GATEWAY;
+            resp.headers_mut().insert(
+                header::ACCESS_CONTROL_ALLOW_ORIGIN,
+                HeaderValue::from_static("*"),
+            );
+            resp
+        }
+    }
+}
+
 // --- Health Check ---
 async fn health_check() -> impl IntoResponse {
     (axum::http::StatusCode::OK, "Gateway operational")
@@ -1224,6 +1448,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let telemetry_url = telemetry_url.trim().to_string();
 
+    let qdrant_url = env::var("QDRANT_URL")
+        .unwrap_or_else(|_| "http://127.0.0.1:6334".to_string());
+    let qdrant_url = qdrant_url.trim().to_string();
+
     let gateway_port = env::var("GATEWAY_PORT")
         .unwrap_or_else(|_| "8181".to_string())
         .parse::<u16>()
@@ -1232,6 +1460,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     info!(
         orchestrator_url = %orchestrator_url,
         telemetry_url = %telemetry_url,
+        qdrant_url = %qdrant_url,
         gateway_port = gateway_port,
         "Initializing WebSocket Gateway"
     );
@@ -1246,6 +1475,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let app_state = Arc::new(AppState {
         orchestrator_url,
         telemetry_url,
+        qdrant_url,
         http_client,
         signaling_rooms: Mutex::new(HashMap::new()),
     });
@@ -1271,8 +1501,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/api/prompt/update", post(prompt_update_proxy_handler))
         .route("/api/prompt/restore", post(prompt_restore_proxy_handler))
         .route("/api/prompt/reset", post(prompt_reset_proxy_handler))
+        // Personalization preferences
+        .route("/api/preferences/get", get(preferences_get_proxy_handler))
+        .route("/api/preferences/update", post(preferences_update_proxy_handler))
+        .route("/api/preferences/presets", get(preferences_presets_proxy_handler))
         .route("/api/memory/list", post(memory_list_proxy_handler))
         .route("/api/memory/delete", post(memory_delete_proxy_handler))
+        .route("/api/memory/stats/:collection_name", get(memory_stats_proxy_handler))
+        .route("/api/agents/leaderboard", get(agents_leaderboard_proxy_handler))
         .with_state(app_state);
 
     let addr = SocketAddr::from(([0, 0, 0, 0], gateway_port));

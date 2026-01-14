@@ -1,0 +1,27 @@
+name: Privacy Check
+
+on:
+  pull_request:
+
+jobs:
+  privacy-validation:
+    name: Privacy Validation
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          
+      - name: Run privacy validation
+        run: |
+          python3 scripts/validate_privacy.py
+          
+      - name: Report violations
+        if: failure()
+        run: |
+          echo "::error::Privacy validation failed. Please review the output above and remove sensitive information or add exemptions to .privacyignore"

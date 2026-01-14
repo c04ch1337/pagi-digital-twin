@@ -1,0 +1,122 @@
+[
+  {
+    "file": "components\\AgentLeaderboard.tsx",
+    "line": 1,
+    "match": "bg-green-500/80"
+  },
+  {
+    "file": "components\\AgentLeaderboard.tsx",
+    "line": 1,
+    "match": "bg-purple-500/80"
+  },
+  {
+    "file": "components\\AgentLeaderboard.tsx",
+    "line": 1,
+    "match": "bg-yellow-400/80"
+  },
+  {
+    "file": "components\\AgentLeaderboard.tsx",
+    "line": 1,
+    "match": "bg-orange-400/80"
+  },
+  {
+    "file": "components\\AgentLeaderboard.tsx",
+    "line": 1,
+    "match": "text-orange-500"
+  },
+  {
+    "file": "components\\AgentWarRoom.tsx",
+    "line": 2,
+    "match": "text-blue-400"
+  },
+  {
+    "file": "components\\ConsensusOverrideModal.tsx",
+    "line": 1,
+    "match": "bg-green-900/10"
+  },
+  {
+    "file": "components\\ConsensusOverrideModal.tsx",
+    "line": 1,
+    "match": "bg-red-900/10"
+  },
+  {
+    "file": "components\\ForgeHistory.tsx",
+    "line": 1,
+    "match": "bg-gray-700"
+  },
+  {
+    "file": "components\\FragmentationHeatmap.tsx",
+    "line": 1,
+    "match": "bg-yellow-400"
+  },
+  {
+    "file": "components\\MediaControls.tsx",
+    "line": 1,
+    "match": "text-red-50"
+  },
+  {
+    "file": "components\\MediaControls.tsx",
+    "line": 1,
+    "match": "text-red-100"
+  },
+  {
+    "file": "components\\NeuralMemorySearch.tsx",
+    "line": 1,
+    "match": "bg-rose-500/10"
+  },
+  {
+    "file": "components\\NeuralMemorySearch.tsx",
+    "line": 1,
+    "match": "border-rose-500/30"
+  },
+  {
+    "file": "components\\NeuralMemorySearch.tsx",
+    "line": 1,
+    "match": "text-rose-400"
+  },
+  {
+    "file": "components\\RootAdminSettings.tsx",
+    "line": 1,
+    "match": "bg-rose-200"
+  },
+  {
+    "file": "components\\SidebarLeft.tsx",
+    "line": 1,
+    "match": "shadow-indigo-500/20"
+  },
+  {
+    "file": "components\\SystemMonitor.tsx",
+    "line": 1,
+    "match": "bg-red-500/80"
+  },
+  {
+    "file": "components\\TelemetryCharts.tsx",
+    "line": 1,
+    "match": "text-indigo-400"
+  },
+  {
+    "file": "components\\ToolForge.tsx",
+    "line": 6,
+    "match": "bg-gray-700"
+  },
+  {
+    "file": "components\\ToolForge.tsx",
+    "line": 6,
+    "match": "bg-blue-900/20"
+  },
+  {
+    "file": "components\\ToolForge.tsx",
+    "line": 6,
+    "match": "border-blue-600"
+  },
+  {
+    "file": "components\\ToolForge.tsx",
+    "line": 6,
+    "match": "text-blue-200"
+  },
+  {
+    "file": "pages\\memory-explorer.tsx",
+    "line": 1,
+    "match": "bg-red-50"
+  }
+]

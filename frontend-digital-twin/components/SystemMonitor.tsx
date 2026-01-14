@@ -4,6 +4,7 @@ import { usePagi } from '../context/PagiContext';
 import NetworkMap from './NetworkMap';
 import { fetchLatestNetworkScan, runNetworkScan } from '../services/networkScanService';
 import type { NetworkScanResult } from '../types/networkScan';
+import { formatCompactKiB } from '../utils/formatMetrics';
 
 interface SystemMonitorProps {
   onClose?: () => void;
@@ -121,28 +122,19 @@ const SystemMonitor: React.FC<SystemMonitorProps> = ({ onClose, twinId }) => {
     }
   };
 
-  const formatBytes = (kib: number): string => {
-    const mib = kib / 1024;
-    if (mib < 1024) {
-      return `${mib.toFixed(1)} MiB`;
-    }
-    const gib = mib / 1024;
-    return `${gib.toFixed(2)} GiB`;
-  };
-
   const getUsageColor = (percent: number): string => {
-    if (percent < 50) return '#78A2C2'; // Blue-green
-    if (percent < 75) return '#90C3EA'; // Light blue
-    if (percent < 90) return '#FFA500'; // Orange
-    return '#FF4444'; // Red
+    if (percent < 50) return 'rgb(var(--success-rgb))';
+    if (percent < 75) return 'rgb(var(--info-rgb))';
+    if (percent < 90) return 'rgb(var(--warning-rgb))';
+    return 'rgb(var(--danger-rgb))';
   };
 
   if (loading && !snapshot) {
     return (
-      <div className="flex-1 flex items-center justify-center bg-[#9EC9D9]">
+      <div className="flex-1 flex items-center justify-center bg-[var(--bg-primary)]">
         <div className="text-center">
-          <div className="text-sm text-[#163247] mb-2">Loading system snapshot...</div>
-          <div className="w-8 h-8 border-4 border-[#5381A5] border-t-transparent rounded-full animate-spin mx-auto"></div>
+          <div className="text-sm text-[var(--text-secondary)] mb-2">Loading system snapshot...</div>
+          <div className="w-8 h-8 border-4 border-[var(--bg-steel)] border-t-transparent rounded-full animate-spin mx-auto"></div>
         </div>
       </div>
     );
@@ -150,13 +142,13 @@ const SystemMonitor: React.FC<SystemMonitorProps> = ({ onClose, twinId }) => {
 
   if (error && !snapshot) {
     return (
-      <div className="flex-1 flex items-center justify-center bg-[#9EC9D9]">
-        <div className="text-center p-4 bg-white/70 border border-[#5381A5]/30 rounded-lg">
-          <div className="text-sm text-red-600 mb-2">Error loading system snapshot</div>
-          <div className="text-xs text-[#163247] mb-4">{error}</div>
+      <div className="flex-1 flex items-center justify-center bg-[var(--bg-primary)]">
+        <div className="text-center p-4 bg-[rgb(var(--surface-rgb)/0.7)] border border-[rgb(var(--bg-steel-rgb)/0.3)] rounded-lg">
+          <div className="text-sm text-[var(--danger)] mb-2">Error loading system snapshot</div>
+          <div className="text-xs text-[var(--text-secondary)] mb-4">{error}</div>
           <button
             onClick={loadSnapshot}
-            className="px-4 py-2 bg-[#5381A5] hover:bg-[#78A2C2] rounded-lg text-xs font-bold text-white transition-all"
+            className="px-4 py-2 bg-[var(--bg-steel)] hover:bg-[var(--bg-muted)] rounded-lg text-xs font-bold text-[var(--text-on-accent)] transition-all"
           >
             Retry
           </button>
@@ -171,17 +163,17 @@ const SystemMonitor: React.FC<SystemMonitorProps> = ({ onClose, twinId }) => {
   const cpuPercent = snapshot.cpu.global_usage_percent;
 
   return (
-    <div className="flex-1 flex flex-col bg-[#9EC9D9] overflow-hidden">
+    <div className="flex-1 flex flex-col bg-[var(--bg-primary)] overflow-hidden">
       {/* Header */}
-      <div className="p-4 border-b border-[#5381A5]/30 bg-[#90C3EA] flex items-center justify-between">
+      <div className="p-4 border-b border-[rgb(var(--bg-steel-rgb)/0.3)] bg-[var(--bg-secondary)] flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <span className="material-symbols-outlined text-[#5381A5]">monitor</span>
-          <h2 className="text-sm font-bold text-[#163247]">System Status</h2>
+          <span className="material-symbols-outlined text-[var(--bg-steel)]">monitor</span>
+          <h2 className="text-sm font-bold text-[var(--text-secondary)]">System Status</h2>
         </div>
         <div className="flex items-center gap-2">
           <button
             onClick={handleAskAIOptimize}
-            className="px-3 py-1.5 bg-[#5381A5] hover:bg-[#78A2C2] rounded-lg text-xs font-bold text-white transition-all flex items-center gap-1"
+            className="px-3 py-1.5 bg-[var(--bg-steel)] hover:bg-[var(--bg-muted)] rounded-lg text-xs font-bold text-[var(--text-on-accent)] transition-all flex items-center gap-1"
           >
             <span className="material-symbols-outlined text-sm">auto_awesome</span>
             Ask AI to Optimize
@@ -189,9 +181,9 @@ const SystemMonitor: React.FC<SystemMonitorProps> = ({ onClose, twinId }) => {
           {onClose && (
             <button
               onClick={onClose}
-              className="p-1.5 hover:bg-[#78A2C2] rounded-md transition-colors"
+              className="p-1.5 hover:bg-[var(--bg-muted)] rounded-md transition-colors"
             >
-              <span className="material-symbols-outlined text-[#163247] text-lg">close</span>
+              <span className="material-symbols-outlined text-[var(--text-secondary)] text-lg">close</span>
             </button>
           )}
         </div>
@@ -200,16 +192,16 @@ const SystemMonitor: React.FC<SystemMonitorProps> = ({ onClose, twinId }) => {
       {/* Content */}
       <div className="flex-1 overflow-y-auto p-4 space-y-6">
         {/* Network Map */}
-        <div className="bg-white/70 border border-[#5381A5]/30 rounded-lg p-4">
+        <div className="bg-[rgb(var(--surface-rgb)/0.7)] border border-[rgb(var(--bg-steel-rgb)/0.3)] rounded-lg p-4">
           <div className="flex items-center justify-between gap-2 mb-3">
             <div className="flex items-center gap-2">
-              <span className="material-symbols-outlined text-[#5381A5]">hub</span>
-              <h3 className="text-xs font-bold text-[#163247] uppercase tracking-wider">Network Scanner</h3>
+              <span className="material-symbols-outlined text-[var(--bg-steel)]">hub</span>
+              <h3 className="text-xs font-bold text-[var(--text-secondary)] uppercase tracking-wider">Network Scanner</h3>
             </div>
             <button
               onClick={handleRescanNetwork}
               disabled={scanLoading || !scanTarget.trim()}
-              className="px-3 py-1.5 bg-[#5381A5] hover:bg-[#78A2C2] disabled:opacity-50 rounded-lg text-xs font-bold text-white transition-all flex items-center gap-1"
+              className="px-3 py-1.5 bg-[var(--bg-steel)] hover:bg-[var(--bg-muted)] disabled:opacity-50 rounded-lg text-xs font-bold text-[var(--text-on-accent)] transition-all flex items-center gap-1"
             >
               <span className="material-symbols-outlined text-sm">refresh</span>
               Rescan Network
@@ -221,7 +213,7 @@ const SystemMonitor: React.FC<SystemMonitorProps> = ({ onClose, twinId }) => {
               value={scanTarget}
               onChange={(e) => setScanTarget(e.target.value)}
               placeholder="192.168.1.0/24"
-              className="flex-1 bg-white/80 border border-[#5381A5]/30 rounded-lg px-3 py-2 text-xs font-mono focus:ring-1 focus:ring-[#5381A5]/40"
+              className="flex-1 bg-[rgb(var(--surface-rgb)/0.8)] border border-[rgb(var(--bg-steel-rgb)/0.3)] rounded-lg px-3 py-2 text-xs font-mono focus:ring-1 focus:ring-[rgb(var(--bg-steel-rgb)/0.4)]"
             />
             <button
               type="button"
@@ -229,7 +221,7 @@ const SystemMonitor: React.FC<SystemMonitorProps> = ({ onClose, twinId }) => {
                 // Quick presets for common lab subnets
                 if (!scanTarget.trim()) setScanTarget('192.168.1.0/24');
               }}
-              className="px-3 py-2 bg-white/70 border border-[#5381A5]/30 rounded-lg text-xs font-bold text-[#163247] hover:bg-white transition-all"
+              className="px-3 py-2 bg-[rgb(var(--surface-rgb)/0.7)] border border-[rgb(var(--bg-steel-rgb)/0.3)] rounded-lg text-xs font-bold text-[var(--text-secondary)] hover:bg-[rgb(var(--surface-rgb)/1)] transition-all"
               title="Preset"
             >
               Preset
@@ -238,7 +230,7 @@ const SystemMonitor: React.FC<SystemMonitorProps> = ({ onClose, twinId }) => {
             <button
               type="button"
               onClick={() => setShowScanAdvanced(v => !v)}
-              className="px-3 py-2 bg-white/70 border border-[#5381A5]/30 rounded-lg text-xs font-bold text-[#163247] hover:bg-white transition-all"
+              className="px-3 py-2 bg-[rgb(var(--surface-rgb)/0.7)] border border-[rgb(var(--bg-steel-rgb)/0.3)] rounded-lg text-xs font-bold text-[var(--text-secondary)] hover:bg-[rgb(var(--surface-rgb)/1)] transition-all"
               title="Advanced (public scan HITL token)"
             >
               {showScanAdvanced ? 'Hide Advanced' : 'Advanced'}
@@ -246,7 +238,7 @@ const SystemMonitor: React.FC<SystemMonitorProps> = ({ onClose, twinId }) => {
           </div>
 
           {!isLikelyPrivateTarget(scanTarget) && (
-            <div className="mb-3 text-[11px] text-amber-900 bg-amber-100/60 border border-amber-300/60 rounded-lg px-3 py-2">
+            <div className="mb-3 text-[11px] text-[rgb(var(--warning-rgb)/0.98)] bg-[rgb(var(--warning-rgb)/0.15)] border border-[rgb(var(--warning-rgb)/0.3)] rounded-lg px-3 py-2">
               Public/non-RFC1918 target detected. This will be blocked unless the server enables public scans
               (<span className="font-mono">ALLOW_PUBLIC_NETWORK_SCAN=1</span>) and you provide a valid HITL token
               (<span className="font-mono">NETWORK_SCAN_HITL_TOKEN</span>).
@@ -256,17 +248,17 @@ const SystemMonitor: React.FC<SystemMonitorProps> = ({ onClose, twinId }) => {
           {showScanAdvanced && (
             <div className="mb-4 grid grid-cols-1 md:grid-cols-2 gap-2">
               <div>
-                <label className="block text-[10px] font-bold text-[#163247] uppercase tracking-widest mb-1">
+                <label className="block text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">
                   Public Scan HITL Token (optional)
                 </label>
                 <input
                   value={publicScanToken}
                   onChange={(e) => setPublicScanToken(e.target.value)}
                   placeholder="(matches NETWORK_SCAN_HITL_TOKEN)"
-                  className="w-full bg-white/80 border border-[#5381A5]/30 rounded-lg px-3 py-2 text-xs font-mono focus:ring-1 focus:ring-[#5381A5]/40"
+                  className="w-full bg-[rgb(var(--surface-rgb)/0.8)] border border-[rgb(var(--bg-steel-rgb)/0.3)] rounded-lg px-3 py-2 text-xs font-mono focus:ring-1 focus:ring-[rgb(var(--bg-steel-rgb)/0.4)]"
                 />
               </div>
-              <div className="text-[11px] text-[#163247] opacity-80 leading-relaxed">
+              <div className="text-[11px] text-[var(--text-secondary)] opacity-80 leading-relaxed">
                 Use this only when explicitly authorized. Planner-triggered scans remain internal-only.
               </div>
             </div>
@@ -277,9 +269,9 @@ const SystemMonitor: React.FC<SystemMonitorProps> = ({ onClose, twinId }) => {
         {/* CPU and RAM Gauges */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* CPU Gauge */}
-          <div className="bg-white/70 border border-[#5381A5]/30 rounded-lg p-4">
+          <div className="bg-[rgb(var(--surface-rgb)/0.7)] border border-[rgb(var(--bg-steel-rgb)/0.3)] rounded-lg p-4">
             <div className="flex items-center justify-between mb-3">
-              <h3 className="text-xs font-bold text-[#163247] uppercase tracking-wider">CPU Usage</h3>
+              <h3 className="text-xs font-bold text-[var(--text-secondary)] uppercase tracking-wider">CPU Usage</h3>
               <span className="text-lg font-bold" style={{ color: getUsageColor(cpuPercent) }}>
                 {cpuPercent.toFixed(1)}%
               </span>
@@ -292,7 +284,7 @@ const SystemMonitor: React.FC<SystemMonitorProps> = ({ onClose, twinId }) => {
                   cy="50"
                   r="40"
                   fill="none"
-                  stroke="#E5E7EB"
+                  stroke="rgb(var(--bg-steel-rgb)/0.25)"
                   strokeWidth="8"
                 />
                 <circle
@@ -313,23 +305,23 @@ const SystemMonitor: React.FC<SystemMonitorProps> = ({ onClose, twinId }) => {
                   <div className="text-2xl font-bold" style={{ color: getUsageColor(cpuPercent) }}>
                     {cpuPercent.toFixed(1)}%
                   </div>
-                  <div className="text-[9px] text-[#163247] opacity-60 mt-1">
+                  <div className="text-[9px] text-[var(--text-secondary)] opacity-60 mt-1">
                     {snapshot.cpu.per_core_usage_percent.length} cores
                   </div>
                 </div>
               </div>
             </div>
             {snapshot.cpu.per_core_usage_percent.length > 0 && (
-              <div className="mt-2 text-[9px] text-[#163247] opacity-70">
+              <div className="mt-2 text-[9px] text-[var(--text-secondary)] opacity-70">
                 Per-core: {snapshot.cpu.per_core_usage_percent.map((p, i) => `${i}:${p.toFixed(0)}%`).join(', ')}
               </div>
             )}
           </div>
 
           {/* RAM Gauge */}
-          <div className="bg-white/70 border border-[#5381A5]/30 rounded-lg p-4">
+          <div className="bg-[rgb(var(--surface-rgb)/0.7)] border border-[rgb(var(--bg-steel-rgb)/0.3)] rounded-lg p-4">
             <div className="flex items-center justify-between mb-3">
-              <h3 className="text-xs font-bold text-[#163247] uppercase tracking-wider">Memory Usage</h3>
+              <h3 className="text-xs font-bold text-[var(--text-secondary)] uppercase tracking-wider">Memory Usage</h3>
               <span className="text-lg font-bold" style={{ color: getUsageColor(ramPercent) }}>
                 {ramPercent.toFixed(1)}%
               </span>
@@ -342,7 +334,7 @@ const SystemMonitor: React.FC<SystemMonitorProps> = ({ onClose, twinId }) => {
                   cy="50"
                   r="40"
                   fill="none"
-                  stroke="#E5E7EB"
+                  stroke="rgb(var(--bg-steel-rgb)/0.25)"
                   strokeWidth="8"
                 />
                 <circle
@@ -368,44 +360,44 @@ const SystemMonitor: React.FC<SystemMonitorProps> = ({ onClose, twinId }) => {
             </div>
 
             {/* Keep the raw numbers OUTSIDE the circular gauge to prevent overlap on smaller widths */}
-            <div className="mt-2 text-[10px] text-[#163247] opacity-70 text-center leading-tight break-words">
-              {formatBytes(snapshot.memory.used_kib)} / {formatBytes(snapshot.memory.total_kib)}
+            <div className="mt-2 text-[10px] text-[var(--text-secondary)] opacity-70 text-center leading-tight break-words">
+              {formatCompactKiB(snapshot.memory.used_kib)} / {formatCompactKiB(snapshot.memory.total_kib)}
             </div>
           </div>
         </div>
 
         {/* Top Processes Table */}
-        <div className="bg-white/70 border border-[#5381A5]/30 rounded-lg overflow-hidden">
-          <div className="p-3 border-b border-[#5381A5]/30 bg-[#90C3EA]">
-            <h3 className="text-xs font-bold text-[#163247] uppercase tracking-wider">
+        <div className="bg-[rgb(var(--surface-rgb)/0.7)] border border-[rgb(var(--bg-steel-rgb)/0.3)] rounded-lg overflow-hidden">
+          <div className="p-3 border-b border-[rgb(var(--bg-steel-rgb)/0.3)] bg-[var(--bg-secondary)]">
+            <h3 className="text-xs font-bold text-[var(--text-secondary)] uppercase tracking-wider">
               Top 10 Processes by Memory
             </h3>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-xs">
-              <thead className="bg-[#78A2C2]/30">
+              <thead className="bg-[rgb(var(--bg-muted-rgb)/0.3)]">
                 <tr>
-                  <th className="text-left p-2 text-[#163247] font-bold">Process</th>
-                  <th className="text-left p-2 text-[#163247] font-bold">PID</th>
-                  <th className="text-right p-2 text-[#163247] font-bold">Memory</th>
-                  <th className="text-center p-2 text-[#163247] font-bold">Action</th>
+                  <th className="text-left p-2 text-[var(--text-secondary)] font-bold">Process</th>
+                  <th className="text-left p-2 text-[var(--text-secondary)] font-bold">PID</th>
+                  <th className="text-right p-2 text-[var(--text-secondary)] font-bold">Memory</th>
+                  <th className="text-center p-2 text-[var(--text-secondary)] font-bold">Action</th>
                 </tr>
               </thead>
               <tbody>
                 {snapshot.top_processes.map((process, index) => (
                   <tr
                     key={`${process.pid}-${index}`}
-                    className="border-b border-[#5381A5]/20 hover:bg-[#90C3EA]/20 transition-colors"
+                    className="border-b border-[rgb(var(--bg-steel-rgb)/0.2)] hover:bg-[rgb(var(--bg-secondary-rgb)/0.2)] transition-colors"
                   >
-                    <td className="p-2 text-[#163247] font-mono text-[10px]">{process.name}</td>
-                    <td className="p-2 text-[#163247] font-mono text-[10px]">{process.pid}</td>
-                    <td className="p-2 text-right text-[#163247] font-mono text-[10px]">
-                      {formatBytes(process.memory_kib)}
+                    <td className="p-2 text-[var(--text-secondary)] font-mono text-[10px]">{process.name}</td>
+                    <td className="p-2 text-[var(--text-secondary)] font-mono text-[10px]">{process.pid}</td>
+                    <td className="p-2 text-right text-[var(--text-secondary)] font-mono text-[10px]">
+                      {formatCompactKiB(process.memory_kib)}
                     </td>
                     <td className="p-2 text-center">
                       <button
                         onClick={() => handleTerminateProcess(process.pid, process.name)}
-                        className="px-2 py-1 bg-red-500/80 hover:bg-red-600 text-white rounded text-[9px] font-bold transition-all"
+                        className="px-2 py-1 bg-[rgb(var(--danger-rgb)/0.85)] hover:bg-[rgb(var(--danger-rgb)/0.95)] text-[var(--text-on-accent)] rounded text-[9px] font-bold transition-all"
                         title={`Terminate ${process.name} (PID: ${process.pid})`}
                       >
                         Terminate

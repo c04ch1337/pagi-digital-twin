@@ -1,0 +1,43 @@
+syntax = "proto3";
+
+package memory_exchange;
+
+// Phoenix Memory Exchange Service for peer-to-peer knowledge transfer
+service PhoenixMemoryExchangeService {
+  // Request memory vectors for a specific topic (with redaction)
+  rpc ExchangeMemory(ExchangeMemoryRequest) returns (stream ExchangeMemoryResponse);
+  
+  // Verify alignment token before exchange
+  rpc VerifyAlignment(AlignmentVerificationRequest) returns (AlignmentVerificationResponse);
+}
+
+// Request for memory exchange
+message ExchangeMemoryRequest {
+  string requesting_node_id = 1;
+  string topic = 2;                    // Topic/query to search for
+  string namespace = 3;                 // Namespace filter
+  int32 top_k = 4;                      // Number of vectors to return
+  string alignment_token = 5;           // Alignment token for verification
+}
+
+// Response stream with redacted memory vectors
+message ExchangeMemoryResponse {
+  string memory_id = 1;
+  repeated float vector = 2;            // Embedding vector
+  string redacted_content = 3;           // Content after Phoenix-Redacted filter
+  string memory_type = 4;
+  string timestamp = 5;
+  double similarity_score = 6;
+  bool is_complete = 7;                 // True if this is the last chunk
+}
+
+// Alignment token verification
+message AlignmentVerificationRequest {
+  string node_id = 1;
+  string alignment_token = 2;
+}
+
+message AlignmentVerificationResponse {
+  bool verified = 1;
+  string message = 2;
+}

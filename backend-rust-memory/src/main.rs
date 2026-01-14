@@ -26,7 +26,7 @@ use qdrant_client::{
         vectors_config::Config, CreateCollection, Distance, PointStruct,
         ScoredPoint, SearchPoints, VectorParams, VectorsConfig, Value, Match, UpsertPoints,
         ScrollPoints, DeletePoints, PointId, PointsSelector, points_selector::PointsSelectorOneOf,
-        PointsIdsList,
+        PointsIdsList, HnswConfigDiff, SparseVectorParams, SparseVectorsConfig,
     },
     Qdrant,
 };
@@ -249,15 +249,43 @@ impl MemoryServiceImpl {
                 "Creating Qdrant collection"
             );
 
+            // Configure HNSW for dense vectors (high-precision retrieval)
+            let hnsw_config = HnswConfigDiff {
+                m: Some(16), // Number of bi-directional links per node
+                ef_construct: Some(100), // Candidate list size during construction
+                full_scan_threshold: None,
+                max_indexing_threads: None,
+                on_disk: None,
+                payload_m: None,
+            };
+
+            // Configure sparse vectors for keyword search (BM25-like)
+            let sparse_vectors_config = SparseVectorsConfig {
+                map: [(
+                    "text-sparse".to_string(),
+                    SparseVectorParams {
+                        index: Some(qdrant_client::qdrant::SparseIndexParams {
+                            full_scan_threshold: Some(10000),
+                            on_disk: None,
+                        }),
+                    },
+                )]
+                .iter()
+                .cloned()
+                .collect(),
+            };
+
             let create_collection = CreateCollection {
                 collection_name: collection_name.to_string(),
                 vectors_config: Some(VectorsConfig {
                     config: Some(Config::Params(VectorParams {
                         size: self.embedding_dim as u64,
                         distance: Distance::Cosine as i32,
+                        hnsw_config: Some(hnsw_config),
                         ..Default::default()
                     })),
                 }),
+                sparse_vectors_config: Some(sparse_vectors_config),
                 ..Default::default()
             };
 

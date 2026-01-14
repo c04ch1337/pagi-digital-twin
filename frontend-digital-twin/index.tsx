@@ -4,6 +4,7 @@ import ReactDOM from 'react-dom/client';
 import App from './App';
 import { PagiProvider } from './context/PagiContext';
 import { TelemetryProvider } from './context/TelemetryContext';
+import { ThemeProvider } from './context/ThemeContext';
 
 import './index.css';
 
@@ -15,10 +16,12 @@ if (!rootElement) {
 const root = ReactDOM.createRoot(rootElement);
 root.render(
   <React.StrictMode>
-    <TelemetryProvider>
-      <PagiProvider>
-        <App />
-      </PagiProvider>
-    </TelemetryProvider>
+    <ThemeProvider>
+      <TelemetryProvider>
+        <PagiProvider>
+          <App />
+        </PagiProvider>
+      </TelemetryProvider>
+    </ThemeProvider>
   </React.StrictMode>
 );

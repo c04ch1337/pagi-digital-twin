@@ -237,7 +237,7 @@ Report your actions and findings. Execute the necessary repair steps immediately
         // rather than going through the full LLM planning (which requires UI approval)
         let action = if state.llm_provider == "openrouter" {
             // Try to use LLM, but if it fails, fall back to direct repair
-            match crate::llm_plan_openrouter(&repair_prompt, "system", state, false, None).await {
+            match crate::llm_plan_openrouter(&repair_prompt, "system", state, false, None, None).await {
                 Ok((action, _)) => action,
                 Err(e) => {
                     warn!(error = %e, "LLM planning failed, using direct repair");

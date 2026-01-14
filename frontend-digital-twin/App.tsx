@@ -14,13 +14,19 @@ import MediaControls from './components/MediaControls';
 import MemoryExplorer from './pages/memory-explorer';
 import Evolution from './pages/evolution';
 import MediaGallery from './pages/MediaGallery';
+import AgentForge from './pages/AgentForge';
+import ToolForge from './pages/ToolForge';
 import SystemMonitor from './components/SystemMonitor';
 import OrchestratorSettings from './components/RootAdminSettings';
 import FileProcessingMonitor from './components/FileProcessingMonitor';
 import OAuthCallback from './pages/OAuthCallback';
+import AuditDashboard from './pages/AuditDashboard';
+import PhoenixGlobalSearch from './components/PhoenixGlobalSearch';
+import KnowledgeAtlas from './components/KnowledgeAtlas';
 import { executeJobLifecycle } from './services/orchestrator';
 import { usePagi } from './context/PagiContext';
 import { useTelemetry } from './context/TelemetryContext';
+import { useTheme } from './context/ThemeContext';
 import { convertChatResponseToMessage } from './utils/messageConverter';
 import { updateFaviconLinks } from './utils/updateFavicon';
 import { ChatResponse, CompleteMessage, AgentCommand, ChatRequest } from './types/protocol';
@@ -37,6 +43,8 @@ const App: React.FC = () => {
   } = usePagi();
   // Get Telemetry context
   const { telemetry, isConnected: isTelemetryConnected } = useTelemetry();
+  // Get Theme context
+  const { theme, toggleTheme } = useTheme();
   
   // Load orchestrator agent settings from localStorage on mount
   const loadOrchestratorAgentSettings = (): Partial<TwinSettings> | null => {
@@ -82,9 +90,23 @@ const App: React.FC = () => {
   const [activeCommand, setActiveCommand] = useState<AgentCommand | null>(null);
   const [commandMessageId, setCommandMessageId] = useState<string | null>(null);
   const [activeDecisionTrace, setActiveDecisionTrace] = useState<string | null>(null);
+  const [isGlobalSearchOpen, setIsGlobalSearchOpen] = useState(false);
   
   // Check for OAuth callback on mount
   const [isOAuthCallback, setIsOAuthCallback] = useState(false);
+  
+  // Keyboard shortcut for global search (Ctrl+K / Cmd+K)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        e.preventDefault();
+        setIsGlobalSearchOpen(prev => !prev);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.get('code') || urlParams.get('error')) {
@@ -297,6 +319,12 @@ const App: React.FC = () => {
         setActiveCommand(command);
         setCommandMessageId(response.id);
         setActiveDecisionTrace(response.raw_orchestrator_decision ?? null);
+        break;
+
+      case 'crew_list':
+        // Navigate to orchestrator view to show crew list
+        setView('orchestrator');
+        // The CrewList component will automatically refresh and show the new agent if agent_id is provided
         break;
     }
   }, [createNewSession, ensureProjectByName, loadProjectSessionMap, saveProjectSessionMap]);
@@ -579,10 +607,31 @@ const App: React.FC = () => {
     switch (view) {
       case 'orchestrator':
         return (
-          <OrchestratorHub 
+          <OrchestratorHub
             orchestrator={orchestrator}
             messages={messages}
             onSendMessage={(txt) => handleSendMessage(txt, orchestrator)}
+          />
+        );
+      case 'phoenix':
+        return (
+          <OrchestratorHub
+            orchestrator={orchestrator}
+            messages={messages}
+            onSendMessage={(txt) => handleSendMessage(txt, orchestrator)}
+            initialTab="intelligence"
+          />
+        );
+      case 'agent-forge':
+        return (
+          <AgentForge
+            onClose={() => setView('orchestrator')}
+          />
+        );
+      case 'tool-forge':
+        return (
+          <ToolForge
+            onClose={() => setView('orchestrator')}
           />
         );
       case 'evolution':
@@ -658,6 +707,23 @@ const App: React.FC = () => {
             onClose={() => setView('orchestrator')}
           />
         );
+      case 'audit':
+        return (
+          <AuditDashboard 
+            onClose={() => setView('orchestrator')}
+          />
+        );
+      case 'knowledge-atlas':
+        return (
+          <div className="w-full h-full">
+            <KnowledgeAtlas 
+              onNodeClick={(result) => {
+                // Open search result in Phoenix Global Search or show details
+                console.log('Knowledge node clicked:', result);
+              }}
+            />
+          </div>
+        );
       case 'chat':
       default:
         return (
@@ -678,7 +744,7 @@ const App: React.FC = () => {
   }
 
   return (
-    <div className="flex h-screen bg-[#9EC9D9] text-[#0b1b2b] overflow-hidden">
+    <div className="flex h-screen bg-[var(--bg-primary)] text-[var(--text-primary)] overflow-hidden">
       {isSidebarLeftOpen && (
         <SidebarLeft 
           twins={twins} 
@@ -694,7 +760,12 @@ const App: React.FC = () => {
           onSelectMemoryExplorer={() => setView('memory-explorer')}
           onSelectEvolution={() => setView('evolution')}
           onSelectSystemStatus={() => setView('system-status')}
+          onSelectPhoenix={() => setView('phoenix')}
           onSelectFileProcessingMonitor={() => setView('file-processing-monitor')}
+          onSelectAgentForge={() => setView('agent-forge')}
+          onSelectToolForge={() => setView('tool-forge')}
+          onSelectAudit={() => setView('audit')}
+          onSelectKnowledgeAtlas={() => setView('knowledge-atlas')}
           projects={projects}
           onSelectProject={(projectId) => {
             // Navigate to orchestrator view for project context and switch to the project's session.
@@ -753,18 +824,18 @@ const App: React.FC = () => {
         />
       )}
 
-      <main className="flex-1 flex flex-col relative min-w-0 border-x border-[#5381A5]/30">
-        <header className="h-14 border-b border-[#5381A5]/30 flex items-center justify-between px-4 bg-[#90C3EA] sticky top-0 z-10">
+      <main className="flex-1 flex flex-col relative min-w-0 border-x border-[rgb(var(--bg-steel-rgb)/0.3)]">
+        <header className="h-14 border-b border-[rgb(var(--bg-steel-rgb)/0.3)] flex items-center justify-between px-4 bg-[var(--bg-secondary)] sticky top-0 z-10">
           <div className="flex items-center gap-3">
             <button 
               onClick={() => setIsSidebarLeftOpen(!isSidebarLeftOpen)}
-              className="p-1.5 hover:bg-[#78A2C2] rounded-md transition-colors"
+              className="p-1.5 hover:bg-[var(--bg-muted)] rounded-md transition-colors"
             >
               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
             </button>
             <div className="flex items-center gap-2">
-              <span className={`w-2 h-2 rounded-full ${view === 'orchestrator' ? 'bg-[#5381A5]' : view === 'logs' ? 'bg-[#78A2C2]' : view === 'search' ? 'bg-[#5381A5]' : 'bg-[#78A2C2]'} animate-pulse`}></span>
-              <h1 className="font-semibold text-sm tracking-tight text-[#0b1b2b]">
+              <span className={`w-2 h-2 rounded-full ${view === 'orchestrator' ? 'bg-[var(--bg-steel)]' : view === 'logs' ? 'bg-[var(--bg-muted)]' : view === 'search' ? 'bg-[var(--bg-steel)]' : 'bg-[var(--bg-muted)]'} animate-pulse`}></span>
+              <h1 className="font-semibold text-sm tracking-tight text-[var(--text-primary)]">
                 {view === 'orchestrator'
                   ? 'Command Center'
                   : view === 'logs'
@@ -783,16 +854,22 @@ const App: React.FC = () => {
                   ? 'Orchestrator Settings'
                   : view === 'file-processing-monitor'
                   ? 'File Processing Monitor'
+                  : view === 'agent-forge'
+                  ? 'AgentForge - Visual Agent Builder'
+                  : view === 'tool-forge'
+                  ? 'ToolForge - Dynamic Tool Development'
+                  : view === 'audit'
+                  ? 'Phoenix Audit Dashboard'
                   : 'Tactical Agent'}
               </h1>
             </div>
           </div>
           <div className="flex items-center gap-4">
             {(view === 'chat' || view === 'settings') && (
-              <button 
+              <button
                 onClick={() => setView(view === 'chat' ? 'settings' : 'chat')}
                 className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                  view === 'settings' ? 'bg-[#5381A5] text-white' : 'bg-[#78A2C2] text-[#0b1b2b] hover:bg-[#5381A5] hover:text-white'
+                  view === 'settings' ? 'bg-[var(--bg-steel)] text-[var(--text-on-accent)]' : 'bg-[var(--bg-muted)] text-[var(--text-primary)] hover:bg-[var(--bg-steel)] hover:text-[var(--text-on-accent)]'
                 }`}
               >
                 <span className="material-symbols-outlined text-sm">{view === 'chat' ? 'settings' : 'chat_bubble'}</span>
@@ -809,9 +886,22 @@ const App: React.FC = () => {
               }}
             />
 
-            <button 
+            {/* Dark Mode Toggle */}
+            <button
+              onClick={toggleTheme}
+              className="p-1.5 hover:bg-[var(--bg-muted)] rounded-md transition-colors"
+              title={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
+            >
+              {theme === 'light' ? (
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+              ) : (
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+              )}
+            </button>
+
+            <button
               onClick={() => setIsSidebarRightOpen(!isSidebarRightOpen)}
-              className="p-1.5 hover:bg-[#78A2C2] rounded-md transition-colors"
+              className="p-1.5 hover:bg-[var(--bg-muted)] rounded-md transition-colors"
             >
               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M15 3v18"/></svg>
             </button>
@@ -838,6 +928,22 @@ const App: React.FC = () => {
           onClose={() => setIsCreateModalOpen(false)}
         />
       )}
+
+      {/* Phoenix Global Search */}
+      <PhoenixGlobalSearch
+        isOpen={isGlobalSearchOpen}
+        onClose={() => setIsGlobalSearchOpen(false)}
+        sessionId={sessionId}
+        onNavigateToChat={(twinId) => {
+          setActiveTwinId(twinId);
+          setView('chat');
+          setIsGlobalSearchOpen(false);
+        }}
+        onNavigateToMemory={(namespace) => {
+          setView('search');
+          setIsGlobalSearchOpen(false);
+        }}
+      />
 
       {/* Agent Command Modal */}
       <CommandModal

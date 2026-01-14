@@ -7,16 +7,106 @@
   builds deterministic.
 */
 
+:root {
+  /* Light mode (default) - Ferrellgas AGI theme (blue palette) */
+  --bg-primary: #9EC9D9;
+  --bg-secondary: #90C3EA;
+  --bg-muted: #78A2C2;
+  --bg-steel: #5381A5;
+  --text-primary: #0b1b2b;
+  --text-secondary: #163247;
+  --text-muted: rgba(22, 50, 71, 0.55);
+  --border-color: rgba(83, 129, 165, 0.3);
+  --scrollbar-thumb: #78A2C2;
+  --scrollbar-thumb-hover: #5381A5;
+  --code-bg: rgba(255, 255, 255, 0.25);
+  --caret-color: #5381A5;
+  --selection-bg: rgba(83, 129, 165, 0.28);
+
+  /* RGB companions for Tailwind arbitrary opacity: `rgb(var(--*-rgb) / 0.3)` */
+  --bg-primary-rgb: 158 201 217;
+  --bg-secondary-rgb: 144 195 234;
+  --bg-muted-rgb: 120 162 194;
+  --bg-steel-rgb: 83 129 165;
+  --text-primary-rgb: 11 27 43;
+  --text-secondary-rgb: 22 50 71;
+
+  /* Semantic tokens */
+  --accent: var(--bg-steel);
+  --accent-rgb: var(--bg-steel-rgb);
+  /* Hover variant used for buttons/links when accent is the base background */
+  --accent-hover: #437091;
+  --text-on-accent: #ffffff;
+  --text-on-accent-rgb: 255 255 255;
+  --surface-rgb: 255 255 255;
+  --overlay-rgb: 0 0 0;
+  /* Code/syntax colors (Prism) */
+  --code-token-property: #7c2d12;
+  --code-token-string: #0f766e;
+  --code-token-function: #214a6b;
+  --code-token-variable: #7c3aed;
+  --danger: #ef4444;
+  --warning: #f59e0b;
+  --success: #10b981;
+  --info: #06b6d4;
+  --danger-rgb: 239 68 68;
+  --warning-rgb: 245 158 11;
+  --success-rgb: 16 185 129;
+  --info-rgb: 6 182 212;
+}
+
+[data-theme="dark"] {
+  /* Dark mode - Inverted palette with enhanced contrast */
+  --bg-primary: #0b1b2b;
+  --bg-secondary: #163247;
+  --bg-muted: #214a6b;
+  --bg-steel: #5381A5;
+  --text-primary: #9EC9D9;
+  --text-secondary: #78A2C2;
+  --text-muted: rgba(158, 201, 217, 0.55);
+  --border-color: rgba(158, 201, 217, 0.2);
+  --scrollbar-thumb: #5381A5;
+  --scrollbar-thumb-hover: #78A2C2;
+  --code-bg: rgba(22, 50, 71, 0.4);
+  --caret-color: #90C3EA;
+  --selection-bg: rgba(144, 195, 234, 0.28);
+
+  /* RGB companions */
+  --bg-primary-rgb: 11 27 43;
+  --bg-secondary-rgb: 22 50 71;
+  --bg-muted-rgb: 33 74 107;
+  --bg-steel-rgb: 83 129 165;
+  --text-primary-rgb: 158 201 217;
+  --text-secondary-rgb: 120 162 194;
+
+  /* Semantic tokens */
+  --accent: var(--bg-steel);
+  --accent-rgb: var(--bg-steel-rgb);
+  --accent-hover: #3d6a8a;
+  --text-on-accent: #ffffff;
+  --text-on-accent-rgb: 255 255 255;
+  /* Dark surfaces use a tinted panel instead of translucent white */
+  --surface-rgb: 22 50 71;
+  --overlay-rgb: 0 0 0;
+  /* Code/syntax colors (Prism) - tuned for dark mode */
+  --code-token-property: #f59e0b;
+  --code-token-string: #34d399;
+  --code-token-function: #90C3EA;
+  --code-token-variable: #a78bfa;
+  --danger: #ef4444;
+  --warning: #f59e0b;
+  --success: #10b981;
+  --info: #22d3ee;
+  --danger-rgb: 239 68 68;
+  --warning-rgb: 245 158 11;
+  --success-rgb: 16 185 129;
+  --info-rgb: 34 211 238;
+}
+
 body {
   font-family: 'Inter', sans-serif;
-  /* Ferrellgas AGI theme (blue palette)
-     bg:    #9EC9D9
-     sky:   #90C3EA
-     muted: #78A2C2
-     steel: #5381A5
-  */
-  background-color: #9EC9D9;
-  color: #0b1b2b;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
   margin: 0;
   overflow: hidden;
 }
@@ -57,12 +147,12 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #78A2C2;
+  background: var(--scrollbar-thumb);
   border-radius: 10px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #5381A5;
+  background: var(--scrollbar-thumb-hover);
 }
 
 /* Tactical Editor High-Precision Styles */
@@ -88,7 +178,7 @@ pre[class*="language-"] {
 
 .code-textarea {
   color: transparent !important;
-  caret-color: #5381A5 !important; /* steel blue */
+  caret-color: var(--caret-color) !important;
   background: transparent !important;
   resize: none !important;
   width: 100% !important;
@@ -106,30 +196,29 @@ pre[class*="language-"] {
 }
 
 .code-editor-bg {
-  /* Light surface for readable syntax highlighting on the AGI blue theme */
-  background-color: rgba(255, 255, 255, 0.25);
+  background-color: var(--code-bg);
 }
 
 /* Tomorrow Night Accent for selected text */
 .code-textarea::selection {
-  background: rgba(83, 129, 165, 0.28);
+  background: var(--selection-bg);
   color: transparent;
 }
 
-/* Prism override for our tactical UI (light surface) */
+/* Prism override for our tactical UI */
 code[class*="language-"] {
-  color: #0b1b2b;
+  color: var(--text-primary);
 }
 
 .token.comment,
 .token.prolog,
 .token.doctype,
 .token.cdata {
-  color: rgba(22, 50, 71, 0.55);
+  color: var(--text-muted);
 }
 
 .token.punctuation {
-  color: #163247;
+  color: var(--text-secondary);
 }
 
 .token.namespace {
@@ -143,7 +232,7 @@ code[class*="language-"] {
 .token.constant,
 .token.symbol,
 .token.deleted {
-  color: #7c2d12;
+  color: var(--code-token-property);
 }
 
 .token.selector,
@@ -152,7 +241,7 @@ code[class*="language-"] {
 .token.char,
 .token.builtin,
 .token.inserted {
-  color: #0f766e;
+  color: var(--code-token-string);
 }
 
 .token.operator,
@@ -160,23 +249,63 @@ code[class*="language-"] {
 .token.url,
 .language-css .token.string,
 .style .token.string {
-  color: #0b1b2b;
+  color: var(--text-primary);
 }
 
 .token.atrule,
 .token.attr-value,
 .token.keyword {
-  color: #5381A5;
+  color: var(--accent);
 }
 
 .token.function,
 .token.class-name {
-  color: #214a6b;
+  color: var(--code-token-function);
 }
 
 .token.regex,
 .token.important,
 .token.variable {
-  color: #7c3aed;
+  color: var(--code-token-variable);
 }
 
+/* Intelligence Tab Activity Pulse Animation */
+@keyframes pulse-glow {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+    box-shadow: 0 0 8px rgba(var(--success-rgb), 0.8);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scale(1.2);
+    box-shadow: 0 0 16px rgba(var(--success-rgb), 1);
+  }
+}
+
+/* Search Feedback Glow Animations */
+@keyframes glowGreen {
+  0% {
+    box-shadow: 0 0 0 rgba(34, 197, 94, 0);
+    ring-color: rgba(34, 197, 94, 0);
+  }
+  50% {
+    box-shadow: 0 0 30px rgba(34, 197, 94, 0.5);
+  }
+  100% {
+    box-shadow: 0 0 20px rgba(34, 197, 94, 0.3);
+  }
+}
+
+@keyframes glowRed {
+  0% {
+    box-shadow: 0 0 0 rgba(239, 68, 68, 0);
+    ring-color: rgba(239, 68, 68, 0);
+  }
+  50% {
+    box-shadow: 0 0 30px rgba(239, 68, 68, 0.5);
+  }
+  100% {
+    box-shadow: 0 0 20px rgba(239, 68, 68, 0.3);
+  }
+}

@@ -10,8 +10,8 @@ import HoverTooltip from './HoverTooltip';
 // `Maximum update depth exceeded` crashes.
 
 const CHART_MARGIN = { top: 2, right: 5, left: -15, bottom: 2 } as const;
-const X_TICK_STYLE = { fontSize: 9, fill: '#163247' } as const;
-const Y_TICK_STYLE = { fontSize: 9, fill: '#163247' } as const;
+const X_TICK_STYLE = { fontSize: 9, fill: 'var(--text-secondary)' } as const;
+const Y_TICK_STYLE = { fontSize: 9, fill: 'var(--text-secondary)' } as const;
 
 // Format timestamp for X-axis (show only time portion)
 const formatXAxis = (tickItem: string) => {
@@ -30,8 +30,8 @@ const formatXAxis = (tickItem: string) => {
 const TelemetryTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
     return (
-      <div className="bg-white/90 border border-[#5381A5]/40 rounded-lg p-2 shadow-xl">
-        <p className="text-[10px] text-[#163247] mb-1">{label}</p>
+      <div className="bg-[rgb(var(--surface-rgb)/0.9)] border border-[rgb(var(--bg-steel-rgb)/0.4)] rounded-lg p-2 shadow-xl">
+        <p className="text-[10px] text-[var(--text-secondary)] mb-1">{label}</p>
         {payload.map((entry: any, index: number) => (
           <p key={index} className="text-xs font-semibold" style={{ color: entry.color }}>
             {entry.name}: {entry.value}%
@@ -95,7 +95,7 @@ const TelemetryCharts: React.FC<TelemetryChartsProps> = ({ data }) => {
           title="Telemetry"
           description="No samples have arrived yet. Ensure the Telemetry service is running and the UI has an active SSE connection."
         >
-          <p className="text-[10px] text-[#163247] italic cursor-help">Waiting for telemetry data...</p>
+          <p className="text-[10px] text-[var(--text-secondary)] italic cursor-help">Waiting for telemetry data...</p>
         </HoverTooltip>
       </div>
     );
@@ -114,13 +114,13 @@ const TelemetryCharts: React.FC<TelemetryChartsProps> = ({ data }) => {
             title="CPU Usage"
             description="CPU utilization (%). Higher values indicate more compute load across cores."
           >
-            <h4 className="text-[10px] font-bold text-indigo-400 uppercase tracking-wider cursor-help">CPU Usage</h4>
+            <h4 className="text-[10px] font-bold text-[rgb(var(--bg-steel-rgb)/0.9)] uppercase tracking-wider cursor-help">CPU Usage</h4>
           </HoverTooltip>
           <HoverTooltip
             title="Latest CPU"
             description="Most recent CPU utilization sample."
           >
-            <span className="text-[9px] text-zinc-500 cursor-help">
+            <span className="text-[9px] text-[rgb(var(--text-secondary-rgb)/0.7)] cursor-help">
               {chartData[chartData.length - 1]?.cpu.toFixed(1) || 0}%
             </span>
           </HoverTooltip>
@@ -130,11 +130,11 @@ const TelemetryCharts: React.FC<TelemetryChartsProps> = ({ data }) => {
             data={chartData} 
             margin={CHART_MARGIN}
           >
-            <CartesianGrid strokeDasharray="3 3" stroke="#5381A5" opacity={0.18} />
+            <CartesianGrid strokeDasharray="3 3" stroke="rgb(var(--accent-rgb))" opacity={0.18} />
             <XAxis 
               dataKey="time" 
               tickFormatter={formatXAxis}
-              stroke="#163247" 
+              stroke="var(--text-secondary)" 
               tick={X_TICK_STYLE}
               interval="preserveStartEnd"
               minTickGap={30}
@@ -142,7 +142,7 @@ const TelemetryCharts: React.FC<TelemetryChartsProps> = ({ data }) => {
             <YAxis 
               unit="%" 
               domain={[0, 100]} 
-              stroke="#163247" 
+              stroke="var(--text-secondary)" 
               tick={Y_TICK_STYLE}
               width={30}
             />
@@ -150,7 +150,7 @@ const TelemetryCharts: React.FC<TelemetryChartsProps> = ({ data }) => {
             <Line 
               type="monotone" 
               dataKey="cpu" 
-              stroke="#5381A5" 
+              stroke="var(--accent)" 
               strokeWidth={2} 
               dot={false}
               isAnimationActive={false}
@@ -172,13 +172,13 @@ const TelemetryCharts: React.FC<TelemetryChartsProps> = ({ data }) => {
             title="Memory Usage"
             description="Memory utilization (%). Higher values indicate increased RAM pressure."
           >
-            <h4 className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider cursor-help">Memory Usage</h4>
+            <h4 className="text-[10px] font-bold text-[var(--success)] uppercase tracking-wider cursor-help">Memory Usage</h4>
           </HoverTooltip>
           <HoverTooltip
             title="Latest Memory"
             description="Most recent memory utilization sample."
           >
-            <span className="text-[9px] text-zinc-500 cursor-help">
+            <span className="text-[9px] text-[rgb(var(--text-secondary-rgb)/0.7)] cursor-help">
               {chartData[chartData.length - 1]?.memory.toFixed(1) || 0}%
             </span>
           </HoverTooltip>
@@ -188,11 +188,11 @@ const TelemetryCharts: React.FC<TelemetryChartsProps> = ({ data }) => {
             data={chartData} 
             margin={CHART_MARGIN}
           >
-            <CartesianGrid strokeDasharray="3 3" stroke="#5381A5" opacity={0.18} />
+            <CartesianGrid strokeDasharray="3 3" stroke="rgb(var(--accent-rgb))" opacity={0.18} />
             <XAxis 
               dataKey="time" 
               tickFormatter={formatXAxis}
-              stroke="#163247" 
+              stroke="var(--text-secondary)" 
               tick={X_TICK_STYLE}
               interval="preserveStartEnd"
               minTickGap={30}
@@ -200,7 +200,7 @@ const TelemetryCharts: React.FC<TelemetryChartsProps> = ({ data }) => {
             <YAxis 
               unit="%" 
               domain={[0, 100]} 
-              stroke="#163247" 
+              stroke="var(--text-secondary)" 
               tick={Y_TICK_STYLE}
               width={30}
             />
@@ -208,7 +208,7 @@ const TelemetryCharts: React.FC<TelemetryChartsProps> = ({ data }) => {
             <Line 
               type="monotone" 
               dataKey="memory" 
-              stroke="#78A2C2" 
+              stroke="rgb(var(--success-rgb))" 
               strokeWidth={2} 
               dot={false}
               isAnimationActive={false}
@@ -231,13 +231,13 @@ const TelemetryCharts: React.FC<TelemetryChartsProps> = ({ data }) => {
               title="Network"
               description="Network activity (%). This is a normalized indicator from the telemetry service."
             >
-              <h4 className="text-[10px] font-bold text-cyan-400 uppercase tracking-wider cursor-help">Network</h4>
+              <h4 className="text-[10px] font-bold text-[var(--info)] uppercase tracking-wider cursor-help">Network</h4>
             </HoverTooltip>
             <HoverTooltip
               title="Latest Network"
               description="Most recent network activity sample."
             >
-              <span className="text-[9px] text-zinc-500 cursor-help">
+              <span className="text-[9px] text-[rgb(var(--text-secondary-rgb)/0.7)] cursor-help">
                 {chartData[chartData.length - 1]?.network.toFixed(1) || 0}%
               </span>
             </HoverTooltip>
@@ -247,11 +247,11 @@ const TelemetryCharts: React.FC<TelemetryChartsProps> = ({ data }) => {
               data={chartData} 
               margin={CHART_MARGIN}
             >
-              <CartesianGrid strokeDasharray="3 3" stroke="#5381A5" opacity={0.18} />
+              <CartesianGrid strokeDasharray="3 3" stroke="rgb(var(--accent-rgb))" opacity={0.18} />
               <XAxis 
                 dataKey="time" 
                 tickFormatter={formatXAxis}
-                stroke="#163247" 
+                stroke="var(--text-secondary)" 
                 tick={X_TICK_STYLE}
                 interval="preserveStartEnd"
                 minTickGap={30}
@@ -259,7 +259,7 @@ const TelemetryCharts: React.FC<TelemetryChartsProps> = ({ data }) => {
               <YAxis 
                 unit="%" 
                 domain={[0, 100]} 
-                stroke="#163247" 
+                stroke="var(--text-secondary)" 
                 tick={Y_TICK_STYLE}
                 width={30}
               />
@@ -267,7 +267,7 @@ const TelemetryCharts: React.FC<TelemetryChartsProps> = ({ data }) => {
               <Line 
                 type="monotone" 
                 dataKey="network" 
-                stroke="#90C3EA" 
+                stroke="var(--info)" 
                 strokeWidth={2} 
                 dot={false}
                 isAnimationActive={false}

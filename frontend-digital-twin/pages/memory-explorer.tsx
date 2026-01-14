@@ -35,30 +35,30 @@ const DeleteConfirmModal: React.FC<DeleteConfirmModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-xl p-6 max-w-md w-full mx-4">
-        <h3 className="text-lg font-bold text-[#0b1b2b] mb-4">Confirm Deletion</h3>
-        <p className="text-sm text-[#5381A5] mb-2">
+    <div className="fixed inset-0 bg-[rgb(var(--overlay-rgb)/0.5)] flex items-center justify-center z-50">
+      <div className="bg-[rgb(var(--surface-rgb)/1)] rounded-lg shadow-xl p-6 max-w-md w-full mx-4">
+        <h3 className="text-lg font-bold text-[var(--text-primary)] mb-4">Confirm Deletion</h3>
+        <p className="text-sm text-[var(--bg-steel)] mb-2">
           Are you sure you want to delete this memory?
         </p>
-        <div className="bg-[#f0f0f0] p-3 rounded mb-4">
-          <p className="text-xs font-semibold text-[#0b1b2b] mb-1">Memory ID:</p>
-          <p className="text-xs text-[#5381A5] font-mono">{memoryId}</p>
-          <p className="text-xs font-semibold text-[#0b1b2b] mb-1 mt-2">Preview:</p>
-          <p className="text-xs text-[#0b1b2b] line-clamp-2">
+        <div className="bg-[rgb(var(--surface-rgb)/0.6)] p-3 rounded mb-4">
+          <p className="text-xs font-semibold text-[var(--text-primary)] mb-1">Memory ID:</p>
+          <p className="text-xs text-[var(--bg-steel)] font-mono">{memoryId}</p>
+          <p className="text-xs font-semibold text-[var(--text-primary)] mb-1 mt-2">Preview:</p>
+          <p className="text-xs text-[var(--text-primary)] line-clamp-2">
             {memoryContent.substring(0, 100)}...
           </p>
         </div>
         <div className="flex gap-3 justify-end">
           <button
             onClick={onCancel}
-            className="px-4 py-2 bg-[#90C3EA] text-[#0b1b2b] rounded hover:bg-[#78A2C2] transition-colors"
+            className="px-4 py-2 bg-[var(--bg-secondary)] text-[var(--text-primary)] rounded hover:bg-[var(--bg-muted)] transition-colors"
           >
             Cancel
           </button>
           <button
             onClick={onConfirm}
-            className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition-colors"
+            className="px-4 py-2 bg-[rgb(var(--danger-rgb)/1)] text-[var(--text-on-accent)] rounded hover:bg-[rgb(var(--danger-rgb)/0.9)] transition-colors"
           >
             Delete
           </button>
@@ -242,19 +242,19 @@ const MemoryExplorer: React.FC<MemoryExplorerProps> = ({ activeTwin, onClose }) 
   };
 
   return (
-    <div className="flex-1 flex flex-col bg-[#9EC9D9] overflow-hidden font-display text-[#0b1b2b]">
-      <div className="p-6 border-b border-[#5381A5]/30 bg-[#90C3EA]">
+    <div className="flex-1 flex flex-col bg-[var(--bg-primary)] overflow-hidden font-display text-[var(--text-primary)]">
+      <div className="p-6 border-b border-[rgb(var(--bg-steel-rgb)/0.3)] bg-[var(--bg-secondary)]">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
-            <span className="material-symbols-outlined text-[#5381A5]">database</span>
-            <h2 className="text-xl font-bold text-[#0b1b2b] uppercase tracking-tight">
+            <span className="material-symbols-outlined text-[var(--bg-steel)]">database</span>
+            <h2 className="text-xl font-bold text-[var(--text-primary)] uppercase tracking-tight">
               Neural Archive Explorer
             </h2>
           </div>
           {onClose && (
             <button
               onClick={onClose}
-              className="px-4 py-2 bg-[#5381A5] text-white rounded hover:bg-[#3d6a8a] transition-colors"
+              className="px-4 py-2 bg-[var(--bg-steel)] text-[var(--text-on-accent)] rounded hover:bg-[rgb(var(--bg-steel-rgb)/0.85)] transition-colors"
             >
               Close
             </button>
@@ -264,7 +264,7 @@ const MemoryExplorer: React.FC<MemoryExplorerProps> = ({ activeTwin, onClose }) 
         <div className="space-y-4">
           <div className="flex items-center gap-4">
             <div className="flex-1">
-              <label className="block text-sm font-semibold mb-2 text-[#0b1b2b]">
+              <label className="block text-sm font-semibold mb-2 text-[var(--text-primary)]">
                 Namespace
               </label>
               <input
@@ -273,14 +273,14 @@ const MemoryExplorer: React.FC<MemoryExplorerProps> = ({ activeTwin, onClose }) 
                 onChange={(e) => setNamespace(e.target.value)}
                 onKeyPress={(e) => e.key === 'Enter' && loadMemories()}
                 placeholder="Enter namespace (e.g., threat_intel)"
-                className="w-full px-4 py-2 border border-[#5381A5]/30 rounded bg-white text-[#0b1b2b] focus:outline-none focus:ring-2 focus:ring-[#5381A5]"
+                className="w-full px-4 py-2 border border-[rgb(var(--bg-steel-rgb)/0.3)] rounded bg-[rgb(var(--surface-rgb)/1)] text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--bg-steel)]"
               />
             </div>
             <div className="mt-6">
               <button
                 onClick={loadMemories}
                 disabled={loading || !namespace.trim()}
-                className="px-6 py-2 bg-[#5381A5] text-white rounded hover:bg-[#3d6a8a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-6 py-2 bg-[var(--bg-steel)] text-[var(--text-on-accent)] rounded hover:bg-[rgb(var(--bg-steel-rgb)/0.85)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {loading ? 'Loading...' : 'Load Memories'}
               </button>
@@ -288,7 +288,7 @@ const MemoryExplorer: React.FC<MemoryExplorerProps> = ({ activeTwin, onClose }) 
           </div>
           {allMemories.length > 0 && (
             <div>
-              <label className="block text-sm font-semibold mb-2 text-[#0b1b2b]">
+              <label className="block text-sm font-semibold mb-2 text-[var(--text-primary)]">
                 Search Memories
               </label>
               <input
@@ -296,14 +296,14 @@ const MemoryExplorer: React.FC<MemoryExplorerProps> = ({ activeTwin, onClose }) 
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search by content, ID, agent, or type..."
-                className="w-full px-4 py-2 border border-[#5381A5]/30 rounded bg-white text-[#0b1b2b] focus:outline-none focus:ring-2 focus:ring-[#5381A5]"
+                className="w-full px-4 py-2 border border-[rgb(var(--bg-steel-rgb)/0.3)] rounded bg-[rgb(var(--surface-rgb)/1)] text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--bg-steel)]"
               />
             </div>
           )}
         </div>
 
         {error && (
-          <div className="mt-4 p-3 bg-white/60 border border-[#5381A5]/30 text-[#163247] rounded">
+          <div className="mt-4 p-3 bg-[rgb(var(--surface-rgb)/0.6)] border border-[rgb(var(--bg-steel-rgb)/0.3)] text-[var(--text-secondary)] rounded">
             {error}
           </div>
         )}
@@ -311,70 +311,70 @@ const MemoryExplorer: React.FC<MemoryExplorerProps> = ({ activeTwin, onClose }) 
 
       <div className="flex-1 overflow-auto p-6">
         {loading && memories.length === 0 ? (
-          <div className="text-center py-12 text-[#5381A5]">
+          <div className="text-center py-12 text-[var(--bg-steel)]">
             <span className="material-symbols-outlined text-4xl mb-2">hourglass_empty</span>
             <p>Loading memories...</p>
           </div>
         ) : memories.length === 0 ? (
-          <div className="text-center py-12 text-[#5381A5]">
+          <div className="text-center py-12 text-[var(--bg-steel)]">
             <span className="material-symbols-outlined text-4xl mb-2">inbox</span>
             <p>No memories found. Try a different namespace or load memories.</p>
           </div>
         ) : (
           <>
-            <div className="mb-4 text-sm text-[#5381A5]">
+            <div className="mb-4 text-sm text-[var(--bg-steel)]">
               {searchQuery.trim() ? (
                 <>Showing {filteredMemories.length} of {allMemories.length} memories (filtered)</>
               ) : (
                 <>Showing {allMemories.length} of {totalCount} memories (Page {page} of {totalPages})</>
               )}
             </div>
-            <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+            <div className="bg-[rgb(var(--surface-rgb)/1)] rounded-lg shadow-sm overflow-hidden">
               <table className="w-full">
-                <thead className="bg-[#90C3EA] border-b border-[#5381A5]/30">
+                <thead className="bg-[var(--bg-secondary)] border-b border-[rgb(var(--bg-steel-rgb)/0.3)]">
                   <tr>
-                    <th className="px-4 py-3 text-left text-sm font-semibold text-[#0b1b2b] uppercase tracking-tight">
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-[var(--text-primary)] uppercase tracking-tight">
                       ID
                     </th>
-                    <th className="px-4 py-3 text-left text-sm font-semibold text-[#0b1b2b] uppercase tracking-tight">
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-[var(--text-primary)] uppercase tracking-tight">
                       Namespace
                     </th>
-                    <th className="px-4 py-3 text-left text-sm font-semibold text-[#0b1b2b] uppercase tracking-tight">
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-[var(--text-primary)] uppercase tracking-tight">
                       Snippet Preview
                     </th>
-                    <th className="px-4 py-3 text-left text-sm font-semibold text-[#0b1b2b] uppercase tracking-tight">
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-[var(--text-primary)] uppercase tracking-tight">
                       Created At
                     </th>
-                    <th className="px-4 py-3 text-left text-sm font-semibold text-[#0b1b2b] uppercase tracking-tight">
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-[var(--text-primary)] uppercase tracking-tight">
                       Actions
                     </th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-[#5381A5]/20">
+                <tbody className="divide-y divide-[rgb(var(--bg-steel-rgb)/0.2)]">
                   {filteredMemories.map((memory) => (
                     <tr
                       key={memory.id}
-                      className="hover:bg-[#9EC9D9]/20 transition-colors"
+                      className="hover:bg-[rgb(var(--bg-primary-rgb)/0.2)] transition-colors"
                     >
-                      <td className="px-4 py-3 text-sm text-[#0b1b2b] font-mono text-xs">
+                      <td className="px-4 py-3 text-sm text-[var(--text-primary)] font-mono text-xs">
                         {memory.id.substring(0, 8)}...
                       </td>
-                      <td className="px-4 py-3 text-sm text-[#0b1b2b]">
+                      <td className="px-4 py-3 text-sm text-[var(--text-primary)]">
                         {namespace || 'N/A'}
                       </td>
-                      <td className="px-4 py-3 text-sm text-[#0b1b2b]">
+                      <td className="px-4 py-3 text-sm text-[var(--text-primary)]">
                         <div className="max-w-md">
                           {truncateContent(memory.content, 80)}
                         </div>
                       </td>
-                      <td className="px-4 py-3 text-sm text-[#5381A5]">
+                      <td className="px-4 py-3 text-sm text-[var(--bg-steel)]">
                         {formatTimestamp(memory.timestamp)}
                       </td>
                       <td className="px-4 py-3">
                         <button
                           onClick={() => handleDeleteClick(memory.id, memory.content)}
                           disabled={deletingId === memory.id}
-                          className="p-2 text-red-500 hover:bg-red-50 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="p-2 text-[rgb(var(--danger-rgb)/0.9)] hover:bg-[rgb(var(--danger-rgb)/0.12)] rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                           title="Delete memory"
                         >
                           {deletingId === memory.id ? (
@@ -395,17 +395,17 @@ const MemoryExplorer: React.FC<MemoryExplorerProps> = ({ activeTwin, onClose }) 
                 <button
                   onClick={() => setPage((p) => Math.max(1, p - 1))}
                   disabled={page === 1 || loading}
-                  className="px-4 py-2 bg-[#5381A5] text-white rounded hover:bg-[#3d6a8a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-4 py-2 bg-[var(--bg-steel)] text-[var(--text-on-accent)] rounded hover:bg-[rgb(var(--bg-steel-rgb)/0.85)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Previous
                 </button>
-                <span className="px-4 py-2 text-[#0b1b2b]">
+                <span className="px-4 py-2 text-[var(--text-primary)]">
                   Page {page} of {totalPages}
                 </span>
                 <button
                   onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                   disabled={page === totalPages || loading}
-                  className="px-4 py-2 bg-[#5381A5] text-white rounded hover:bg-[#3d6a8a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-4 py-2 bg-[var(--bg-steel)] text-[var(--text-on-accent)] rounded hover:bg-[rgb(var(--bg-steel-rgb)/0.85)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Next
                 </button>

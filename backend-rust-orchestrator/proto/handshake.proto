@@ -1,0 +1,59 @@
+syntax = "proto3";
+
+package handshake;
+
+// Node Handshake Service for Blue Flame P2P verification
+service NodeHandshakeService {
+  // Initiate handshake - Node A sends initial request
+  rpc InitiateHandshake(HandshakeRequest) returns (HandshakeChallenge);
+  
+  // Complete handshake - Node A responds to challenge
+  rpc CompleteHandshake(HandshakeResponse) returns (HandshakeResult);
+  
+  // Propagate quarantine alert - Node A broadcasts compliance violation to peers
+  rpc PropagateQuarantine(PropagateQuarantineRequest) returns (PropagateQuarantineResponse);
+}
+
+// Initial handshake request from Node A
+message HandshakeRequest {
+  string node_id = 1;              // Unique node identifier
+  string software_version = 2;      // Semantic version (e.g., "2.1.0")
+  string manifest_hash = 3;         // SHA256 hash of agent library manifest
+}
+
+// Challenge response from Node B
+message HandshakeChallenge {
+  bytes nonce = 1;                  // 32-byte random nonce for signing
+  int64 timestamp = 2;              // Unix timestamp (for TTL validation)
+  string alignment_token = 3;       // Expected alignment token (for verification)
+}
+
+// Response from Node A with signed nonce
+message HandshakeResponse {
+  string node_id = 1;
+  bytes signed_nonce = 2;           // ED25519 signature of nonce
+  bytes public_key = 3;             // ED25519 public key
+  string alignment_token = 4;       // Alignment token (hash of system_prompt + KB)
+  string guardrail_version = 5;     // Privacy scrubber version
+}
+
+// Final handshake result
+message HandshakeResult {
+  bool success = 1;
+  string message = 2;
+  string node_id = 3;               // Node B's node_id (if successful)
+}
+
+// Quarantine propagation request
+message PropagateQuarantineRequest {
+  string manifest_hash = 1;          // SHA256 hash of the quarantined manifest
+  string agent_id = 2;               // Agent ID that failed compliance
+  double compliance_score = 3;      // Compliance score that triggered quarantine
+  string quarantined_by = 4;        // Node ID that detected the violation
+}
+
+// Quarantine propagation response
+message PropagateQuarantineResponse {
+  bool success = 1;
+  string message = 2;
+}

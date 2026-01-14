@@ -78,7 +78,7 @@ export default function DraggableMediaPreview({ stream, activeVideoSource }: Pro
   return (
     <div
       ref={containerRef}
-      className="fixed z-50 select-none rounded-lg border border-white/20 bg-black/50 shadow-lg backdrop-blur"
+      className="fixed z-50 select-none rounded-lg border border-[rgb(var(--text-on-accent-rgb)/0.2)] bg-[rgb(var(--overlay-rgb)/0.5)] shadow-lg backdrop-blur"
       style={{ left: pos.x, top: pos.y, width: 200, maxWidth: 200 }}
       onPointerDown={(ev) => {
         const rect = (ev.currentTarget as HTMLDivElement).getBoundingClientRect();
@@ -87,9 +87,9 @@ export default function DraggableMediaPreview({ stream, activeVideoSource }: Pro
         dragRef.current.offsetY = ev.clientY - rect.top;
       }}
     >
-      <div className="flex items-center justify-between px-2 py-1 text-[10px] uppercase tracking-wide text-white/80">
+      <div className="flex items-center justify-between px-2 py-1 text-[10px] uppercase tracking-wide text-[rgb(var(--text-on-accent-rgb)/0.8)]">
         <span>{label}</span>
-        <span className="h-1.5 w-1.5 rounded-full bg-[#5381A5]" />
+        <span className="h-1.5 w-1.5 rounded-full bg-[var(--bg-steel)]" />
       </div>
 
       <video

@@ -107,27 +107,27 @@ const OAuthCallback: React.FC = () => {
   }, [message]);
 
   return (
-    <div className="min-h-screen bg-[#9EC9D9] flex items-center justify-center p-6">
-      <div className="bg-white/80 border border-[#5381A5]/30 rounded-xl p-8 max-w-md w-full text-center">
+    <div className="min-h-screen bg-[var(--bg-primary)] flex items-center justify-center p-6">
+      <div className="bg-[rgb(var(--surface-rgb)/0.8)] border border-[rgb(var(--bg-steel-rgb)/0.3)] rounded-xl p-8 max-w-md w-full text-center">
         <div className="mb-6">
           {status === 'processing' && (
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#5381A5] mx-auto"></div>
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[var(--bg-steel)] mx-auto"></div>
           )}
           {status === 'success' && (
-            <span className="material-symbols-outlined text-4xl text-emerald-600">check_circle</span>
+            <span className="material-symbols-outlined text-4xl text-[var(--success)]">check_circle</span>
           )}
           {status === 'error' && (
-            <span className="material-symbols-outlined text-4xl text-rose-600">error</span>
+            <span className="material-symbols-outlined text-4xl text-[var(--danger)]">error</span>
           )}
         </div>
-        <h2 className="text-xl font-bold text-[#0b1b2b] mb-4">
+        <h2 className="text-xl font-bold text-[var(--text-primary)] mb-4">
           {status === 'processing' && 'Processing OAuth Callback'}
           {status === 'success' && 'Authentication Successful'}
           {status === 'error' && 'Authentication Failed'}
         </h2>
-        <p className="text-[#163247] text-sm">{message}</p>
+        <p className="text-[var(--text-secondary)] text-sm">{message}</p>
         {status === 'processing' && (
-          <p className="text-xs text-[#163247]/60 mt-4">This window will close automatically...</p>
+          <p className="text-xs text-[rgb(var(--text-secondary-rgb)/0.6)] mt-4">This window will close automatically...</p>
         )}
       </div>
     </div>

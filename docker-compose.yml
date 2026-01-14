@@ -147,7 +147,7 @@ services:
     depends_on:
       - agent-planner
 
-  # --- New Rust Services (Tri-Layer Sovereign Architecture) ---
+  # --- New Rust Services (Tri-Layer Phoenix Architecture) ---
   
   rust-memory-service:
     container_name: rust-memory-service

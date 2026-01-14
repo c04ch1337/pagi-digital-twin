@@ -16,6 +16,7 @@ use quick_xml::Reader as XmlReader;
 use quick_xml::events::Event as XmlEvent;
 use tokio::process::Command as TokioCommand;
 use tokio::sync::{mpsc, RwLock};
+use tokio::fs;
 use tonic::transport::Channel;
 use tracing::{info, warn, error};
 use uuid::Uuid;
@@ -180,8 +181,17 @@ pub mod orchestrator {
     tonic::include_proto!("orchestrator");
 }
 
+pub mod handshake_proto {
+    tonic::include_proto!("handshake");
+}
+
+pub mod memory_exchange_proto {
+    tonic::include_proto!("memory_exchange");
+}
+
 use memory_client::memory_service_client::MemoryServiceClient;
 use memory_client::{
+    CommitMemoryRequest,
     DeleteMemoryRequest,
     DeleteMemoryResponse,
     ListMemoriesRequest,
@@ -209,9 +219,21 @@ use orchestrator::orchestrator_service_server::{
 use orchestrator::{SummarizeRequest as GrpcSummarizeRequest, SummarizeResponse as GrpcSummarizeResponse};
 
 mod tools;
+mod agents;
 mod health;
 mod project_watcher;
 mod email_teams_monitor;
+mod bus;
+mod agent_library;
+mod playbook_distiller;
+mod security;
+mod memory;
+mod preferences;
+mod analytics;
+mod network;
+mod foundry;
+mod api;
+mod services;
 use tools::system::{get_logs, manage_service, read_file, run_command, systemctl, write_file};
 use tools::get_system_snapshot;
 use health::HealthManager;
@@ -645,6 +667,9 @@ struct AppState {
     // Self-improvement / persona prompt
     system_prompt: SystemPromptManager,
 
+    // Per-user personalization (persona presets + profile)
+    preferences: preferences::PreferencesManager,
+
     // Health check manager
     health_manager: HealthManager,
 
@@ -656,6 +681,39 @@ struct AppState {
 
     // Email and Teams monitoring
     email_teams_monitor: Arc<RwLock<Option<EmailTeamsMonitor>>>,
+
+    // Ephemeral sub-agent factory (worker crew)
+    agent_factory: Arc<agents::factory::AgentFactory>,
+
+    // Agent library for manifest-based agent loading
+    agent_library: Arc<agents::loader::AgentLibrary>,
+
+    // Global message bus for inter-agent communication
+    message_bus: Arc<bus::GlobalMessageBus>,
+
+    // Leaderboard engine for agent analytics
+    leaderboard_engine: Arc<analytics::leaderboard::LeaderboardEngine>,
+
+    // Network handshake service
+    handshake_service: Arc<network::handshake::NodeHandshakeServiceImpl>,
+
+    // Quarantine manager
+    quarantine_manager: Arc<network::quarantine::QuarantineManager>,
+
+    // Mesh health service
+    mesh_health_service: Arc<analytics::mesh_health::MeshHealthService>,
+}
+
+impl AppState {
+    /// Publish an event to the global message bus.
+    pub fn publish_event(&self, event: bus::PhoenixEvent) -> usize {
+        self.message_bus.publish(event)
+    }
+
+    /// Subscribe to the global message bus.
+    pub fn subscribe_to_bus(&self) -> tokio::sync::broadcast::Receiver<bus::PhoenixEvent> {
+        self.message_bus.subscribe()
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -725,6 +783,12 @@ pub enum LLMAction {
         original_email_id: String,
         reply_body: String,
     },
+    #[serde(rename = "ActionQuarantineNode")]
+    ActionQuarantineNode {
+        node_id: String,
+        reason: String,
+    },,
+    },
     #[serde(rename = "ActionMonitorTeams")]
     ActionMonitorTeams {},
     #[serde(rename = "ActionSendTeamsMessage")]
@@ -736,6 +800,317 @@ pub enum LLMAction {
     ActionEmailTrends {
         period: String, // "day", "week", "month"
     },
+
+    #[serde(rename = "ActionSpawnAgent")]
+    ActionSpawnAgent {
+        name: String,
+        mission: String,
+        #[serde(default)]
+        permissions: Vec<String>,
+    },
+    #[serde(rename = "ActionSyncAgentLibrary")]
+    ActionSyncAgentLibrary {},
+    #[serde(rename = "ActionGitPush")]
+    ActionGitPush {
+        repo_path: String,
+        playbooks_dir: String,
+        commit_message: String,
+        #[serde(default)]
+        remote_name: Option<String>,
+        #[serde(default)]
+        branch: Option<String>,
+    },
+}
+
+#[derive(Debug, Deserialize)]
+struct AgentSpawnHttpRequest {
+    name: String,
+    mission: String,
+    #[serde(default)]
+    permissions: Vec<String>,
+    #[serde(default)]
+    twin_id: String,
+    #[serde(default)]
+    user_name: Option<String>,
+    #[serde(default)]
+    media_active: bool,
+}
+
+#[derive(Debug, Deserialize)]
+struct AgentTaskHttpRequest {
+    data: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct AgentIdPath {
+    agent_id: String,
+}
+
+async fn build_effective_system_prompt(
+    state: &AppState,
+    twin_id: &str,
+    user_name: Option<&str>,
+    media_active: bool,
+) -> String {
+    let template = state.system_prompt.get_template().await;
+    let base = if template.trim().is_empty() {
+        DEFAULT_SYSTEM_PROMPT_TEMPLATE.to_string()
+    } else {
+        template
+    };
+    let mut system_prompt = base.replace("{twin_id}", twin_id);
+    let user_display_name = user_name.unwrap_or("FG_User");
+    system_prompt = system_prompt.replace("{user_name}", user_display_name);
+    if media_active {
+        system_prompt.push_str("\n\n[CONTEXT: MULTI-MODAL ACTIVE]\n");
+        system_prompt.push_str("media_active=true - The operator is currently recording voice/video and/or sharing their screen in real-time.\n");
+        system_prompt.push_str("- You are aware that live multi-modal input (audio/video/screen) is being captured.\n");
+        system_prompt.push_str("- You can reference this in your responses (e.g., 'I see you're currently recording...').\n");
+        system_prompt.push_str("- Use ActionListRecordings to discover and reference stored recordings from previous sessions.\n");
+        system_prompt.push_str("- Provide context-aware responses that account for the visual/audio information being captured.\n");
+    }
+
+    // Apply per-user personalization overlay (style/tone). This does not grant new capabilities.
+    let overlay = state.preferences.render_prompt_overlay(twin_id).await;
+    if !overlay.trim().is_empty() {
+        system_prompt.push_str("\n\n");
+        system_prompt.push_str(&overlay);
+    }
+    system_prompt
+}
+
+#[derive(Debug, Deserialize)]
+struct PreferencesGetQuery {
+    #[serde(default)]
+    twin_id: String,
+}
+
+async fn handle_preferences_get(
+    State(state): State<AppState>,
+    axum::extract::Query(query): axum::extract::Query<PreferencesGetQuery>,
+) -> Result<ResponseJson<preferences::UserPreferences>, StatusCode> {
+    if query.twin_id.trim().is_empty() {
+        return Err(StatusCode::BAD_REQUEST);
+    }
+    let prefs = state.preferences.get_for_twin(&query.twin_id).await;
+    Ok(ResponseJson(prefs))
+}
+
+#[derive(Debug, Deserialize)]
+struct PreferencesUpdateHttpRequest {
+    twin_id: String,
+    #[serde(default)]
+    profile: preferences::UserProfile,
+    #[serde(default)]
+    persona_preset: String,
+    #[serde(default)]
+    custom_instructions: String,
+    #[serde(default)]
+    verbosity: preferences::Verbosity,
+    #[serde(default)]
+    enable_cynical: bool,
+    #[serde(default)]
+    enable_sarcastic: bool,
+}
+
+#[derive(Debug, Serialize)]
+struct PreferencesUpdateHttpResponse {
+    success: bool,
+    message: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    preferences: Option<preferences::UserPreferences>,
+}
+
+async fn handle_preferences_update(
+    State(state): State<AppState>,
+    Json(request): Json<PreferencesUpdateHttpRequest>,
+) -> Result<ResponseJson<PreferencesUpdateHttpResponse>, StatusCode> {
+    if request.twin_id.trim().is_empty() {
+        return Err(StatusCode::BAD_REQUEST);
+    }
+
+    let updated = preferences::UserPreferences {
+        profile: request.profile,
+        persona_preset: request.persona_preset,
+        custom_instructions: request.custom_instructions,
+        verbosity: request.verbosity,
+        enable_cynical: request.enable_cynical,
+        enable_sarcastic: request.enable_sarcastic,
+        updated_at: chrono::Utc::now().to_rfc3339(),
+    };
+
+    let saved = state
+        .preferences
+        .update_for_twin(&request.twin_id, updated)
+        .await
+        .map_err(|e| {
+            error!(error = %e, "Failed to update preferences");
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
+
+    // Best-effort audit copy into Memory Service.
+    // This supports "saved memories" semantics without relying solely on local filesystem.
+    {
+        let mut mem = state.memory_client.clone();
+        let content = serde_json::to_string_pretty(&saved).unwrap_or_else(|_| "{}".to_string());
+        let mut metadata = HashMap::new();
+        metadata.insert("type".to_string(), "user_preferences".to_string());
+        metadata.insert("persona_preset".to_string(), saved.persona_preset.clone());
+        metadata.insert("updated_at".to_string(), saved.updated_at.clone());
+        let _ = mem
+            .commit_memory(tonic::Request::new(CommitMemoryRequest {
+                content,
+                namespace: "user_preferences".to_string(),
+                twin_id: request.twin_id.clone(),
+                memory_type: "Preference".to_string(),
+                risk_level: "Low".to_string(),
+                metadata,
+            }))
+            .await;
+    }
+
+    Ok(ResponseJson(PreferencesUpdateHttpResponse {
+        success: true,
+        message: "preferences updated".to_string(),
+        preferences: Some(saved),
+    }))
+}
+
+#[derive(Debug, Serialize)]
+struct PreferencesPresetsHttpResponse {
+    presets: Vec<preferences::PersonaPreset>,
+}
+
+async fn handle_preferences_presets() -> ResponseJson<PreferencesPresetsHttpResponse> {
+    ResponseJson(PreferencesPresetsHttpResponse {
+        presets: preferences::default_persona_presets(),
+    })
+}
+
+async fn handle_agents_list(
+    State(state): State<AppState>,
+) -> ResponseJson<serde_json::Value> {
+    let agents = state.agent_factory.list_agents().await;
+    ResponseJson(json!({
+        "max_agents": state.agent_factory.max_agents(),
+        "agents": agents,
+    }))
+}
+
+async fn handle_agents_spawn(
+    State(state): State<AppState>,
+    Json(req): Json<AgentSpawnHttpRequest>,
+) -> Result<ResponseJson<serde_json::Value>, StatusCode> {
+    if req.twin_id.trim().is_empty() {
+        return Err(StatusCode::BAD_REQUEST);
+    }
+    let inherited = build_effective_system_prompt(
+        &state,
+        &req.twin_id,
+        req.user_name.as_deref(),
+        req.media_active,
+    )
+    .await;
+    let res = state
+        .agent_factory
+        .spawn_agent(req.name, req.mission, req.permissions, inherited)
+        .await
+        .map_err(|e| {
+            error!(error = %e, "agent spawn failed");
+            StatusCode::BAD_REQUEST
+        })?;
+
+    Ok(ResponseJson(json!({"ok": true, "agent_id": res.agent_id})))
+}
+
+async fn handle_agents_post_task(
+    State(state): State<AppState>,
+    axum::extract::Path(path): axum::extract::Path<AgentIdPath>,
+    Json(req): Json<AgentTaskHttpRequest>,
+) -> Result<ResponseJson<serde_json::Value>, StatusCode> {
+    state
+        .agent_factory
+        .post_task(&path.agent_id, req.data)
+        .await
+        .map_err(|e| {
+            error!(error = %e, "post_task failed");
+            StatusCode::BAD_REQUEST
+        })?;
+    Ok(ResponseJson(json!({"ok": true})))
+}
+
+async fn handle_agents_get_report(
+    State(state): State<AppState>,
+    axum::extract::Path(path): axum::extract::Path<AgentIdPath>,
+) -> Result<ResponseJson<serde_json::Value>, StatusCode> {
+    let rep = state
+        .agent_factory
+        .get_report(&path.agent_id)
+        .await
+        .map_err(|_| StatusCode::NOT_FOUND)?;
+    Ok(ResponseJson(json!({"ok": true, "report": rep})))
+}
+
+async fn handle_agents_get_logs(
+    State(state): State<AppState>,
+    axum::extract::Path(path): axum::extract::Path<AgentIdPath>,
+) -> Result<ResponseJson<serde_json::Value>, StatusCode> {
+    let logs = state
+        .agent_factory
+        .get_logs(&path.agent_id)
+        .await
+        .map_err(|_| StatusCode::NOT_FOUND)?;
+    Ok(ResponseJson(json!({"ok": true, "logs": logs})))
+}
+
+async fn handle_agents_kill(
+    State(state): State<AppState>,
+    axum::extract::Path(path): axum::extract::Path<AgentIdPath>,
+) -> Result<ResponseJson<serde_json::Value>, StatusCode> {
+    state
+        .agent_factory
+        .kill_agent(&path.agent_id)
+        .await
+        .map_err(|_| StatusCode::NOT_FOUND)?;
+    Ok(ResponseJson(json!({"ok": true})))
+}
+
+async fn handle_agents_leaderboard(
+    State(state): State<AppState>,
+) -> ResponseJson<serde_json::Value> {
+    match state.leaderboard_engine.get_leaderboard().await {
+        Ok(leaderboard_data) => {
+            // Convert to the format expected by the frontend
+            let mut metrics: serde_json::Map<String, serde_json::Value> = serde_json::Map::new();
+            
+            for agent in leaderboard_data.agents {
+                metrics.insert(agent.agent_id.clone(), json!({
+                    "agent_id": agent.agent_id,
+                    "name": agent.agent_name,
+                    "commits": agent.playbooks_committed,
+                    "efficiency": agent.sovereign_score as f64 / 100.0, // Normalize for display
+                    "durability": agent.successful_tasks, // Use successful tasks as durability proxy
+                    "badges": agent.badges,
+                    "sovereign_score": agent.sovereign_score,
+                    "successful_tasks": agent.successful_tasks,
+                    "resource_warnings": agent.resource_warnings,
+                }));
+            }
+            
+            ResponseJson(json!({
+                "metrics": metrics,
+                "generated_at": leaderboard_data.generated_at
+            }))
+        }
+        Err(e) => {
+            error!(error = %e, "Failed to fetch leaderboard data");
+            // Return empty metrics on error
+            ResponseJson(json!({
+                "metrics": {},
+                "error": e
+            }))
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -782,9 +1157,10 @@ fn is_private_ipv4(ip: Ipv4Addr) -> bool {
         || (a == 169 && b == 254) // link-local
 }
 
-fn public_network_scan_enabled() -> bool {
+// Security gate helper functions
+fn env_var_enabled(name: &str) -> bool {
     matches!(
-        env::var("ALLOW_PUBLIC_NETWORK_SCAN")
+        env::var(name)
             .unwrap_or_default()
             .to_lowercase()
             .as_str(),
@@ -792,14 +1168,51 @@ fn public_network_scan_enabled() -> bool {
     )
 }
 
-fn public_network_scan_hitl_token() -> Option<String> {
-    let t = env::var("NETWORK_SCAN_HITL_TOKEN").ok()?;
+fn env_var_token(name: &str) -> Option<String> {
+    let t = env::var(name).ok()?;
     let t = t.trim().to_string();
     if t.is_empty() {
         None
     } else {
         Some(t)
     }
+}
+
+// Security gates for research project access
+fn allow_ipv6_network_scan() -> bool {
+    env_var_enabled("ALLOW_IPV6_NETWORK_SCAN")
+}
+
+fn bypass_hitl_tool_exec() -> bool {
+    env_var_enabled("BYPASS_HITL_TOOL_EXEC")
+}
+
+fn bypass_hitl_memory() -> bool {
+    env_var_enabled("BYPASS_HITL_MEMORY")
+}
+
+fn bypass_hitl_kill_process() -> bool {
+    env_var_enabled("BYPASS_HITL_KILL_PROCESS")
+}
+
+fn allow_restricted_commands() -> bool {
+    env_var_enabled("ALLOW_RESTRICTED_COMMANDS")
+}
+
+fn bypass_email_teams_approval() -> bool {
+    env_var_enabled("BYPASS_EMAIL_TEAMS_APPROVAL")
+}
+
+fn allow_arbitrary_port_scan() -> bool {
+    env_var_enabled("ALLOW_ARBITRARY_PORT_SCAN")
+}
+
+fn public_network_scan_enabled() -> bool {
+    env_var_enabled("ALLOW_PUBLIC_NETWORK_SCAN")
+}
+
+fn public_network_scan_hitl_token() -> Option<String> {
+    env_var_token("NETWORK_SCAN_HITL_TOKEN")
 }
 
 fn parse_ipv4_target(target: &str) -> Result<Ipv4Addr, String> {
@@ -817,8 +1230,15 @@ fn parse_ipv4_target(target: &str) -> Result<Ipv4Addr, String> {
             "network scanning target must be an IPv4 address or IPv4 CIDR (e.g., 192.168.1.0/24)".to_string(),
         );
     }
+    
+    // Security gate: Allow IPv6 if ALLOW_IPV6_NETWORK_SCAN is enabled
     if t.contains(':') {
-        return Err("IPv6 targets are not allowed for network scanning in this environment".to_string());
+        if allow_ipv6_network_scan() {
+            // IPv6 scanning enabled - return a placeholder for now
+            // Note: Full IPv6 support would require additional parsing logic
+            return Err("IPv6 network scanning is enabled but full IPv6 parsing is not yet implemented. Use IPv4 addresses or CIDR notation for now.".to_string());
+        }
+        return Err("IPv6 targets are not allowed for network scanning. Set ALLOW_IPV6_NETWORK_SCAN=1 to enable (research project only)".to_string());
     }
 
     let ip_part = t.split('/').next().unwrap_or(t);
@@ -1365,6 +1785,13 @@ pub async fn llm_plan_openrouter(
         system_prompt.push_str("- Provide context-aware responses that account for the visual/audio information being captured.\n");
     }
 
+    // Apply per-user personalization overlay (style/tone). This does not grant new capabilities.
+    let overlay = state.preferences.render_prompt_overlay(twin_id).await;
+    if !overlay.trim().is_empty() {
+        system_prompt.push_str("\n\n");
+        system_prompt.push_str(&overlay);
+    }
+
     // Build the API request body
     let mut payload = serde_json::Map::new();
     payload.insert("model".to_string(), json!(state.openrouter_model));
@@ -1626,6 +2053,8 @@ struct NetworkScanRequest {
     namespace: String,
     #[serde(default)]
     hitl_token: Option<String>,
+    #[serde(default)]
+    ports: Option<String>, // Optional custom port range (e.g., "22,80,443" or "1-65535")
 }
 
 async fn handle_network_scan(
@@ -1642,9 +2071,49 @@ async fn handle_network_scan(
     }
     enforce_network_scan_policy(&req.target, req.hitl_token.as_deref()).map_err(|_| StatusCode::FORBIDDEN)?;
 
-    let mut hosts = network_scanner::run_xml_scan(&req.target, "8281-8284")
+    // Security gate: Check if arbitrary port scanning is allowed
+    let requested_ports = req.ports.clone();
+    let ports_to_scan = if let Some(custom_ports) = requested_ports.clone() {
+        if !allow_arbitrary_port_scan() {
+            return Err(StatusCode::FORBIDDEN);
+        }
+        custom_ports
+    } else {
+        // Default to AGI core ports
+        "8281-8284".to_string()
+    };
+
+    let mut hosts = network_scanner::run_xml_scan(&req.target, &ports_to_scan)
         .await
         .map_err(|_| StatusCode::BAD_GATEWAY)?;
+
+    // Parse scanned ports for result
+    let scanned_ports_vec: Vec<u16> = if allow_arbitrary_port_scan() && requested_ports.is_some() {
+        // Parse custom port range (simplified - could be enhanced)
+        let ports_str = requested_ports.unwrap_or_default();
+        if ports_str.contains('-') {
+            // Range like "1-65535"
+            let parts: Vec<&str> = ports_str.split('-').collect();
+            if parts.len() == 2 {
+                if let (Ok(start), Ok(end)) = (parts[0].parse::<u16>(), parts[1].parse::<u16>()) {
+                    (start..=end.min(65535)).collect()
+                } else {
+                    vec![8281, 8282, 8283, 8284]
+                }
+            } else {
+                vec![8281, 8282, 8283, 8284]
+            }
+        } else if ports_str.contains(',') {
+            // Comma-separated like "22,80,443"
+            ports_str.split(',')
+                .filter_map(|p| p.trim().parse::<u16>().ok())
+                .collect()
+        } else {
+            vec![8281, 8282, 8283, 8284]
+        }
+    } else {
+        vec![8281, 8282, 8283, 8284]
+    };
 
     // `network_scanner` already filters to open ports, but keep this defensive.
     for h in hosts.iter_mut() {
@@ -1658,7 +2127,7 @@ async fn handle_network_scan(
     let result = NetworkScanResult {
         target: req.target.clone(),
         timestamp: chrono::Utc::now().to_rfc3339(),
-        scanned_ports: vec![8281, 8282, 8283, 8284],
+        scanned_ports: scanned_ports_vec,
         hosts,
     };
 
@@ -1669,6 +2138,208 @@ async fn handle_network_scan(
     }
 
     Ok(ResponseJson(result))
+}
+
+// Network peers API handlers
+async fn handle_network_peers(
+    State(state): State<AppState>,
+) -> Result<ResponseJson<serde_json::Value>, StatusCode> {
+    let peers = state.handshake_service.get_verified_peers().await;
+    let quarantined = state.quarantine_manager.list_quarantined().await;
+
+    // Mark quarantined peers
+    let mut peer_list: Vec<serde_json::Value> = Vec::new();
+    for peer in peers {
+        let is_quarantined = quarantined.iter().any(|q| q.node_id == peer.node_id);
+        peer_list.push(serde_json::json!({
+            "node_id": peer.node_id,
+            "software_version": peer.software_version,
+            "manifest_hash": peer.manifest_hash,
+            "remote_address": peer.remote_address,
+            "status": if is_quarantined { "Quarantined" } else {
+                match peer.status {
+                    network::handshake::PeerStatus::Verified => "Verified",
+                    network::handshake::PeerStatus::Pending => "Pending",
+                    network::handshake::PeerStatus::Quarantined => "Quarantined",
+                }
+            },
+            "last_seen": peer.last_seen,
+        }));
+    }
+
+    Ok(ResponseJson(serde_json::json!({
+        "peers": peer_list,
+    })))
+}
+
+// Quarantine API handlers
+#[derive(Debug, Deserialize)]
+struct QuarantineRequest {
+    node_id: String,
+    ip_address: Option<String>,
+    reason: String,
+}
+
+async fn handle_network_quarantine_list(
+    State(state): State<AppState>,
+) -> Result<ResponseJson<serde_json::Value>, StatusCode> {
+    let entries = state.quarantine_manager.list_quarantined().await;
+    let list: Vec<serde_json::Value> = entries.iter().map(|e| {
+        serde_json::json!({
+            "node_id": e.node_id,
+            "ip_address": e.ip_address,
+            "reason": e.reason,
+            "timestamp": e.timestamp,
+            "quarantined_by": e.quarantined_by,
+        })
+    }).collect();
+
+    Ok(ResponseJson(serde_json::json!({
+        "quarantined": list,
+    })))
+}
+
+async fn handle_network_quarantine_add(
+    State(state): State<AppState>,
+    Json(req): Json<QuarantineRequest>,
+) -> Result<ResponseJson<serde_json::Value>, StatusCode> {
+    // Get local node_id from handshake service identity
+    let local_node_id = state.handshake_service.identity.node_id.clone();
+
+    state.quarantine_manager.quarantine_node(
+        req.node_id.clone(),
+        req.ip_address.clone(),
+        req.reason.clone(),
+        local_node_id,
+    ).await.map_err(|e| {
+        error!(error = %e, "Failed to quarantine node");
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+
+    Ok(ResponseJson(serde_json::json!({
+        "success": true,
+        "message": format!("Node {} quarantined", req.node_id),
+    })))
+}
+
+async fn handle_network_quarantine_remove(
+    State(state): State<AppState>,
+    axum::extract::Path(node_id): axum::extract::Path<String>,
+) -> Result<ResponseJson<serde_json::Value>, StatusCode> {
+    state.quarantine_manager.reintegrate_node(&node_id).await
+        .map_err(|e| {
+            error!(error = %e, "Failed to reintegrate node");
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
+
+    Ok(ResponseJson(serde_json::json!({
+        "success": true,
+        "message": format!("Node {} reintegrated", node_id),
+    })))
+}
+
+// Network topology API handler
+async fn handle_network_topology(
+    State(state): State<AppState>,
+) -> Result<ResponseJson<serde_json::Value>, StatusCode> {
+    let peers = state.handshake_service.get_verified_peers().await;
+    let quarantined = state.quarantine_manager.list_quarantined().await;
+    let quarantined_set: std::collections::HashSet<String> = quarantined
+        .iter()
+        .map(|q| q.node_id.clone())
+        .collect();
+
+    // Build nodes
+    let mut nodes: Vec<serde_json::Value> = Vec::new();
+    for peer in &peers {
+        let is_quarantined = quarantined_set.contains(&peer.node_id);
+        let status = if is_quarantined {
+            "Quarantined"
+        } else {
+            match peer.status {
+                network::handshake::PeerStatus::Verified => "Verified",
+                network::handshake::PeerStatus::Pending => "Pending",
+                network::handshake::PeerStatus::Quarantined => "Quarantined",
+            }
+        };
+
+        nodes.push(serde_json::json!({
+            "id": peer.node_id,
+            "node_id": peer.node_id,
+            "status": status,
+            "software_version": peer.software_version,
+            "manifest_hash": peer.manifest_hash,
+            "remote_address": peer.remote_address,
+            "last_seen": peer.last_seen,
+        }));
+    }
+
+    // Build links (trust links between verified nodes)
+    let mut links: Vec<serde_json::Value> = Vec::new();
+    let verified_peers: Vec<_> = peers
+        .iter()
+        .filter(|p| {
+            matches!(p.status, network::handshake::PeerStatus::Verified)
+                && !quarantined_set.contains(&p.node_id)
+        })
+        .collect();
+
+    // Create a mesh: connect each verified node to a few others
+    for (i, source) in verified_peers.iter().enumerate() {
+        let connections = std::cmp::min(3, verified_peers.len().saturating_sub(1));
+        for j in 0..connections {
+            let target_index = (i + j + 1) % verified_peers.len();
+            let target = verified_peers[target_index];
+            if source.node_id != target.node_id {
+                links.push(serde_json::json!({
+                    "source": source.node_id,
+                    "target": target.node_id,
+                    "type": "trust",
+                }));
+            }
+        }
+    }
+
+    // Add weak links to pending nodes
+    let pending_peers: Vec<_> = peers
+        .iter()
+        .filter(|p| matches!(p.status, network::handshake::PeerStatus::Pending))
+        .collect();
+    
+    for pending in pending_peers {
+        if !verified_peers.is_empty() {
+            // Connect to first verified peer
+            links.push(serde_json::json!({
+                "source": verified_peers[0].node_id,
+                "target": pending.node_id,
+                "type": "weak",
+            }));
+        }
+    }
+
+    Ok(ResponseJson(serde_json::json!({
+        "nodes": nodes,
+        "links": links,
+    })))
+}
+
+// Mesh health API handler
+async fn handle_mesh_health(
+    State(state): State<AppState>,
+) -> Result<ResponseJson<analytics::mesh_health::MeshHealthReport>, StatusCode> {
+    let report = state.mesh_health_service.get_report().await;
+    Ok(ResponseJson(report))
+}
+
+// Compliance alerts API handler
+async fn handle_compliance_alerts(
+    State(state): State<AppState>,
+) -> Result<ResponseJson<Vec<serde_json::Value>>, StatusCode> {
+    // If immune_response is available in AppState, use it
+    // Otherwise, return empty array (will be added when immune_response is integrated into AppState)
+    // For now, we'll return an empty array as a placeholder
+    // TODO: Add immune_response to AppState and use it here
+    Ok(ResponseJson(vec![]))
 }
 
 #[derive(Debug, Deserialize)]
@@ -2882,6 +3553,42 @@ async fn handle_chat_request(
             raw_orchestrator_decision = Some(raw_decision);
         }
 
+        LLMAction::ActionQuarantineNode { node_id, reason } => {
+            info!(
+                job_id = %job_id,
+                node_id = %node_id,
+                reason = %reason,
+                "Quarantine node action requested"
+            );
+
+            // Get IP address from peer if available
+            let ip_address = {
+                let peer = state.handshake_service.get_peer(&node_id).await;
+                peer.map(|p| Some(p.remote_address)).unwrap_or(None)
+            };
+
+            let local_node_id = state.handshake_service.identity.node_id.clone();
+
+            match state.quarantine_manager.quarantine_node(
+                node_id.clone(),
+                ip_address,
+                reason.clone(),
+                local_node_id,
+            ).await {
+                Ok(_) => {
+                    response_message = format!("Node {} has been quarantined. Reason: {}", node_id, reason);
+                    actions_taken.push(format!("quarantine_node:{}", node_id));
+                }
+                Err(e) => {
+                    error!(job_id = %job_id, error = %e, "Failed to quarantine node");
+                    response_message = format!("Failed to quarantine node {}: {}", node_id, e);
+                    actions_taken.push("quarantine_failed".to_string());
+                }
+            }
+
+            raw_orchestrator_decision = Some(raw_decision);
+        }
+
         LLMAction::ActionMonitorTeams {} => {
             actions_taken.push("monitor_teams".to_string());
             
@@ -2986,6 +3693,181 @@ async fn handle_chat_request(
             } else {
                 response_message = "Email/Teams monitor not configured. Please configure OAuth authentication first.".to_string();
                 actions_taken.push("email_trends_not_configured".to_string());
+            }
+            raw_orchestrator_decision = Some(raw_decision);
+        }
+
+        LLMAction::ActionSpawnAgent {
+            name,
+            mission,
+            permissions,
+        } => {
+            actions_taken.push("spawn_agent".to_string());
+
+            // Check if agent exists in library by name
+            let mut agent_name = name.clone();
+            let mut agent_mission = mission.clone();
+            let mut agent_permissions = permissions.clone();
+            let mut base_prompt_override: Option<String> = None;
+
+            // Try to lookup agent in library
+            if let Some(manifest) = state.agent_library.get_manifest(&name).await {
+                info!(
+                    agent_name = %manifest.name,
+                    category = %manifest.category,
+                    "Found agent in library, applying manifest configuration"
+                );
+                
+                agent_name = manifest.name.clone();
+                
+                // Use manifest mission if mission is empty or generic
+                if mission.trim().is_empty() || mission.trim().to_lowercase() == "default" {
+                    agent_mission = manifest.description
+                        .unwrap_or_else(|| format!("Specialized {} agent", manifest.category));
+                } else {
+                    agent_mission = mission.clone();
+                }
+                
+                // Merge permissions: manifest permissions + provided permissions
+                let mut merged_permissions = manifest.permissions.clone();
+                for perm in &permissions {
+                    if !merged_permissions.contains(perm) {
+                        merged_permissions.push(perm.clone());
+                    }
+                }
+                agent_permissions = merged_permissions;
+                
+                // Load base prompt from manifest
+                match state.agent_library.get_base_prompt(&manifest.name).await {
+                    Ok(prompt) => {
+                        base_prompt_override = Some(prompt);
+                        info!(
+                            agent_name = %manifest.name,
+                            "Loaded base prompt from manifest"
+                        );
+                    }
+                    Err(e) => {
+                        warn!(
+                            agent_name = %manifest.name,
+                            error = %e,
+                            "Failed to load base prompt from manifest, using default"
+                        );
+                    }
+                }
+            }
+
+            // Build inherited system prompt with Blue Flame overrides
+            let mut inherited = build_effective_system_prompt(
+                &state,
+                &request.twin_id,
+                request.user_name.as_deref(),
+                request.media_active,
+            )
+            .await;
+
+            // Apply base prompt override if available (from manifest)
+            if let Some(base_prompt) = base_prompt_override {
+                // Prepend the manifest's base prompt to the inherited Blue Flame prompt
+                // This ensures the agent gets both the specialized prompt and Blue Flame leadership context
+                inherited = format!("{}\n\n---\n\n{}", base_prompt, inherited);
+            }
+
+            match state
+                .agent_factory
+                .spawn_agent(agent_name, agent_mission, agent_permissions, inherited)
+                .await
+            {
+                Ok(res) => {
+                    response_message = format!(
+                        "Spawned sub-agent successfully. agent_id={}",
+                        res.agent_id
+                    );
+                    issued_command = Some(json!({
+                        "command": "crew_list",
+                        "agent_id": res.agent_id,
+                    }));
+                    raw_orchestrator_decision = Some(raw_decision);
+                }
+                Err(e) => {
+                    response_message = format!("Failed to spawn sub-agent: {}", e);
+                    actions_taken.push("spawn_agent_failed".to_string());
+                    raw_orchestrator_decision = Some(raw_decision);
+                }
+            }
+        }
+
+        LLMAction::ActionSyncAgentLibrary {} => {
+            actions_taken.push("sync_agent_library".to_string());
+            
+            // Use the new sync_library function from agents::loader
+            match agents::loader::sync_library(&state.agent_library).await {
+                Ok(msg) => {
+                    response_message = msg.clone();
+                    actions_taken.push("agent_library_synced".to_string());
+                    
+                    // Publish BroadcastDiscovery event
+                    let discovery_event = bus::PhoenixEvent::BroadcastDiscovery {
+                        source: "orchestrator".to_string(),
+                        discovery_type: "agent_library_sync".to_string(),
+                        details: "Agent library synchronized from GitHub repository".to_string(),
+                        timestamp: chrono::Utc::now().to_rfc3339(),
+                    };
+                    state.publish_event(discovery_event);
+                    
+                    // List available agents from the library
+                    let agents = state.agent_library.list_manifests().await;
+                    if !agents.is_empty() {
+                        let agent_list: Vec<String> = agents
+                            .iter()
+                            .map(|m| format!("- {} ({}), version {}", m.name, m.category, m.version))
+                            .collect();
+                        response_message.push_str(&format!("\n\nAvailable agent templates:\n{}", agent_list.join("\n")));
+                    }
+                }
+                Err(e) => {
+                    error!(job_id = %job_id, error = %e, "Failed to sync agent library");
+                    response_message = format!("Failed to sync agent library: {}", e);
+                    actions_taken.push("sync_agent_library_failed".to_string());
+                }
+            }
+            raw_orchestrator_decision = Some(raw_decision);
+        }
+
+        LLMAction::ActionGitPush {
+            repo_path,
+            playbooks_dir,
+            commit_message,
+            remote_name,
+            branch,
+        } => {
+            actions_taken.push("git_push".to_string());
+            
+            let repo_path = std::path::Path::new(&repo_path);
+            let playbooks_dir = std::path::Path::new(&playbooks_dir);
+            let remote_name = remote_name.unwrap_or_else(|| "origin".to_string());
+            let branch = branch.unwrap_or_else(|| "main".to_string());
+            
+            match tools::git::GitOperations::commit_and_push_playbooks(
+                repo_path,
+                playbooks_dir,
+                &commit_message,
+                &remote_name,
+                &branch,
+                "Orchestrator",
+                "orchestrator@digital-twin.local",
+            ).await {
+                Ok(_) => {
+                    response_message = format!(
+                        "Successfully committed and pushed playbooks to {}/{}",
+                        remote_name, branch
+                    );
+                    actions_taken.push("playbooks_committed".to_string());
+                }
+                Err(e) => {
+                    error!(job_id = %job_id, error = %e, "Failed to commit and push playbooks");
+                    response_message = format!("Failed to commit and push playbooks: {}", e);
+                    actions_taken.push("git_push_failed".to_string());
+                }
             }
             raw_orchestrator_decision = Some(raw_decision);
         }
@@ -3348,6 +4230,199 @@ async fn health_check() -> ResponseJson<HealthResponse> {
     })
 }
 
+/// Find the .env file path using the same logic as load_dotenv
+fn find_env_file() -> Option<PathBuf> {
+    let manifest_dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let candidates: Vec<PathBuf> = vec![
+        manifest_dir.join(".env"),
+        manifest_dir
+            .parent()
+            .map(|p| p.join(".env"))
+            .unwrap_or_else(|| PathBuf::from(".env")),
+        PathBuf::from(".env"),
+    ];
+
+    for candidate in candidates {
+        if candidate.exists() {
+            return Some(candidate);
+        }
+    }
+    None
+}
+
+/// Read .env file and return as key-value pairs
+async fn read_env_file() -> Result<HashMap<String, String>, String> {
+    let env_path = find_env_file().ok_or_else(|| "No .env file found".to_string())?;
+    
+    let content = fs::read_to_string(&env_path)
+        .await
+        .map_err(|e| format!("Failed to read .env file: {}", e))?;
+    
+    let mut env_vars = HashMap::new();
+    
+    for line in content.lines() {
+        let line = line.trim();
+        // Skip empty lines and comments
+        if line.is_empty() || line.starts_with('#') {
+            continue;
+        }
+        
+        // Parse KEY=VALUE format
+        if let Some(equal_pos) = line.find('=') {
+            let key = line[..equal_pos].trim().to_string();
+            let value = line[equal_pos + 1..].trim().to_string();
+            // Remove quotes if present
+            let value = value
+                .strip_prefix('"')
+                .and_then(|s| s.strip_suffix('"'))
+                .map(|s| s.to_string())
+                .unwrap_or(value);
+            env_vars.insert(key, value);
+        }
+    }
+    
+    Ok(env_vars)
+}
+
+/// Update .env file with new values
+async fn update_env_file(updates: HashMap<String, String>) -> Result<(), String> {
+    let env_path = find_env_file().ok_or_else(|| "No .env file found".to_string())?;
+    
+    // Read existing content
+    let content = fs::read_to_string(&env_path)
+        .await
+        .map_err(|e| format!("Failed to read .env file: {}", e))?;
+    
+    let mut lines: Vec<String> = content.lines().map(|s| s.to_string()).collect();
+    let mut updated_keys = std::collections::HashSet::new();
+    
+    // Update existing variables
+    for line in lines.iter_mut() {
+        // Avoid borrowing `line` across a potential assignment to `*line`.
+        let original = line.clone();
+        let trimmed = original.trim();
+        if trimmed.is_empty() || trimmed.starts_with('#') {
+            continue;
+        }
+        
+        if let Some(equal_pos) = trimmed.find('=') {
+            let key = trimmed[..equal_pos].trim();
+            if let Some(new_value) = updates.get(key) {
+                // Preserve original formatting (spaces, quotes, etc.)
+                let prefix = if original.chars().next().map(|c| c.is_whitespace()).unwrap_or(false) {
+                    original
+                        .chars()
+                        .take_while(|c| c.is_whitespace())
+                        .collect::<String>()
+                } else {
+                    String::new()
+                };
+                // Preserve quotes if original had them, otherwise add if value contains spaces
+                let formatted_value = if new_value.contains(' ') && !new_value.starts_with('"') {
+                    format!("\"{}\"", new_value)
+                } else {
+                    new_value.clone()
+                };
+                *line = format!("{}{}={}", prefix, key, formatted_value);
+                updated_keys.insert(key.to_string());
+            }
+        }
+    }
+    
+    // Add new variables that weren't in the file (append at end)
+    let mut new_vars: Vec<String> = Vec::new();
+    for (key, value) in &updates {
+        if !updated_keys.contains(key) {
+            let formatted_value = if value.contains(' ') && !value.starts_with('"') {
+                format!("\"{}\"", value)
+            } else {
+                value.clone()
+            };
+            new_vars.push(format!("{}={}", key, formatted_value));
+        }
+    }
+    
+    if !new_vars.is_empty() {
+        // Add a comment separator if there are existing lines
+        if !lines.is_empty() && !lines.last().unwrap().trim().is_empty() {
+            lines.push(String::new());
+        }
+        lines.extend(new_vars);
+    }
+    
+    // Write back to file (preserve line endings)
+    let new_content = if content.contains("\r\n") {
+        lines.join("\r\n")
+    } else {
+        lines.join("\n")
+    };
+    fs::write(&env_path, new_content)
+        .await
+        .map_err(|e| format!("Failed to write .env file: {}", e))?;
+    
+    Ok(())
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct EnvReadResponse {
+    env_vars: HashMap<String, String>,
+    env_file_path: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct EnvUpdateRequest {
+    updates: HashMap<String, String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct EnvUpdateResponse {
+    success: bool,
+    message: String,
+}
+
+async fn handle_env_read() -> Result<ResponseJson<EnvReadResponse>, StatusCode> {
+    match read_env_file().await {
+        Ok(env_vars) => {
+            let env_path = find_env_file()
+                .map(|p| p.display().to_string())
+                .unwrap_or_else(|| "unknown".to_string());
+            Ok(ResponseJson(EnvReadResponse {
+                env_vars,
+                env_file_path: env_path,
+            }))
+        }
+        Err(e) => {
+            error!(error = %e, "Failed to read .env file");
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
+        }
+    }
+}
+
+async fn handle_env_update(
+    Json(request): Json<EnvUpdateRequest>,
+) -> Result<ResponseJson<EnvUpdateResponse>, StatusCode> {
+    if request.updates.is_empty() {
+        return Ok(ResponseJson(EnvUpdateResponse {
+            success: false,
+            message: "No updates provided".to_string(),
+        }));
+    }
+    
+    match update_env_file(request.updates).await {
+        Ok(_) => Ok(ResponseJson(EnvUpdateResponse {
+            success: true,
+            message: "Environment variables updated successfully".to_string(),
+        })),
+        Err(e) => {
+            error!(error = %e, "Failed to update .env file");
+            Ok(ResponseJson(EnvUpdateResponse {
+                success: false,
+                message: e,
+            }))
+        }
+    }
+}
+
 /// System snapshot endpoint handler
 async fn handle_system_snapshot() -> Result<ResponseJson<tools::SystemSnapshot>, StatusCode> {
     match get_system_snapshot().await {
@@ -3509,6 +4584,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         history: Arc::new(RwLock::new(Vec::new())),
     };
 
+    // Initialize preferences (persona presets + user profile)
+    let prefs_repo = preferences::PreferencesRepository::new(preferences::PreferencesRepository::default_path());
+    let loaded_prefs = prefs_repo.load_or_init().await.map_err(|e| {
+        error!(error = %e, "Failed to load/initialize preferences");
+        anyhow::anyhow!(e)
+    })?;
+    let preferences = preferences::PreferencesManager::new(prefs_repo, loaded_prefs);
+
     // Create health manager first
     let health_manager = HealthManager::new();
     let project_watcher = Arc::new(ProjectWatcher::new());
@@ -3519,7 +4602,216 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Initialize email/teams monitor (will be configured via OAuth flow)
     let email_teams_monitor = Arc::new(RwLock::new(None::<EmailTeamsMonitor>));
 
+    // Create global message bus
+    let message_bus = Arc::new(bus::GlobalMessageBus::new());
+    info!("Global message bus initialized");
+
     // Create application state
+    let max_agents = env::var("ORCHESTRATOR_MAX_AGENTS")
+        .ok()
+        .and_then(|v| v.trim().parse::<usize>().ok())
+        .unwrap_or(agents::factory::DEFAULT_MAX_AGENTS);
+    let subagent_model = env::var("SUBAGENT_OPENROUTER_MODEL")
+        .unwrap_or_else(|_| "google/gemini-2.0-flash-exp".to_string());
+    let agent_factory = Arc::new(agents::factory::AgentFactory::new(
+        http_client.clone(),
+        openrouter_url.clone(),
+        openrouter_api_key.clone(),
+        subagent_model,
+        max_agents,
+        message_bus.sender(),
+        Some(memory_client.clone()),
+    ));
+
+    // Initialize agent library
+    let agent_repo_path = std::env::current_dir()
+        .unwrap_or_else(|_| PathBuf::from("."))
+        .join("config")
+        .join("agents")
+        .join("pagi-agent-repo");
+    
+    // Ensure the directory exists
+    if let Err(e) = std::fs::create_dir_all(&agent_repo_path.parent().unwrap()) {
+        warn!(error = %e, "Failed to create agent library directory");
+    }
+    
+    let agent_library = Arc::new(agents::loader::AgentLibrary::new(agent_repo_path));
+
+    // Initialize playbook distiller
+    let playbooks_dir = std::env::current_dir()
+        .unwrap_or_else(|_| PathBuf::from("."))
+        .join("playbooks");
+    let repo_path = std::env::current_dir()
+        .unwrap_or_else(|_| PathBuf::from("."));
+    
+    // Privacy filter enabled by default (can be disabled via env var)
+    let privacy_filter_enabled = std::env::var("PLAYBOOK_PRIVACY_FILTER")
+        .unwrap_or_else(|_| "true".to_string())
+        .parse::<bool>()
+        .unwrap_or(true);
+
+    let distiller = Arc::new(playbook_distiller::PlaybookDistiller::new(
+        Arc::new(memory_client.clone()),
+        playbooks_dir.clone(),
+        repo_path.clone(),
+        http_client.clone(),
+        openrouter_url.clone(),
+        openrouter_api_key.clone(),
+        openrouter_model.clone(),
+        privacy_filter_enabled,
+    ));
+
+    // Start weekly playbook distillation scheduler
+    let distiller_clone = distiller.clone();
+    let repo_path_clone = repo_path.clone();
+    let playbooks_dir_clone = playbooks_dir.clone();
+    tokio::spawn(async move {
+        let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(7 * 24 * 60 * 60)); // 7 days
+        interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
+        
+        // For production: wait a week before first run
+        // For testing: you can comment out this line to run immediately
+        tokio::time::sleep(tokio::time::Duration::from_secs(7 * 24 * 60 * 60)).await;
+        
+        loop {
+            interval.tick().await;
+            info!("Starting weekly playbook distillation");
+            
+            match distiller_clone.distill_playbooks().await {
+                Ok(playbooks) => {
+                    info!(
+                        playbooks_count = playbooks.len(),
+                        "Playbook distillation completed"
+                    );
+                    
+                    if !playbooks.is_empty() {
+                        // Commit and push to GitHub
+                        let commit_message = format!(
+                            "Weekly playbook update: {} playbooks generated",
+                            playbooks.len()
+                        );
+                        
+                        if let Err(e) = tools::git::GitOperations::commit_and_push_playbooks(
+                            &repo_path_clone,
+                            &playbooks_dir_clone,
+                            &commit_message,
+                            "origin",
+                            "main",
+                            "Orchestrator",
+                            "orchestrator@digital-twin.local",
+                        ).await {
+                            warn!(
+                                error = %e,
+                                "Failed to commit and push playbooks (this is OK if git is not configured)"
+                            );
+                        } else {
+                            info!("Successfully committed and pushed playbooks to GitHub");
+                        }
+                    }
+                }
+                Err(e) => {
+                    error!(
+                        error = %e,
+                        "Playbook distillation failed"
+                    );
+                }
+            }
+        }
+    });
+
+    // Initialize Qdrant client for leaderboard engine
+    let qdrant_url = env::var("QDRANT_URL")
+        .unwrap_or_else(|_| "http://127.0.0.1:6334".to_string());
+    let qdrant_api_key = env::var("QDRANT_API_KEY").ok();
+    let qdrant_client = Arc::new(
+        qdrant_client::Qdrant::from_url(&qdrant_url)
+            .api_key(qdrant_api_key)
+            .build()
+            .map_err(|e| format!("Failed to create Qdrant client: {}", e))?,
+    );
+
+    // Initialize leaderboard engine
+    // Use the same repo path as playbook distiller (current directory or specified path)
+    let git_repo_path = repo_path.to_string_lossy().to_string();
+    let leaderboard_engine = Arc::new(analytics::leaderboard::LeaderboardEngine::new(
+        qdrant_client.clone(),
+        git_repo_path,
+    ));
+
+    // Initialize Node Handshake Service
+    let node_id = env::var("NODE_ID")
+        .unwrap_or_else(|_| format!("node-{}", Uuid::new_v4().to_string()));
+    let software_version = env::var("SOFTWARE_VERSION")
+        .unwrap_or_else(|_| "2.1.0".to_string());
+    let guardrail_version = env::var("GUARDRAIL_VERSION")
+        .unwrap_or_else(|_| "2.1.0".to_string());
+    
+    let key_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("config")
+        .join("node_identity.key");
+    
+    let node_identity = Arc::new(
+        network::handshake::NodeIdentity::load_or_create(node_id.clone(), key_path)
+            .await
+            .map_err(|e| anyhow::anyhow!("Failed to load/create node identity: {}", e))?,
+    );
+
+    let system_prompt_path = SystemPromptRepository::default_path();
+    let leadership_kb_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("examples")
+        .join("leadership_kb.md")
+        .canonicalize()
+        .ok();
+    
+    let manifest_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("config")
+        .join("agents")
+        .join("pagi-agent-repo")
+        .join("manifest.yaml")
+        .canonicalize()
+        .ok();
+
+    // Create quarantine manager first
+    let quarantine_manager = Arc::new(network::quarantine::QuarantineManager::new(
+        message_bus.clone(),
+        Some(qdrant_client.clone()),
+    ));
+
+    // Load quarantine list from Qdrant on startup
+    quarantine_manager.load_from_qdrant().await
+        .map_err(|e| {
+            error!(error = %e, "Failed to load quarantine list");
+        })
+        .ok();
+
+    let handshake_service = network::handshake::NodeHandshakeServiceImpl::new(
+        node_identity,
+        system_prompt_path,
+        leadership_kb_path,
+        manifest_path.clone(),
+        software_version.clone(),
+        guardrail_version.clone(),
+        message_bus.clone(),
+        Some(memory_client.clone()),
+        Some(qdrant_client.clone()),
+        Some(quarantine_manager.clone()),
+    );
+
+    // Compute local manifest hash for mesh health service
+    let handshake_service_arc = Arc::new(handshake_service.clone());
+    let local_manifest_hash = handshake_service_arc
+        .compute_manifest_hash()
+        .await
+        .unwrap_or_else(|_| String::new());
+
+    // Initialize mesh health service
+    let mesh_health_service = Arc::new(analytics::mesh_health::MeshHealthService::new(
+        handshake_service_arc.clone(),
+        quarantine_manager.clone(),
+        local_manifest_hash,
+        guardrail_version.clone(),
+    ));
+
     let state = Arc::new(AppState {
         memory_client,
         tools_client,
@@ -3534,10 +4826,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         openrouter_model,
         telemetry_url,
         system_prompt,
+        preferences,
         health_manager,
         last_network_scans: Arc::new(RwLock::new(HashMap::new())),
         project_watcher: project_watcher.clone(),
         email_teams_monitor,
+        agent_factory,
+        agent_library,
+        message_bus: message_bus.clone(),
+        leaderboard_engine,
+        handshake_service: handshake_service_arc.clone(),
+        quarantine_manager,
+        mesh_health_service: mesh_health_service.clone(),
     });
 
     // We'll use the same internal prompt manager for both:
@@ -3553,6 +4853,95 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .allow_methods([Method::GET, Method::POST])
         .allow_headers(Any);
 
+    // Initialize Foundry Service
+    let agent_repo_path_foundry = std::env::current_dir()
+        .unwrap_or_else(|_| PathBuf::from("."))
+        .join("config")
+        .join("agents")
+        .join("pagi-agent-repo");
+    let tool_repo_path = std::env::current_dir()
+        .unwrap_or_else(|_| PathBuf::from("."))
+        .join("config")
+        .join("tools")
+        .join("pagi-tool-repo");
+    
+    let foundry_service = foundry::FoundryService::new(
+        message_bus.sender(),
+        agent_repo_path_foundry.clone(),
+        tool_repo_path,
+    );
+
+    // Initialize Phoenix Consensus Service
+    let mut phoenix_consensus = network::consensus::PhoenixConsensus::new(
+        message_bus.clone(),
+        node_id.clone(),
+        agent_repo_path_foundry.clone(),
+    );
+    
+    // Set dependencies for consensus
+    phoenix_consensus.set_handshake_service(handshake_service_arc.clone());
+    
+    // Create compliance monitor for consensus (shared with foundry logic)
+    let consensus_compliance_monitor = Arc::new(foundry::ComplianceMonitor::new(agent_repo_path_foundry.clone()));
+    phoenix_consensus.set_compliance_monitor(consensus_compliance_monitor);
+    
+    // Start consensus listener
+    let consensus_arc = Arc::new(phoenix_consensus);
+    let consensus_listener = consensus_arc.clone();
+    tokio::spawn(async move {
+        info!("[PHOENIX] Starting Phoenix Consensus listener");
+        consensus_listener.start_listener().await;
+    });
+
+    // Initialize Phoenix Memory Exchange Service
+    let memory_exchange_service = network::memory_exchange::PhoenixMemoryExchangeServiceImpl::new(
+        qdrant_client.clone(),
+        message_bus.clone(),
+        handshake_service_arc.clone(),
+        node_id.clone(),
+    );
+    
+    // Start memory exchange listener (clone for the listener task)
+    let memory_exchange_listener = Arc::new(memory_exchange_service.clone());
+    let memory_exchange_listener_clone = memory_exchange_listener.clone();
+    tokio::spawn(async move {
+        info!("[PHOENIX] Starting Phoenix Memory Exchange listener");
+        memory_exchange_listener_clone.start_listener().await;
+    });
+    
+    // Start topic decay task (24 hour TTL)
+    let memory_exchange_decay = memory_exchange_listener.clone();
+    tokio::spawn(async move {
+        info!("[PHOENIX] Starting topic decay task (24h TTL)");
+        memory_exchange_decay.start_topic_decay_task().await;
+    });
+
+    // Initialize Playbook Indexer
+    let playbook_indexer = match services::playbook_indexer::PlaybookIndexerWorker::new(agent_repo_path_foundry.clone()) {
+        Ok(worker) => {
+            let index = worker.index().clone();
+            // Start the background worker
+            let worker_clone = worker;
+            tokio::spawn(async move {
+                if let Err(e) = worker_clone.start().await {
+                    error!(error = %e, "Failed to start playbook indexer worker");
+                }
+            });
+            Arc::new(index)
+        }
+        Err(e) => {
+            error!(error = %e, "Failed to create playbook indexer, using fallback");
+            // Create a dummy index that will fall back to file system search
+            Arc::new(services::playbook_indexer::PlaybookIndex::new(agent_repo_path_foundry.clone()))
+        }
+    };
+
+    // Initialize feedback storage
+    let feedback_storage = Arc::new(
+        api::feedback_storage::FeedbackStorage::new(None)
+            .expect("Failed to initialize feedback storage")
+    );
+
     let app = Router::new()
         .route("/health", get(health_check))
         .route("/chat", post(handle_chat_request))
@@ -3563,10 +4952,22 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/v1/prompt/update", post(handle_prompt_update))
         .route("/v1/prompt/restore", post(handle_prompt_restore))
         .route("/v1/prompt/reset", post(handle_prompt_reset))
+
+        // Personalization preferences
+        .route("/v1/preferences/get", get(handle_preferences_get))
+        .route("/v1/preferences/update", post(handle_preferences_update))
+        .route("/v1/preferences/presets", get(handle_preferences_presets))
         .route("/api/system/snapshot", get(handle_system_snapshot))
         .route("/api/system/sync-metrics", get(handle_sync_metrics))
         .route("/api/network/scan", post(handle_network_scan))
         .route("/api/network/scan/latest", get(handle_network_scan_latest))
+        .route("/api/network/peers", get(handle_network_peers))
+        .route("/api/network/topology", get(handle_network_topology))
+        .route("/api/network/mesh-health", get(handle_mesh_health))
+        .route("/api/network/compliance-alerts", get(handle_compliance_alerts))
+        .route("/api/network/quarantine", get(handle_network_quarantine_list))
+        .route("/api/network/quarantine", post(handle_network_quarantine_add))
+        .route("/api/network/quarantine/:node_id", axum::routing::delete(handle_network_quarantine_remove))
         .route("/api/projects/configure-watch", post(handle_configure_project_watch))
         .route("/api/projects/watch-configs", get(handle_get_watch_configs))
         .route("/api/projects/processing-stats", get(handle_get_processing_stats))
@@ -3578,6 +4979,36 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/api/email/trends", get(handle_email_trends))
         .route("/api/teams/check", get(handle_check_teams))
         .route("/api/teams/send", post(handle_send_teams_message))
+
+        // Sub-agent crew management
+        .route("/api/agents/list", get(handle_agents_list))
+        .route("/api/agents/spawn", post(handle_agents_spawn))
+        .route("/api/agents/:agent_id/task", post(handle_agents_post_task))
+        .route("/api/agents/:agent_id/report", get(handle_agents_get_report))
+        .route("/api/agents/:agent_id/logs", get(handle_agents_get_logs))
+        .route("/api/agents/:agent_id/kill", post(handle_agents_kill))
+        .route("/api/agents/leaderboard", get(handle_agents_leaderboard))
+        
+        // Foundry Service routes
+        .merge(foundry_service.router())
+        
+        // Phoenix API routes
+        .merge(api::phoenix_routes::create_phoenix_router(api::phoenix_routes::PhoenixAppState {
+            message_bus: message_bus.clone(),
+            consensus: consensus_arc.clone(),
+            memory_exchange: memory_exchange_listener.clone(),
+            node_id: node_id.clone(),
+            agents_repo_path: agent_repo_path_foundry.clone(),
+            qdrant_client: qdrant_client.clone(),
+            feedback_storage: feedback_storage.clone(),
+        }))
+        
+        // Playbook search routes
+        .merge(api::playbook_routes::create_playbook_router(api::playbook_routes::PlaybookAppState {
+            agents_repo_path: agent_repo_path_foundry.clone(),
+            index: playbook_indexer.clone(),
+        }))
+        
         .layer(cors)
         .with_state((*state).clone());
 
@@ -3603,6 +5034,24 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .parse()
         .expect("Invalid orchestrator gRPC address");
 
+    // Node Handshake gRPC server (P2P verification endpoint)
+    let handshake_grpc_port = env::var("HANDSHAKE_GRPC_PORT")
+        .unwrap_or_else(|_| "8285".to_string())
+        .parse::<u16>()
+        .expect("HANDSHAKE_GRPC_PORT must be a valid port number");
+    let handshake_grpc_addr = format!("0.0.0.0:{}", handshake_grpc_port)
+        .parse()
+        .expect("Invalid handshake gRPC address");
+
+    // Phoenix Memory Exchange gRPC server
+    let memory_exchange_grpc_port = env::var("MEMORY_EXCHANGE_GRPC_PORT")
+        .unwrap_or_else(|_| "8286".to_string())
+        .parse::<u16>()
+        .expect("MEMORY_EXCHANGE_GRPC_PORT must be a valid port number");
+    let memory_exchange_grpc_addr = format!("0.0.0.0:{}", memory_exchange_grpc_port)
+        .parse()
+        .expect("Invalid memory exchange gRPC address");
+
     let admin_svc = OrchestratorAdminServiceImpl { prompt_mgr };
     let orchestrator_svc = OrchestratorServiceImpl {
         state: Arc::clone(&state),
@@ -3610,6 +5059,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     info!(addr = %admin_addr, port = admin_grpc_port, "Starting Orchestrator Admin gRPC server");
     info!(addr = %orchestrator_grpc_addr, port = orchestrator_grpc_port, "Starting Orchestrator gRPC server");
+    info!(addr = %handshake_grpc_addr, port = handshake_grpc_port, "Starting Node Handshake gRPC server");
+    info!(addr = %memory_exchange_grpc_addr, port = memory_exchange_grpc_port, "[PHOENIX] Starting Memory Exchange gRPC server");
     info!(addr = %addr, port = http_port, "Starting Orchestrator HTTP server");
 
     // Start periodic health checks (every 30 seconds)
@@ -3620,6 +5071,25 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     state.health_manager.start_periodic_checks(Arc::clone(&state), health_check_interval);
     info!(interval = health_check_interval, "Started periodic health checks");
 
+    // Start mDNS service for network discovery
+    let node_id_for_mdns = state.handshake_service.identity.node_id.clone();
+    let software_version_for_mdns = software_version.clone();
+    let guardrail_version_for_mdns = guardrail_version.clone();
+    let message_bus_for_mdns = message_bus.clone();
+    tokio::spawn(async move {
+        if let Err(e) = network::mdns::start_mdns_service(
+            message_bus_for_mdns,
+            node_id_for_mdns,
+            software_version_for_mdns,
+            guardrail_version_for_mdns,
+            handshake_grpc_port,
+        )
+        .await
+        {
+            warn!(error = %e, "mDNS service failed to start (this is OK if mDNS is not available)");
+        }
+    });
+
     let listener = tokio::net::TcpListener::bind(&addr).await?;
 
     let grpc_fut = tonic::transport::Server::builder()
@@ -3629,6 +5099,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let orchestrator_grpc_fut = tonic::transport::Server::builder()
         .add_service(OrchestratorServiceServer::new(orchestrator_svc))
         .serve(orchestrator_grpc_addr);
+
+    let handshake_grpc_fut = tonic::transport::Server::builder()
+        .add_service(network::handshake::create_handshake_server(handshake_service))
+        .serve(handshake_grpc_addr);
+
+    let memory_exchange_grpc_fut = tonic::transport::Server::builder()
+        .add_service(
+            network::memory_exchange::get_memory_exchange_server(
+                memory_exchange_service
+            )
+        )
+        .serve(memory_exchange_grpc_addr);
 
     let http_fut = axum::serve(listener, app);
 
@@ -3645,16 +5127,42 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             .map_err(|e| anyhow::anyhow!("orchestrator gRPC server error: {e}"))
     });
 
+    let handshake_grpc_task = tokio::spawn(async move {
+        handshake_grpc_fut
+            .await
+            .map_err(|e| anyhow::anyhow!("handshake gRPC server error: {e}"))
+    });
+
+    let memory_exchange_grpc_task = tokio::spawn(async move {
+        memory_exchange_grpc_fut
+            .await
+            .map_err(|e| anyhow::anyhow!("[PHOENIX] memory exchange gRPC server error: {e}"))
+    });
+
     let http_task = tokio::spawn(async move {
         http_fut
             .await
             .map_err(|e| anyhow::anyhow!("http server error: {e}"))
     });
 
-    let (grpc_res, orchestrator_grpc_res, http_res) = tokio::join!(grpc_task, orchestrator_grpc_task, http_task);
-    grpc_res.map_err(|e| anyhow::anyhow!("admin gRPC task join error: {e}"))??;
-    orchestrator_grpc_res.map_err(|e| anyhow::anyhow!("orchestrator gRPC task join error: {e}"))??;
-    http_res.map_err(|e| anyhow::anyhow!("http task join error: {e}"))??;
+    // Use tokio::select! for graceful shutdown handling
+    tokio::select! {
+        res = grpc_task => {
+            res.map_err(|e| anyhow::anyhow!("admin gRPC task join error: {e}"))??;
+        }
+        res = orchestrator_grpc_task => {
+            res.map_err(|e| anyhow::anyhow!("orchestrator gRPC task join error: {e}"))??;
+        }
+        res = handshake_grpc_task => {
+            res.map_err(|e| anyhow::anyhow!("handshake gRPC task join error: {e}"))??;
+        }
+        res = memory_exchange_grpc_task => {
+            res.map_err(|e| anyhow::anyhow!("[PHOENIX] memory exchange gRPC task join error: {e}"))??;
+        }
+        res = http_task => {
+            res.map_err(|e| anyhow::anyhow!("http task join error: {e}"))??;
+        }
+    }
 
     Ok(())
 }

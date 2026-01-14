@@ -95,26 +95,26 @@ const CommandModal: React.FC<CommandModalProps> = ({
 
   return (
     <div 
-      className="fixed inset-0 bg-[#9EC9D9]/80 backdrop-blur-sm flex items-center justify-center z-50 animate-in fade-in duration-200"
+      className="fixed inset-0 bg-[rgb(var(--bg-primary-rgb)/0.95)] backdrop-blur-md flex items-center justify-center z-[100] animate-in fade-in duration-200"
       onClick={onClose}
     >
       <div 
-        className="bg-[#90C3EA] border border-[#5381A5]/30 rounded-2xl p-6 w-full max-w-md shadow-2xl animate-in slide-in-from-bottom-4 duration-300"
+        className="bg-[var(--bg-secondary)] border border-[rgb(var(--bg-steel-rgb)/0.3)] rounded-2xl p-6 w-full max-w-md shadow-2xl animate-in slide-in-from-bottom-4 duration-300"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-white/40 border border-[#5381A5]/30 flex items-center justify-center">
-              <span className="material-symbols-outlined text-[#5381A5] text-xl">
+            <div className="w-10 h-10 rounded-lg bg-[rgb(var(--surface-rgb)/0.4)] border border-[rgb(var(--bg-steel-rgb)/0.3)] flex items-center justify-center">
+              <span className="material-symbols-outlined text-[var(--bg-steel)] text-xl">
                 {isConfigPrompt ? 'settings' : isToolExecution ? 'construction' : 'database'}
               </span>
             </div>
-            <h3 className="text-lg font-bold text-[#0b1b2b]">{title}</h3>
+            <h3 className="text-lg font-bold text-[var(--text-primary)]">{title}</h3>
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 hover:bg-[#78A2C2] rounded-lg transition-colors text-[#163247] hover:text-[#0b1b2b]"
+            className="p-1.5 hover:bg-[var(--bg-muted)] rounded-lg transition-colors text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
           >
             <span className="material-symbols-outlined text-xl">close</span>
           </button>
@@ -122,7 +122,7 @@ const CommandModal: React.FC<CommandModalProps> = ({
 
         {/* Content */}
         <div className="mb-6">
-          <p className="text-[#163247] text-sm leading-relaxed whitespace-pre-wrap">
+          <p className="text-[var(--text-secondary)] text-sm leading-relaxed whitespace-pre-wrap">
             {promptText}
           </p>
         </div>
@@ -130,7 +130,7 @@ const CommandModal: React.FC<CommandModalProps> = ({
         {/* Input for config prompts */}
         {isConfigPrompt && (
           <div className="mb-6">
-            <label className="block text-xs font-semibold text-[#163247] uppercase tracking-wider mb-2">
+            <label className="block text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider mb-2">
               {command.config_key || 'Configuration Value'}
             </label>
             <input
@@ -139,7 +139,7 @@ const CommandModal: React.FC<CommandModalProps> = ({
               onChange={(e) => setInputValue(e.target.value)}
               onKeyDown={handleKeyPress}
               placeholder={`Enter value for ${command.config_key || 'config'}...`}
-              className="w-full bg-white/80 border border-[#5381A5]/30 rounded-lg px-4 py-2.5 text-sm text-[#0b1b2b] placeholder-[#163247]/70 focus:outline-none focus:ring-2 focus:ring-[#5381A5]/50 focus:border-[#5381A5]/50 transition-all"
+              className="w-full bg-[rgb(var(--surface-rgb)/0.8)] border border-[rgb(var(--bg-steel-rgb)/0.3)] rounded-lg px-4 py-2.5 text-sm text-[var(--text-primary)] placeholder-[rgb(var(--text-secondary-rgb)/0.7)] focus:outline-none focus:ring-2 focus:ring-[rgb(var(--bg-steel-rgb)/0.5)] focus:border-[rgb(var(--bg-steel-rgb)/0.5)] transition-all"
               autoFocus
             />
           </div>
@@ -147,11 +147,11 @@ const CommandModal: React.FC<CommandModalProps> = ({
 
         {/* Tool execution details */}
         {isToolExecution && command.arguments && (
-          <div className="mb-6 p-3 bg-white/60 border border-[#5381A5]/30 rounded-lg">
-            <div className="text-xs font-semibold text-[#163247] uppercase tracking-wider mb-2">
+          <div className="mb-6 p-3 bg-[rgb(var(--surface-rgb)/0.6)] border border-[rgb(var(--bg-steel-rgb)/0.3)] rounded-lg">
+            <div className="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider mb-2">
               Tool Arguments
             </div>
-            <pre className="text-xs text-[#0b1b2b] font-mono overflow-x-auto">
+            <pre className="text-xs text-[var(--text-primary)] font-mono overflow-x-auto">
               {typeof command.arguments === 'object' 
                 ? JSON.stringify(command.arguments, null, 2)
                 : String(command.arguments)}
@@ -165,17 +165,17 @@ const CommandModal: React.FC<CommandModalProps> = ({
             <button
               type="button"
               onClick={() => setIsTraceOpen(v => !v)}
-              className="w-full flex items-center justify-between px-3 py-2 bg-white/60 border border-[#5381A5]/30 rounded-lg hover:bg-white/80 transition-colors"
+              className="w-full flex items-center justify-between px-3 py-2 bg-[rgb(var(--surface-rgb)/0.6)] border border-[rgb(var(--bg-steel-rgb)/0.3)] rounded-lg hover:bg-[rgb(var(--surface-rgb)/0.8)] transition-colors"
             >
-              <span className="text-xs font-semibold text-[#163247] uppercase tracking-wider">
+              <span className="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider">
                 AI Decision Trace
               </span>
-              <span className="material-symbols-outlined text-[#5381A5] text-lg">
+              <span className="material-symbols-outlined text-[var(--bg-steel)] text-lg">
                 {isTraceOpen ? 'expand_less' : 'expand_more'}
               </span>
             </button>
             {isTraceOpen && (
-              <pre className="mt-2 p-3 bg-white/40 border border-[#5381A5]/30 rounded-lg text-xs text-[#0b1b2b] font-mono overflow-x-auto whitespace-pre">
+              <pre className="mt-2 p-3 bg-[rgb(var(--surface-rgb)/0.4)] border border-[rgb(var(--bg-steel-rgb)/0.3)] rounded-lg text-xs text-[var(--text-primary)] font-mono overflow-x-auto whitespace-pre">
                 {formattedDecisionTrace}
               </pre>
             )}
@@ -187,7 +187,7 @@ const CommandModal: React.FC<CommandModalProps> = ({
           <button
             onClick={handleSubmission}
             disabled={isConfigPrompt && !inputValue.trim()}
-            className="flex-1 bg-[#5381A5] hover:bg-[#437091] disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold py-2.5 px-4 rounded-lg transition-all flex items-center justify-center gap-2"
+            className="flex-1 bg-[var(--bg-steel)] hover:bg-[rgb(var(--bg-steel-rgb)/0.85)] disabled:opacity-50 disabled:cursor-not-allowed text-[var(--text-on-accent)] font-semibold py-2.5 px-4 rounded-lg transition-all flex items-center justify-center gap-2"
           >
             <span className="material-symbols-outlined text-lg">
               {isConfigPrompt ? 'check_circle' : 'play_arrow'}
@@ -198,7 +198,7 @@ const CommandModal: React.FC<CommandModalProps> = ({
           </button>
           <button
             onClick={handleDeny}
-            className="px-4 py-2.5 bg-white/60 hover:bg-white/80 text-[#163247] font-semibold rounded-lg border border-[#5381A5]/30 transition-all flex items-center justify-center gap-2"
+            className="px-4 py-2.5 bg-[rgb(var(--surface-rgb)/0.6)] hover:bg-[rgb(var(--surface-rgb)/0.8)] text-[var(--text-secondary)] font-semibold rounded-lg border border-[rgb(var(--bg-steel-rgb)/0.3)] transition-all flex items-center justify-center gap-2"
           >
             <span className="material-symbols-outlined text-lg">close</span>
             <span className="text-sm">Deny</span>
@@ -207,7 +207,7 @@ const CommandModal: React.FC<CommandModalProps> = ({
 
         {/* Keyboard hint */}
         <div className="mt-4 text-center">
-          <p className="text-[10px] text-[#163247]/70">
+          <p className="text-[10px] text-[rgb(var(--text-secondary-rgb)/0.7)]">
             {isConfigPrompt ? 'Press Enter to submit, Esc to cancel' : 'Press Esc to cancel'}
           </p>
         </div>

@@ -145,12 +145,12 @@ const Evolution: React.FC<EvolutionProps> = ({ onClose }) => {
   };
 
   return (
-    <div className="flex-1 flex flex-col bg-[#9EC9D9] overflow-hidden font-display text-[#0b1b2b]">
-      <div className="p-6 border-b border-[#5381A5]/30 bg-[#90C3EA]">
+    <div className="flex-1 flex flex-col bg-[var(--bg-primary)] overflow-hidden font-display text-[var(--text-primary)]">
+      <div className="p-6 border-b border-[rgb(var(--bg-steel-rgb)/0.3)] bg-[var(--bg-secondary)]">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
-            <span className="material-symbols-outlined text-[#5381A5]">timeline</span>
-            <h2 className="text-xl font-bold text-[#0b1b2b] uppercase tracking-tight">
+            <span className="material-symbols-outlined text-[var(--bg-steel)]">timeline</span>
+            <h2 className="text-xl font-bold text-[var(--text-primary)] uppercase tracking-tight">
               Evolutionary Timeline
             </h2>
           </div>
@@ -158,14 +158,14 @@ const Evolution: React.FC<EvolutionProps> = ({ onClose }) => {
             <button
               onClick={loadHistory}
               disabled={loading}
-              className="px-4 py-2 bg-[#5381A5] text-white rounded hover:bg-[#3d6a8a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-4 py-2 bg-[var(--bg-steel)] text-[var(--text-on-accent)] rounded hover:bg-[rgb(var(--bg-steel-rgb)/0.85)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? 'Loading...' : 'Refresh'}
             </button>
             {onClose && (
               <button
                 onClick={onClose}
-                className="px-4 py-2 bg-[#5381A5] text-white rounded hover:bg-[#3d6a8a] transition-colors"
+                className="px-4 py-2 bg-[var(--bg-steel)] text-[var(--text-on-accent)] rounded hover:bg-[rgb(var(--bg-steel-rgb)/0.85)] transition-colors"
               >
                 Close
               </button>
@@ -174,7 +174,7 @@ const Evolution: React.FC<EvolutionProps> = ({ onClose }) => {
         </div>
 
         {error && (
-          <div className="mt-4 p-3 bg-white/60 border border-[#5381A5]/30 text-[#163247] rounded">
+          <div className="mt-4 p-3 bg-[rgb(var(--surface-rgb)/0.6)] border border-[rgb(var(--bg-steel-rgb)/0.3)] text-[var(--text-secondary)] rounded">
             {error}
           </div>
         )}
@@ -182,12 +182,12 @@ const Evolution: React.FC<EvolutionProps> = ({ onClose }) => {
 
       <div className="flex-1 overflow-auto p-6">
         {loading && history.length === 0 ? (
-          <div className="text-center py-12 text-[#5381A5]">
+          <div className="text-center py-12 text-[var(--bg-steel)]">
             <span className="material-symbols-outlined text-4xl mb-2">hourglass_empty</span>
             <p>Loading prompt history...</p>
           </div>
         ) : history.length === 0 ? (
-          <div className="text-center py-12 text-[#5381A5]">
+          <div className="text-center py-12 text-[var(--bg-steel)]">
             <span className="material-symbols-outlined text-4xl mb-2">history</span>
             <p>No prompt history found. History will be created when prompts are updated.</p>
           </div>
@@ -196,33 +196,33 @@ const Evolution: React.FC<EvolutionProps> = ({ onClose }) => {
             {/* Timeline */}
             <div className="relative">
               {/* Vertical line */}
-              <div className="absolute left-8 top-0 bottom-0 w-0.5 bg-[#5381A5]/30"></div>
+              <div className="absolute left-8 top-0 bottom-0 w-0.5 bg-[rgb(var(--bg-steel-rgb)/0.3)]"></div>
 
               {history.map((entry, index) => (
                 <div key={entry.id} className="relative mb-8 pl-20">
                   {/* Timeline dot */}
-                  <div className="absolute left-6 w-4 h-4 bg-[#5381A5] rounded-full border-4 border-[#90C3EA] z-10"></div>
+                  <div className="absolute left-6 w-4 h-4 bg-[var(--bg-steel)] rounded-full border-4 border-[var(--bg-secondary)] z-10"></div>
 
                   {/* Entry card */}
-                  <div className="bg-white rounded-lg shadow-sm border border-[#5381A5]/20 p-6 hover:shadow-md transition-shadow">
+                  <div className="bg-[rgb(var(--surface-rgb)/1)] rounded-lg shadow-sm border border-[rgb(var(--bg-steel-rgb)/0.2)] p-6 hover:shadow-md transition-shadow">
                     <div className="flex items-start justify-between mb-4">
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-2">
-                          <span className="text-sm font-semibold text-[#5381A5]">
+                          <span className="text-sm font-semibold text-[var(--bg-steel)]">
                             Version {history.length - index}
                           </span>
-                          <span className="text-xs text-[#5381A5]/70">
+                          <span className="text-xs text-[rgb(var(--bg-steel-rgb)/0.7)]">
                             {formatTimestamp(entry.timestamp)}
                           </span>
                         </div>
-                        <div className="text-xs text-[#5381A5]/70 mb-3">
+                        <div className="text-xs text-[rgb(var(--bg-steel-rgb)/0.7)] mb-3">
                           {getDiffPreview(entry.previous_prompt, entry.new_prompt)}
                         </div>
                       </div>
                       <button
                         onClick={() => handleRestore(entry.id)}
                         disabled={restoringId === entry.id}
-                        className="px-4 py-2 bg-[#5381A5] text-white rounded text-sm hover:bg-[#3d6a8a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="px-4 py-2 bg-[var(--bg-steel)] text-[var(--text-on-accent)] rounded text-sm hover:bg-[rgb(var(--bg-steel-rgb)/0.85)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         {restoringId === entry.id ? 'Restoring...' : 'Restore'}
                       </button>
@@ -233,24 +233,24 @@ const Evolution: React.FC<EvolutionProps> = ({ onClose }) => {
                       {expandedId === entry.id ? (
                         <>
                           <div>
-                            <div className="text-xs font-semibold text-[#5381A5] mb-2 uppercase tracking-wide">
+                            <div className="text-xs font-semibold text-[var(--bg-steel)] mb-2 uppercase tracking-wide">
                               Previous Prompt
                             </div>
-                            <div className="bg-[#f0f0f0] p-4 rounded text-sm font-mono text-[#0b1b2b] whitespace-pre-wrap max-h-64 overflow-auto">
+                            <div className="bg-[rgb(var(--surface-rgb)/0.6)] p-4 rounded text-sm font-mono text-[var(--text-primary)] whitespace-pre-wrap max-h-64 overflow-auto">
                               {entry.previous_prompt}
                             </div>
                           </div>
                           <div>
-                            <div className="text-xs font-semibold text-[#5381A5] mb-2 uppercase tracking-wide">
+                            <div className="text-xs font-semibold text-[var(--bg-steel)] mb-2 uppercase tracking-wide">
                               New Prompt
                             </div>
-                            <div className="bg-[#e8f4f8] p-4 rounded text-sm font-mono text-[#0b1b2b] whitespace-pre-wrap max-h-64 overflow-auto">
+                            <div className="bg-[rgb(var(--info-rgb)/0.12)] p-4 rounded text-sm font-mono text-[var(--text-primary)] whitespace-pre-wrap max-h-64 overflow-auto">
                               {entry.new_prompt}
                             </div>
                           </div>
                           <button
                             onClick={() => setExpandedId(null)}
-                            className="text-sm text-[#5381A5] hover:text-[#3d6a8a]"
+                            className="text-sm text-[var(--bg-steel)] hover:text-[rgb(var(--bg-steel-rgb)/0.85)]"
                           >
                             Collapse
                           </button>
@@ -258,24 +258,24 @@ const Evolution: React.FC<EvolutionProps> = ({ onClose }) => {
                       ) : (
                         <>
                           <div>
-                            <div className="text-xs font-semibold text-[#5381A5] mb-2 uppercase tracking-wide">
+                            <div className="text-xs font-semibold text-[var(--bg-steel)] mb-2 uppercase tracking-wide">
                               Previous Prompt
                             </div>
-                            <div className="bg-[#f0f0f0] p-4 rounded text-sm font-mono text-[#0b1b2b]">
+                            <div className="bg-[rgb(var(--surface-rgb)/0.6)] p-4 rounded text-sm font-mono text-[var(--text-primary)]">
                               {truncatePrompt(entry.previous_prompt)}
                             </div>
                           </div>
                           <div>
-                            <div className="text-xs font-semibold text-[#5381A5] mb-2 uppercase tracking-wide">
+                            <div className="text-xs font-semibold text-[var(--bg-steel)] mb-2 uppercase tracking-wide">
                               New Prompt
                             </div>
-                            <div className="bg-[#e8f4f8] p-4 rounded text-sm font-mono text-[#0b1b2b]">
+                            <div className="bg-[rgb(var(--info-rgb)/0.12)] p-4 rounded text-sm font-mono text-[var(--text-primary)]">
                               {truncatePrompt(entry.new_prompt)}
                             </div>
                           </div>
                           <button
                             onClick={() => setExpandedId(entry.id)}
-                            className="text-sm text-[#5381A5] hover:text-[#3d6a8a]"
+                            className="text-sm text-[var(--bg-steel)] hover:text-[rgb(var(--bg-steel-rgb)/0.85)]"
                           >
                             Expand to view full prompts
                           </button>

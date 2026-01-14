@@ -1,0 +1,158 @@
+name: Validate Playbooks
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'playbooks/**'
+      - '.github/workflows/validate-playbooks.yml'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'playbooks/**'
+      - '.github/workflows/validate-playbooks.yml'
+
+jobs:
+  validate:
+    name: Validate Playbooks
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install markdownlint-cli
+        run: npm install -g markdownlint-cli
+
+      - name: Markdown Linting
+        run: |
+          echo "🔍 Running markdownlint on playbooks..."
+          if [ -d "playbooks" ]; then
+            markdownlint playbooks/**/*.md || {
+              echo "❌ Markdown linting failed!"
+              exit 1
+            }
+            echo "✅ Markdown linting passed!"
+          else
+            echo "⚠️  No playbooks directory found, skipping markdown linting"
+          fi
+
+      - name: Schema Validation
+        run: |
+          echo "🔍 Validating playbook schema..."
+          FAILED=0
+          
+          if [ ! -d "playbooks" ]; then
+            echo "⚠️  No playbooks directory found, skipping schema validation"
+            exit 0
+          fi
+          
+          # Find all markdown files in playbooks directory
+          while IFS= read -r -d '' file; do
+            echo "Checking: $file"
+            
+            # Check for required headers
+            HAS_TITLE=false
+            HAS_OBJECTIVE=false
+            HAS_STEPS=false
+            
+            # Check for title pattern: # [Task Name] Playbook
+            if grep -qE '^#\s+.*Playbook' "$file"; then
+              HAS_TITLE=true
+            fi
+            
+            # Check for ## Objective
+            if grep -qE '^##\s+Objective' "$file"; then
+              HAS_OBJECTIVE=true
+            fi
+            
+            # Check for ## Step-by-Step
+            if grep -qE '^##\s+Step-by-Step' "$file"; then
+              HAS_STEPS=true
+            fi
+            
+            # Report missing headers
+            if [ "$HAS_TITLE" = false ] || [ "$HAS_OBJECTIVE" = false ] || [ "$HAS_STEPS" = false ]; then
+              echo "❌ Schema validation failed for: $file"
+              [ "$HAS_TITLE" = false ] && echo "   Missing: # [Task Name] Playbook header"
+              [ "$HAS_OBJECTIVE" = false ] && echo "   Missing: ## Objective section"
+              [ "$HAS_STEPS" = false ] && echo "   Missing: ## Step-by-Step section"
+              FAILED=1
+            else
+              echo "✅ Schema validation passed for: $file"
+            fi
+          done < <(find playbooks -type f -name "*.md" -print0)
+          
+          if [ $FAILED -eq 1 ]; then
+            echo "❌ Schema validation failed for one or more playbooks!"
+            exit 1
+          fi
+          
+          echo "✅ All playbooks passed schema validation!"
+
+      - name: Privacy Scan
+        run: |
+          echo "🔍 Scanning for privacy leaks..."
+          FAILED=0
+          
+          if [ ! -d "playbooks" ]; then
+            echo "⚠️  No playbooks directory found, skipping privacy scan"
+            exit 0
+          fi
+          
+          # Find all markdown files in playbooks directory
+          while IFS= read -r -d '' file; do
+            echo "Scanning: $file"
+            
+            # Check for private IP addresses (192.168.x.x, 10.x.x.x, 172.16-31.x.x)
+            if grep -qE '\b(192\.168\.|10\.|172\.(1[6-9]|2[0-9]|3[0-1])\.)' "$file"; then
+              echo "❌ Privacy violation detected in: $file"
+              echo "   Found private IP address (192.168.x.x, 10.x.x.x, or 172.16-31.x.x)"
+              grep -nE '\b(192\.168\.|10\.|172\.(1[6-9]|2[0-9]|3[0-1])\.)' "$file" || true
+              FAILED=1
+            fi
+            
+            # Check for local paths (Unix-style: /Users/, /home/, Windows-style: C:\, D:\, etc.)
+            if grep -qE '(^|\s)(/[Uu]sers/|/home/[^/]+/|/[Cc]:\\|/[D-Zd-z]:\\)' "$file"; then
+              echo "❌ Privacy violation detected in: $file"
+              echo "   Found local file path (/Users/, /home/, C:\, etc.)"
+              grep -nE '(^|\s)(/[Uu]sers/|/home/[^/]+/|/[Cc]:\\|/[D-Zd-z]:\\)' "$file" || true
+              FAILED=1
+            fi
+            
+            # Check for Windows-style absolute paths (C:\Users\, D:\Users\, etc.)
+            if grep -qE '\b[C-Zc-z]:\\Users\\' "$file"; then
+              echo "❌ Privacy violation detected in: $file"
+              echo "   Found Windows user path (C:\\Users\\, etc.)"
+              grep -nE '\b[C-Zc-z]:\\Users\\' "$file" || true
+              FAILED=1
+            fi
+          done < <(find playbooks -type f -name "*.md" -print0)
+          
+          if [ $FAILED -eq 1 ]; then
+            echo "❌ Privacy scan failed! Please remove sensitive information before merging."
+            exit 1
+          fi
+          
+          echo "✅ Privacy scan passed - no sensitive information detected!"
+
+      - name: Validation Summary
+        if: always()
+        run: |
+          echo "📊 Playbook Validation Summary"
+          echo "================================"
+          echo "✅ All validation checks completed"
+          echo ""
+          echo "Validated checks:"
+          echo "  - Markdown formatting (markdownlint)"
+          echo "  - Schema structure (required headers)"
+          echo "  - Privacy compliance (no IPs or local paths)"
