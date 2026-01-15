@@ -74,7 +74,7 @@ pub struct TestMissionRequest {
     pub enable_compliance: bool,
 }
 
-#[derive(Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TraceStep {
     pub r#type: String,
     pub content: String,
@@ -82,14 +82,14 @@ pub struct TraceStep {
     pub tool: Option<String>,
 }
 
-#[derive(Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ComplianceResult {
     pub privacy: ComplianceCheck,
     pub efficiency: ComplianceCheck,
     pub tone: ComplianceCheck,
 }
 
-#[derive(Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ComplianceCheck {
     pub passed: bool,
     pub details: String,

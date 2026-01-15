@@ -6,6 +6,7 @@ import SidebarRight from './components/SidebarRight';
 import ChatArea from './components/ChatArea';
 import SettingsView from './components/SettingsView';
 import OrchestratorHub from './components/OrchestratorHub';
+import IntelligenceHub from './components/IntelligenceHub';
 import JobLogsView from './components/JobLogsView';
 import CreateTwinModal from './components/CreateTwinModal';
 import SearchView from './components/SearchView';
@@ -23,10 +24,12 @@ import OAuthCallback from './pages/OAuthCallback';
 import AuditDashboard from './pages/AuditDashboard';
 import PhoenixGlobalSearch from './components/PhoenixGlobalSearch';
 import KnowledgeAtlas from './components/KnowledgeAtlas';
+import ToolInstallationProposalModal from './components/ToolInstallationProposalModal';
 import { executeJobLifecycle } from './services/orchestrator';
 import { usePagi } from './context/PagiContext';
 import { useTelemetry } from './context/TelemetryContext';
 import { useTheme } from './context/ThemeContext';
+import { useDomainAttribution } from './context/DomainAttributionContext';
 import { convertChatResponseToMessage } from './utils/messageConverter';
 import { updateFaviconLinks } from './utils/updateFavicon';
 import { ChatResponse, CompleteMessage, AgentCommand, ChatRequest } from './types/protocol';
@@ -45,6 +48,8 @@ const App: React.FC = () => {
   const { telemetry, isConnected: isTelemetryConnected } = useTelemetry();
   // Get Theme context
   const { theme, toggleTheme } = useTheme();
+  // Get Domain Attribution context
+  const { currentAttribution } = useDomainAttribution();
   
   // Load orchestrator agent settings from localStorage on mount
   const loadOrchestratorAgentSettings = (): Partial<TwinSettings> | null => {
@@ -91,6 +96,7 @@ const App: React.FC = () => {
   const [commandMessageId, setCommandMessageId] = useState<string | null>(null);
   const [activeDecisionTrace, setActiveDecisionTrace] = useState<string | null>(null);
   const [isGlobalSearchOpen, setIsGlobalSearchOpen] = useState(false);
+  const [isToolProposalsModalOpen, setIsToolProposalsModalOpen] = useState(false);
   
   // Check for OAuth callback on mount
   const [isOAuthCallback, setIsOAuthCallback] = useState(false);
@@ -613,13 +619,17 @@ const App: React.FC = () => {
             onSendMessage={(txt) => handleSendMessage(txt, orchestrator)}
           />
         );
-      case 'phoenix':
+      case 'intelligence-hub':
         return (
-          <OrchestratorHub
+          <IntelligenceHub
             orchestrator={orchestrator}
-            messages={messages}
-            onSendMessage={(txt) => handleSendMessage(txt, orchestrator)}
-            initialTab="intelligence"
+          />
+        );
+      case 'phoenix':
+        // Back-compat: older navigation target now renders the Intelligence Hub.
+        return (
+          <IntelligenceHub
+            orchestrator={orchestrator}
           />
         );
       case 'agent-forge':
@@ -755,6 +765,7 @@ const App: React.FC = () => {
             setView('chat');
           }}
           onSelectOrchestrator={() => setView('orchestrator')}
+          onSelectIntelligenceHub={() => setView('intelligence-hub')}
           onOpenCreateModal={() => setIsCreateModalOpen(true)}
           onSelectSearch={() => setView('search')}
           onSelectMemoryExplorer={() => setView('memory-explorer')}
@@ -766,6 +777,7 @@ const App: React.FC = () => {
           onSelectToolForge={() => setView('tool-forge')}
           onSelectAudit={() => setView('audit')}
           onSelectKnowledgeAtlas={() => setView('knowledge-atlas')}
+          onOpenToolProposals={() => setIsToolProposalsModalOpen(true)}
           projects={projects}
           onSelectProject={(projectId) => {
             // Navigate to orchestrator view for project context and switch to the project's session.
@@ -838,6 +850,10 @@ const App: React.FC = () => {
               <h1 className="font-semibold text-sm tracking-tight text-[var(--text-primary)]">
                 {view === 'orchestrator'
                   ? 'Command Center'
+                  : view === 'intelligence-hub'
+                  ? 'Intelligence Hub'
+                  : view === 'phoenix'
+                  ? 'Intelligence Hub'
                   : view === 'logs'
                   ? 'System Logs'
                   : view === 'search'
@@ -919,6 +935,7 @@ const App: React.FC = () => {
           onDeny={handleDeny}
           activeTwin={activeTwin}
           onViewLogs={handleViewLogs}
+          domainAttribution={currentAttribution}
         />
       )}
 
@@ -958,6 +975,17 @@ const App: React.FC = () => {
         onExecute={handleCommandExecute}
         onDeny={handleCommandDeny}
       />
+
+      {/* Tool Installation Proposal Modal */}
+      {isToolProposalsModalOpen && (
+        <ToolInstallationProposalModal
+          isOpen={isToolProposalsModalOpen}
+          onClose={() => setIsToolProposalsModalOpen(false)}
+          onProposalUpdated={() => {
+            // Refresh notification count will be handled by SidebarLeft's useEffect
+          }}
+        />
+      )}
 
       {/* MediaControls moved into header */}
     </div>

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import PhoenixRecoveryConsole from '../components/PhoenixRecoveryConsole';
+import { listAgents, getAgentLogs } from '../services/agentService';
 
 interface ConflictProfile {
   node_id: string;
@@ -62,7 +63,7 @@ interface AuditDashboardProps {
 }
 
 const AuditDashboard: React.FC<AuditDashboardProps> = ({ onClose }) => {
-  const [activeTab, setActiveTab] = useState<'report' | 'timeline' | 'memory'>('report');
+  const [activeTab, setActiveTab] = useState<'report' | 'timeline' | 'memory' | 'audit-logs'>('report');
   const [reportMarkdown, setReportMarkdown] = useState<string>('');
   const [reportJson, setReportJson] = useState<GovernanceReport | null>(null);
   const [loading, setLoading] = useState(false);
@@ -76,6 +77,13 @@ const AuditDashboard: React.FC<AuditDashboardProps> = ({ onClose }) => {
   const [draftRules, setDraftRules] = useState<DraftRule[]>([]);
   const [loadingDrafts, setLoadingDrafts] = useState(false);
   const [applyingRule, setApplyingRule] = useState<string | null>(null);
+  const [auditLogs, setAuditLogs] = useState<string[]>([]);
+  const [loadingAuditLogs, setLoadingAuditLogs] = useState(false);
+  const [phoenixAuditorAgentId, setPhoenixAuditorAgentId] = useState<string | null>(null);
+  const [pathTrends, setPathTrends] = useState<Map<string, { changeCount: number; recurring: boolean; severityEscalation: boolean }>>(new Map());
+  const [selectedPath, setSelectedPath] = useState<string | null>(null);
+  const [pathHistory, setPathHistory] = useState<any[]>([]);
+  const [loadingPathHistory, setLoadingPathHistory] = useState(false);
 
   // Fetch governance report
   useEffect(() => {
@@ -108,7 +116,111 @@ const AuditDashboard: React.FC<AuditDashboardProps> = ({ onClose }) => {
 
     fetchReport();
     fetchDraftRules();
+    fetchPhoenixAuditorLogs();
   }, []);
+
+  // Extract file paths from audit log text
+  const extractPathsFromLogs = (logs: string[]): string[] => {
+    const paths = new Set<string>();
+    // Common path patterns
+    const pathPatterns = [
+      /(?:^|\s)(\/[^\s]+)/g,  // Unix paths
+      /(?:^|\s)([A-Z]:\\[^\s]+)/g,  // Windows paths
+      /(?:^|\s)(C:\\[^\s]+)/gi,  // Windows C: paths
+    ];
+    
+    logs.forEach(log => {
+      pathPatterns.forEach(pattern => {
+        const matches = log.matchAll(pattern);
+        for (const match of matches) {
+          if (match[1] && match[1].length > 3) {
+            paths.add(match[1]);
+          }
+        }
+      });
+    });
+    
+    return Array.from(paths);
+  };
+
+  // Fetch trend data for a specific path
+  const fetchPathTrend = async (path: string) => {
+    try {
+      const response = await fetch(`/api/audit/trends?path=${encodeURIComponent(path)}&days=30`);
+      if (response.ok) {
+        const data = await response.json();
+        if (data.ok && data.trend) {
+          setPathTrends(prev => new Map(prev).set(path, {
+            changeCount: data.trend.change_count,
+            recurring: data.trend.recurring_climax,
+            severityEscalation: data.trend.severity_escalation,
+          }));
+        }
+      }
+    } catch (err) {
+      console.error(`[AuditDashboard] Failed to fetch trend for ${path}:`, err);
+    }
+  };
+
+  // Fetch path history for timeline view
+  const fetchPathHistory = async (path: string) => {
+    setLoadingPathHistory(true);
+    try {
+      const response = await fetch(`/api/audit/history?path=${encodeURIComponent(path)}&days=30`);
+      if (response.ok) {
+        const data = await response.json();
+        if (data.ok && data.reports) {
+          setPathHistory(data.reports);
+          setSelectedPath(path);
+        }
+      }
+    } catch (err) {
+      console.error(`[AuditDashboard] Failed to fetch history for ${path}:`, err);
+    } finally {
+      setLoadingPathHistory(false);
+    }
+  };
+
+  // Fetch Phoenix Auditor logs
+  const fetchPhoenixAuditorLogs = async () => {
+    setLoadingAuditLogs(true);
+    try {
+      const agentsResponse = await listAgents();
+      const phoenixAuditor = agentsResponse.agents.find(a => a.name === 'Phoenix Auditor');
+      
+      if (phoenixAuditor) {
+        setPhoenixAuditorAgentId(phoenixAuditor.agent_id);
+        const logsResponse = await getAgentLogs(phoenixAuditor.agent_id);
+        if (logsResponse.ok) {
+          const logs = logsResponse.logs || [];
+          setAuditLogs(logs);
+          
+          // Extract paths and fetch trends
+          const paths = extractPathsFromLogs(logs);
+          paths.forEach(path => {
+            fetchPathTrend(path);
+          });
+        }
+      } else {
+        setAuditLogs([]);
+      }
+    } catch (err) {
+      console.error('[AuditDashboard] Failed to fetch Phoenix Auditor logs:', err);
+      setAuditLogs([]);
+    } finally {
+      setLoadingAuditLogs(false);
+    }
+  };
+
+  // Refresh audit logs when tab is active
+  useEffect(() => {
+    if (activeTab === 'audit-logs') {
+      fetchPhoenixAuditorLogs();
+      // Refresh every 10 seconds when tab is active
+      const interval = setInterval(fetchPhoenixAuditorLogs, 10000);
+      return () => clearInterval(interval);
+    }
+  }, [activeTab]);
 
   // Fetch draft rules from optimizer
   const fetchDraftRules = async () => {
@@ -553,6 +665,16 @@ const AuditDashboard: React.FC<AuditDashboardProps> = ({ onClose }) => {
           >
             Memory Hygiene
           </button>
+          <button
+            onClick={() => setActiveTab('audit-logs')}
+            className={`px-4 py-2 rounded transition-colors ${
+              activeTab === 'audit-logs'
+                ? 'bg-[var(--bg-steel)] text-[var(--text-on-accent)]'
+                : 'bg-[var(--bg-muted)] text-[var(--text-primary)] hover:bg-[rgb(var(--bg-steel-rgb)/0.3)]'
+            }`}
+          >
+            Audit Logs
+          </button>
         </div>
       </div>
 
@@ -888,6 +1010,152 @@ const AuditDashboard: React.FC<AuditDashboardProps> = ({ onClose }) => {
                   <div className="text-center py-12 text-[var(--bg-steel)]">
                     <span className="material-symbols-outlined text-4xl mb-2">inbox</span>
                     <p>No topics found in knowledge inventory.</p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Audit Logs Tab */}
+            {activeTab === 'audit-logs' && (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-bold text-[var(--text-primary)]">Phoenix Auditor Activity</h3>
+                  <button
+                    onClick={fetchPhoenixAuditorLogs}
+                    disabled={loadingAuditLogs}
+                    className="px-4 py-2 bg-[var(--bg-steel)] text-[var(--text-on-accent)] rounded hover:bg-[rgb(var(--bg-steel-rgb)/0.85)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm flex items-center gap-2"
+                  >
+                    <span className="material-symbols-outlined text-sm">
+                      {loadingAuditLogs ? 'hourglass_empty' : 'refresh'}
+                    </span>
+                    {loadingAuditLogs ? 'Loading...' : 'Refresh'}
+                  </button>
+                </div>
+
+                {loadingAuditLogs && auditLogs.length === 0 ? (
+                  <div className="text-center py-12 text-[var(--bg-steel)]">
+                    <span className="material-symbols-outlined text-4xl mb-2 animate-spin">hourglass_empty</span>
+                    <p>Loading audit logs...</p>
+                  </div>
+                ) : !phoenixAuditorAgentId ? (
+                  <div className="text-center py-12 text-[var(--bg-steel)]">
+                    <span className="material-symbols-outlined text-4xl mb-2">info</span>
+                    <p>Phoenix Auditor agent not found. It may not be initialized yet.</p>
+                  </div>
+                ) : auditLogs.length === 0 ? (
+                  <div className="text-center py-12 text-[var(--bg-steel)]">
+                    <span className="material-symbols-outlined text-4xl mb-2">inbox</span>
+                    <p>No audit logs available yet.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {selectedPath && (
+                      <div className="bg-[rgb(var(--surface-rgb)/1)] rounded-lg border border-[rgb(var(--bg-steel-rgb)/0.3)] p-4">
+                        <div className="flex items-center justify-between mb-4">
+                          <h4 className="text-md font-semibold text-[var(--text-primary)]">
+                            Drift Timeline: <span className="font-mono text-sm">{selectedPath}</span>
+                          </h4>
+                          <button
+                            onClick={() => {
+                              setSelectedPath(null);
+                              setPathHistory([]);
+                            }}
+                            className="px-3 py-1 bg-[var(--bg-steel)] text-[var(--text-on-accent)] rounded hover:bg-[rgb(var(--bg-steel-rgb)/0.85)] transition-colors text-sm"
+                          >
+                            Close
+                          </button>
+                        </div>
+                        {loadingPathHistory ? (
+                          <div className="text-center py-8 text-[var(--bg-steel)]">
+                            <span className="material-symbols-outlined text-2xl mb-2 animate-spin">hourglass_empty</span>
+                            <p>Loading history...</p>
+                          </div>
+                        ) : pathHistory.length > 0 ? (
+                          <div className="space-y-2 max-h-[400px] overflow-y-auto">
+                            {pathHistory.map((report, idx) => (
+                              <div
+                                key={report.id || idx}
+                                className="p-3 bg-[rgb(var(--bg-secondary-rgb)/1)] rounded border border-[rgb(var(--bg-steel-rgb)/0.2)]"
+                              >
+                                <div className="flex items-start justify-between mb-2">
+                                  <div className="text-xs text-[var(--bg-steel)]">
+                                    {new Date(report.timestamp).toLocaleString()}
+                                  </div>
+                                  <span className={`px-2 py-1 rounded text-xs font-semibold ${
+                                    report.severity === 'CRITICAL' ? 'bg-[var(--danger)] text-white' :
+                                    report.severity === 'HIGH' ? 'bg-[var(--warning)] text-white' :
+                                    report.severity === 'MEDIUM' ? 'bg-[rgb(var(--warning-rgb)/0.5)] text-[var(--text-primary)]' :
+                                    'bg-[var(--bg-steel)] text-[var(--text-on-accent)]'
+                                  }`}>
+                                    {report.severity}
+                                  </span>
+                                </div>
+                                <div className="text-sm text-[var(--text-primary)] mb-1">
+                                  <strong>Climax:</strong> {report.report?.climax || 'N/A'}
+                                </div>
+                                {report.report?.executive_pulse && (
+                                  <div className="text-xs text-[var(--bg-steel)] italic">
+                                    {report.report.executive_pulse}
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="text-center py-8 text-[var(--bg-steel)]">
+                            <p>No history found for this path.</p>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    <div className="bg-[rgb(var(--surface-rgb)/1)] rounded-lg border border-[rgb(var(--bg-steel-rgb)/0.3)] overflow-hidden">
+                      <div className="max-h-[600px] overflow-y-auto">
+                        <div className="p-4 space-y-3">
+                          {auditLogs.map((log, idx) => {
+                            // Extract paths from this log entry
+                            const logPaths = extractPathsFromLogs([log]);
+                            
+                            return (
+                              <div
+                                key={idx}
+                                className="p-3 bg-[rgb(var(--bg-secondary-rgb)/1)] rounded border border-[rgb(var(--bg-steel-rgb)/0.2)] font-mono text-sm text-[var(--text-primary)] whitespace-pre-wrap break-words"
+                              >
+                                <div className="flex flex-wrap gap-2 mb-2">
+                                  {logPaths.map((path, pathIdx) => {
+                                    const trend = pathTrends.get(path);
+                                    return (
+                                      <button
+                                        key={pathIdx}
+                                        onClick={() => fetchPathHistory(path)}
+                                        className="group relative px-2 py-1 bg-[rgb(var(--bg-primary-rgb)/0.3)] hover:bg-[rgb(var(--bg-primary-rgb)/0.5)] rounded text-xs font-mono text-[var(--text-primary)] transition-colors flex items-center gap-1"
+                                      >
+                                        <span>{path}</span>
+                                        {trend && trend.changeCount > 0 && (
+                                          <span
+                                            className={`px-1.5 py-0.5 rounded text-[10px] font-semibold ${
+                                              trend.recurring || trend.severityEscalation
+                                                ? 'bg-[var(--danger)] text-white'
+                                                : trend.changeCount >= 3
+                                                ? 'bg-[var(--warning)] text-white'
+                                                : 'bg-[var(--bg-steel)] text-[var(--text-on-accent)]'
+                                            }`}
+                                            title={`${trend.changeCount} change(s) in last 30 days${trend.recurring ? ' - Recurring issue' : ''}${trend.severityEscalation ? ' - Severity escalating' : ''}`}
+                                          >
+                                            {trend.changeCount}
+                                            {trend.recurring && '⚠️'}
+                                          </span>
+                                        )}
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                                <div>{log}</div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 )}
               </div>

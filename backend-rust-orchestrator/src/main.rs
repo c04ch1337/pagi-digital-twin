@@ -234,6 +234,7 @@ mod network;
 mod foundry;
 mod api;
 mod services;
+mod knowledge;
 use tools::system::{get_logs, manage_service, read_file, run_command, systemctl, write_file};
 use tools::get_system_snapshot;
 use health::HealthManager;
@@ -702,6 +703,9 @@ struct AppState {
 
     // Mesh health service
     mesh_health_service: Arc<analytics::mesh_health::MeshHealthService>,
+
+    // Fleet manager for distributed node tracking
+    fleet_state: Arc<network::fleet::FleetState>,
 }
 
 impl AppState {
@@ -787,7 +791,6 @@ pub enum LLMAction {
     ActionQuarantineNode {
         node_id: String,
         reason: String,
-    },,
     },
     #[serde(rename = "ActionMonitorTeams")]
     ActionMonitorTeams {},
@@ -1575,14 +1578,14 @@ fn build_tool_args_vec(tool_name: &str, args: &HashMap<String, String>) -> Vec<S
 fn is_supported_tool_name(tool_name: &str) -> bool {
     matches!(
         tool_name,
-        "command_exec" | "file_write" | "vector_query" | "run_command" | "read_file" | "write_file" | "systemctl" | "manage_service" | "get_logs" | "agi-doctor"
+        "command_exec" | "file_write" | "vector_query" | "run_command" | "read_file" | "write_file" | "systemctl" | "manage_service" | "get_logs" | "agi-doctor" | "github_tool_finder" | "archive_audit_report" | "search_audit_history"
     )
 }
 
 /// Check if a tool is a system tool that should be executed directly in the orchestrator
 /// rather than through the Tools Service.
 pub fn is_system_tool(tool_name: &str) -> bool {
-    matches!(tool_name, "run_command" | "read_file" | "write_file" | "systemctl" | "manage_service" | "get_logs" | "agi-doctor")
+    matches!(tool_name, "run_command" | "read_file" | "write_file" | "systemctl" | "manage_service" | "get_logs" | "agi-doctor" | "github_tool_finder" | "archive_audit_report" | "search_audit_history")
 }
 
 /// Execute a system tool directly in the orchestrator.
@@ -1641,6 +1644,86 @@ pub async fn execute_system_tool(
                     // The orchestrator can parse the JSON error object
                     Ok(error_json)
                 }
+            }
+        }
+        "github_tool_finder" => {
+            let query = args
+                .get("query")
+                .or_else(|| args.get("search"))
+                .ok_or_else(|| "Missing 'query' parameter for github_tool_finder".to_string())?;
+            let language = args.get("language").cloned();
+            let max_results = args
+                .get("max_results")
+                .and_then(|s| s.parse::<usize>().ok())
+                .or_else(|| args.get("max_results").and_then(|s| s.parse::<usize>().ok()));
+            
+            match crate::tools::github_tool_finder::find_github_tool(query.clone(), language, max_results, None).await {
+                Ok(tools) => {
+                    if tools.is_empty() {
+                        Ok("No tools found matching your query.".to_string())
+                    } else {
+                        let mut output = format!("Found {} tool(s) on GitHub:\n\n", tools.len());
+                        for (idx, tool) in tools.iter().enumerate() {
+                            output.push_str(&format!(
+                                "{}. **{}** (⭐ {} stars, relevance: {:.2})\n",
+                                idx + 1,
+                                tool.tool_name,
+                                tool.stars,
+                                tool.relevance_score
+                            ));
+                            output.push_str(&format!("   Repository: {}\n", tool.repository));
+                            output.push_str(&format!("   File: {}\n", tool.file_path));
+                            if let Some(lang) = &tool.language {
+                                output.push_str(&format!("   Language: {}\n", lang));
+                            }
+                            output.push_str(&format!("   URL: {}\n", tool.github_url));
+                            output.push_str(&format!("   Raw: {}\n", tool.raw_url));
+                            output.push_str(&format!("   Description: {}\n", tool.description));
+                            output.push_str("\n");
+                            
+                            // Add proposal for the best match
+                            if idx == 0 {
+                                output.push_str(&format!(
+                                    "\n💡 **Installation Proposal for Best Match:**\n{}\n",
+                                    crate::tools::github_tool_finder::propose_tool_installation(tool)
+                                ));
+                            }
+                        }
+                        Ok(output)
+                    }
+                }
+                Err(e) => Err(format!("GitHub tool search failed: {}", e)),
+            }
+        }
+        "archive_audit_report" => {
+            let report_json = args
+                .get("report_json")
+                .or_else(|| args.get("report"))
+                .ok_or_else(|| "Missing 'report_json' parameter for archive_audit_report".to_string())?;
+            
+            let source_node = args.get("source_node");
+            
+            match crate::tools::audit_archiver::archive_audit_report(report_json, source_node.map(|s| s.as_str())).await {
+                Ok(result) => Ok(result),
+                Err(e) => Err(format!("Failed to archive audit report: {}", e)),
+            }
+        }
+        "search_audit_history" => {
+            let path = args
+                .get("path")
+                .ok_or_else(|| "Missing 'path' parameter for search_audit_history".to_string())?;
+            let days = args
+                .get("days")
+                .and_then(|s| s.parse::<u32>().ok());
+            let source_node = args.get("source_node");
+            
+            match crate::tools::audit_archiver::search_audit_history(path, days, source_node.map(|s| s.as_str())).await {
+                Ok(reports) => {
+                    let json_result = serde_json::to_string(&reports)
+                        .map_err(|e| format!("Failed to serialize results: {}", e))?;
+                    Ok(json_result)
+                }
+                Err(e) => Err(format!("Failed to search audit history: {}", e)),
             }
         }
         _ => Err(format!("Unknown system tool: {}", tool_name)),
@@ -2236,6 +2319,57 @@ async fn handle_network_quarantine_remove(
         "success": true,
         "message": format!("Node {} reintegrated", node_id),
     })))
+}
+
+// Fleet Manager API handlers
+
+/// Handle fleet heartbeat from a node
+async fn handle_fleet_heartbeat(
+    State(state): State<AppState>,
+    Json(req): Json<network::fleet::HeartbeatRequest>,
+) -> Result<ResponseJson<network::fleet::HeartbeatResponse>, StatusCode> {
+    // Get client IP address if available
+    // Note: In production, you'd extract this from the request headers
+    let ip_address = req.ip_address.clone();
+    
+    state.fleet_state.heartbeat(
+        req.node_id.clone(),
+        req.hostname.clone(),
+        ip_address,
+        req.software_version.clone(),
+    ).await.map_err(|e| {
+        error!(error = %e, "Failed to process heartbeat");
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+
+    let fleet_size = state.fleet_state.list_nodes().await.len();
+
+    Ok(ResponseJson(network::fleet::HeartbeatResponse {
+        success: true,
+        message: format!("Heartbeat received for node {}", req.node_id),
+        fleet_size,
+    }))
+}
+
+/// Get fleet status (all nodes)
+async fn handle_fleet_status(
+    State(state): State<AppState>,
+) -> Result<ResponseJson<serde_json::Value>, StatusCode> {
+    let nodes = state.fleet_state.list_nodes().await;
+    let health = state.fleet_state.get_fleet_health().await;
+
+    Ok(ResponseJson(serde_json::json!({
+        "nodes": nodes,
+        "health": health,
+    })))
+}
+
+/// Get fleet health summary
+async fn handle_fleet_health(
+    State(state): State<AppState>,
+) -> Result<ResponseJson<network::fleet::FleetHealth>, StatusCode> {
+    let health = state.fleet_state.get_fleet_health().await;
+    Ok(ResponseJson(health))
 }
 
 // Network topology API handler
@@ -3142,7 +3276,7 @@ async fn handle_chat_request(
 
                 return Ok(ResponseJson(ChatResponse {
                     response: format!(
-                        "Tool '{}' is not available. Supported tools: command_exec, file_write, vector_query, run_command, read_file, write_file, systemctl, manage_service, get_logs.",
+                        "Tool '{}' is not available. Supported tools: command_exec, file_write, vector_query, run_command, read_file, write_file, systemctl, manage_service, get_logs, github_tool_finder.",
                         tool_name
                     ),
                     job_id: Some(job_id.to_string()),
@@ -4459,6 +4593,229 @@ async fn handle_sync_metrics(
     }))
 }
 
+/// Initialize Phoenix Auditor agent and register default scheduled task
+async fn initialize_phoenix_auditor(
+    agent_factory: &agents::factory::AgentFactory,
+    scheduled_tasks: &Arc<tokio::sync::RwLock<api::phoenix_routes::ScheduledTaskStore>>,
+    state: &AppState,
+) -> Result<(), String> {
+    use api::phoenix_routes::{ScheduledTask, TaskStatus, CreateScheduledTaskRequest};
+    use cron::Schedule;
+    use std::str::FromStr;
+    
+    // Build specialized system prompt for Phoenix Auditor
+    let phoenix_auditor_system_prompt = r#"You are the **Phoenix Auditor**, a Security and Configuration Specialist agent.
+
+## Your Mission
+Your primary goal is to review local application directories (`/Applications` on macOS, `/opt` on Linux, `C:\Program Files` on Windows) for changes, security issues, and configuration anomalies.
+
+## Core Responsibilities
+1. **Filesystem Auditing:** Scan application directories for:
+   - New or modified applications
+   - Unusual file permissions
+   - Configuration file changes
+   - Security-related files (certificates, keys, configs)
+   - Proprietary or unknown file formats
+
+2. **Tool Discovery:** When you encounter an unknown file format (e.g., `.log`, `.cfg`, `.conf`, proprietary formats):
+   - Use the `github_tool_finder` tool to search for parsers or analyzers
+   - Search with queries like: "parse [file_format] log file" or "[file_format] configuration parser"
+   - Review the discovered tools and propose installation if appropriate
+
+3. **Reporting:** After each audit:
+   - Summarize your findings in a structured format
+   - Include: file paths, changes detected, security concerns, tool discovery results
+   - Store your findings in the `agent_logs` Qdrant collection so the Matchmaker knows you are the expert on filesystem audits
+
+## Tool Usage
+You have access to the following tools via your task responses:
+- `read_file`: Read configuration files and logs
+- `run_command`: Execute system commands to list directories and check file properties
+- `github_tool_finder`: Search GitHub for tools to parse unknown file formats
+  - Usage: Request tool execution with `{"tool_name": "github_tool_finder", "args": {"query": "your search query", "language": "optional"}}`
+- `archive_audit_report`: Archive your daily audit report to the Knowledge Atlas for trend analysis
+  - Usage: `{"tool_name": "archive_audit_report", "args": {"report_json": "<your complete JSON report>"}}`
+  - **CRITICAL**: Always call this tool AFTER generating your daily report JSON
+- `search_audit_history`: Search historical audit reports for a specific file path to detect patterns
+  - Usage: `{"tool_name": "search_audit_history", "args": {"path": "/path/to/file", "days": 30}}`
+  - Use this BEFORE finalizing your report to check if issues are recurring
+
+## Daily Audit Report Format (Narrative Structure)
+
+When generating your Daily Audit Report, use the following **"Rising Action" narrative structure** to make your findings scannable for human review:
+
+1. **Executive Pulse:** A 1-sentence status summary
+   - Example: "System Nominal" or "Drift Detected" or "Security Anomaly Found"
+
+2. **Rising Action:** Detail any new files or changed configs discovered
+   - List files found, modifications detected, permission changes
+   - Include timestamps and file paths
+   - Note any patterns or trends
+
+3. **The Climax:** Highlight the most critical finding
+   - Example: "Found unauthorized telemetry script in /opt" or "Configuration drift detected in 3 application directories"
+   - This should be the most important security or configuration concern
+
+4. **Resolution/Proposals:** State which tools you've proposed on GitHub to handle the climax
+   - List any tool installation proposals created
+   - Explain why each tool is needed
+   - Note the installation commands that will be executed upon approval
+
+## Output Format
+Always output your findings as JSON:
+```json
+{
+  "status": "ok" | "blocked" | "error",
+  "executive_pulse": "One-sentence status",
+  "rising_action": ["finding1", "finding2", ...],
+  "climax": "Most critical finding",
+  "resolutions": ["tool_proposal1", "tool_proposal2", ...],
+  "evidence": ["file1", "file2", ...],
+  "next_steps": ["action1", "action2", ...],
+  "tool_discoveries": [{"tool": "...", "purpose": "...", "proposal_id": "..."}, ...]
+}
+```
+
+## Trend Analysis Workflow (CRITICAL)
+
+**Before finalizing your daily report:**
+
+1. **Identify Affected Paths**: Extract all file paths from your `evidence` array
+2. **Search History**: For each path that appears in your findings, call `search_audit_history`:
+   - Query: `{"tool_name": "search_audit_history", "args": {"path": "<file_path>", "days": 30}}`
+   - This retrieves the last 30 days of audit reports mentioning this path
+3. **Compare & Escalate**: 
+   - If a path appears in 3+ historical reports, this indicates a **recurring pattern**
+   - If the same `climax` (critical finding) appears multiple times, escalate severity to **CRITICAL**
+   - Add a note in your `rising_action`: "⚠️ TREND ALERT: This path has changed 3+ times in the last 30 days"
+4. **Archive Your Report**: After completing your analysis, ALWAYS call `archive_audit_report`:
+   - Pass your complete JSON report as the `report_json` parameter
+   - This enables future trend analysis
+
+**Example Trend Detection:**
+```
+1. You find: "/etc/hosts was modified"
+2. Call: search_audit_history with path="/etc/hosts", days=30
+3. Result: 4 previous reports mention this path
+4. Action: Escalate severity, add to rising_action: "⚠️ /etc/hosts has drifted 4 times this month - potential compromise or failing disk"
+```
+
+## Self-Correction & Rollback Workflow (CRITICAL)
+
+**When a tool installation verification fails:**
+
+1. **Immediate Response**: If you receive a verification task indicating that a tool installation failed or verification failed:
+   - Do NOT just log the failure
+   - Immediately search the Atlas for the last successful configuration of that tool/environment
+   - Use the `propose_rollback` tool (via the SafeInstaller) to generate a Repair Proposal
+
+2. **Repair Proposal Generation**: The system will automatically:
+   - Search the `audit_history` collection for the last "VERIFIED: SUCCESS" state
+   - Generate a rollback command (e.g., `pip uninstall requests` or `git checkout baseline`)
+   - Create a Repair Proposal with the inverse command and historical context
+
+3. **Proactive Healing**: When you detect a verification failure:
+   - Include the Repair Proposal in your audit report
+   - Add to `resolutions`: "🔧 REPAIR PROPOSAL: [rollback command] - Last successful state found on [timestamp]"
+   - Archive the repair proposal to the Atlas for future reference
+
+**Example Self-Correction:**
+```
+1. You receive: "Tool 'requests' verification failed after installation"
+2. System automatically searches Atlas for last successful 'requests' installation
+3. Result: Found successful state from 2026-01-10 with command "pip install requests==2.31.0"
+4. Action: Generate Repair Proposal: "pip uninstall requests && pip install requests==2.31.0"
+5. Include in report: "🔧 REPAIR PROPOSAL: Rollback to requests==2.31.0 (last verified on 2026-01-10)"
+```
+
+## Important Notes
+- Focus on security and configuration changes
+- When you find unknown formats, proactively search for parsers using `github_tool_finder`
+- After finding a tool, create a tool installation proposal via the API endpoint
+- **ALWAYS archive your report** using `archive_audit_report` after generating it
+- **ALWAYS search history** for paths you identify to detect recurring issues
+- **When verification fails, immediately propose rollback/repair** - do not just report the failure
+- Document everything for future reference in the `agent_logs` Qdrant collection
+- Be thorough but efficient
+- Use the narrative structure to make your reports human-readable"#.to_string();
+
+    // Spawn the Phoenix Auditor agent
+    let agent_result = agent_factory
+        .spawn_agent(
+            "Phoenix Auditor".to_string(),
+            "Security and Configuration Specialist - Reviews application directories for changes and security issues".to_string(),
+            vec!["read_file".to_string(), "run_command".to_string(), "github_tool_finder".to_string(), "archive_audit_report".to_string(), "search_audit_history".to_string()],
+            phoenix_auditor_system_prompt,
+        )
+        .await;
+
+    let agent_id = match agent_result {
+        Ok(result) => {
+            info!(agent_id = %result.agent_id, "Phoenix Auditor agent spawned");
+            result.agent_id
+        }
+        Err(e) => {
+            // Agent might already exist, try to find it
+            let agents = agent_factory.list_agents().await;
+            if let Some(existing) = agents.iter().find(|a| a.name == "Phoenix Auditor") {
+                info!(agent_id = %existing.agent_id, "Phoenix Auditor agent already exists");
+                existing.agent_id.clone()
+            } else {
+                return Err(format!("Failed to spawn Phoenix Auditor agent: {}", e));
+            }
+        }
+    };
+
+    // Create default scheduled task: Daily at 08:00 AM
+    let cron_expression = "0 8 * * *"; // Daily at 08:00 AM
+    let schedule = Schedule::from_str(cron_expression)
+        .map_err(|e| format!("Invalid cron expression: {}", e))?;
+    
+    let now = chrono::Utc::now();
+    let next_run = schedule.after(&now).take(1).next()
+        .map(|dt| dt.to_rfc3339());
+
+    let task_payload = serde_json::json!({
+        "command": "audit_filesystem",
+        "directories": {
+            "macos": "/Applications",
+            "linux": "/opt",
+            "windows": "C:\\Program Files"
+        },
+        "goal": "Review application directories for changes, security issues, and unknown file formats. Use github_tool_finder if you encounter unknown file formats that need parsing."
+    });
+
+    let task = ScheduledTask {
+        id: uuid::Uuid::new_v4().to_string(),
+        name: "Phoenix Auditor - Daily Filesystem Audit".to_string(),
+        cron_expression: cron_expression.to_string(),
+        agent_id: Some(agent_id.clone()),
+        task_payload,
+        status: TaskStatus::Pending,
+        created_at: now.to_rfc3339(),
+        last_run: None,
+        next_run,
+    };
+
+    {
+        let mut store = scheduled_tasks.write().await;
+        // Check if task already exists
+        if store.get_all_tasks().iter().any(|t| t.name == task.name) {
+            info!("Phoenix Auditor scheduled task already exists");
+            return Ok(());
+        }
+        store.add_task(task);
+    }
+
+    info!(
+        agent_id = %agent_id,
+        cron = %cron_expression,
+        "Phoenix Auditor agent and scheduled task initialized"
+    );
+
+    Ok(())
+}
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Initialize tracing
@@ -4812,6 +5169,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         guardrail_version.clone(),
     ));
 
+    // Initialize Fleet State Manager
+    let fleet_state = Arc::new(network::fleet::FleetState::new(Some(60))); // 60 second heartbeat timeout
+
     let state = Arc::new(AppState {
         memory_client,
         tools_client,
@@ -4838,6 +5198,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         handshake_service: handshake_service_arc.clone(),
         quarantine_manager,
         mesh_health_service: mesh_health_service.clone(),
+        fleet_state: fleet_state.clone(),
     });
 
     // We'll use the same internal prompt manager for both:
@@ -4942,6 +5303,30 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             .expect("Failed to initialize feedback storage")
     );
 
+    // Initialize scheduled task store for Phoenix Chronos
+    let scheduled_tasks_store = Arc::new(tokio::sync::RwLock::new(
+        api::phoenix_routes::ScheduledTaskStore::new()
+    ));
+
+    // Initialize Phoenix Auditor agent and default scheduled task
+    let agent_factory_for_auditor = agent_factory.clone();
+    let scheduled_tasks_for_auditor = scheduled_tasks_store.clone();
+    let state_for_auditor = state.clone();
+    tokio::spawn(async move {
+        // Wait a bit for services to be ready
+        tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
+        
+        if let Err(e) = initialize_phoenix_auditor(
+            &agent_factory_for_auditor,
+            &scheduled_tasks_for_auditor,
+            &state_for_auditor,
+        ).await {
+            warn!(error = %e, "Failed to initialize Phoenix Auditor agent");
+        } else {
+            info!("Phoenix Auditor agent initialized successfully");
+        }
+    });
+
     let app = Router::new()
         .route("/health", get(health_check))
         .route("/chat", post(handle_chat_request))
@@ -4968,6 +5353,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/api/network/quarantine", get(handle_network_quarantine_list))
         .route("/api/network/quarantine", post(handle_network_quarantine_add))
         .route("/api/network/quarantine/:node_id", axum::routing::delete(handle_network_quarantine_remove))
+        // Fleet Manager routes
+        .route("/api/fleet/heartbeat", post(handle_fleet_heartbeat))
+        .route("/api/fleet/status", get(handle_fleet_status))
+        .route("/api/fleet/health", get(handle_fleet_health))
         .route("/api/projects/configure-watch", post(handle_configure_project_watch))
         .route("/api/projects/watch-configs", get(handle_get_watch_configs))
         .route("/api/projects/processing-stats", get(handle_get_processing_stats))
@@ -4990,9 +5379,56 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/api/agents/leaderboard", get(handle_agents_leaderboard))
         
         // Foundry Service routes
-        .merge(foundry_service.router())
-        
-        // Phoenix API routes
+        .merge(foundry_service.router());
+    
+    // Initialize Auto-Domain Ingestor
+    let embedding_dim = std::env::var("EMBEDDING_MODEL_DIM")
+        .unwrap_or_else(|_| "384".to_string())
+        .parse::<usize>()
+        .unwrap_or(384);
+    
+    let ingest_dir = std::env::var("INGEST_DIR")
+        .unwrap_or_else(|_| "data/ingest".to_string());
+    let ingest_path = std::path::PathBuf::from(&ingest_dir);
+    
+    // Create ingest directory if it doesn't exist
+    if let Err(e) = tokio::fs::create_dir_all(&ingest_path).await {
+        warn!(
+            dir = %ingest_path.display(),
+            error = %e,
+            "Failed to create ingest directory, ingestor will not be available"
+        );
+    }
+    
+    // Initialize LLM settings if OpenRouter is configured
+    let llm_settings = if state.llm_provider == "openrouter" {
+        Some(knowledge::ingestor::LLMSettings {
+            provider: state.llm_provider.clone(),
+            url: state.openrouter_url.clone(),
+            api_key: state.openrouter_api_key.clone(),
+            model: state.openrouter_model.clone(),
+        })
+    } else {
+        None
+    };
+    
+    let ingestor = Arc::new(knowledge::ingestor::AutoIngestor::new(
+        qdrant_client.clone(),
+        ingest_path.clone(),
+        embedding_dim,
+        llm_settings,
+    ));
+    
+    // Start watching for new files
+    let ingestor_clone = ingestor.clone();
+    tokio::spawn(async move {
+        if let Err(e) = ingestor_clone.start_watching().await {
+            error!(error = %e, "Failed to start file watcher");
+        }
+    });
+    
+    // Phoenix API routes
+    let app = app
         .merge(api::phoenix_routes::create_phoenix_router(api::phoenix_routes::PhoenixAppState {
             message_bus: message_bus.clone(),
             consensus: consensus_arc.clone(),
@@ -5001,8 +5437,20 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             agents_repo_path: agent_repo_path_foundry.clone(),
             qdrant_client: qdrant_client.clone(),
             feedback_storage: feedback_storage.clone(),
+            agent_factory: state.agent_factory.clone(),
+            scheduled_tasks: scheduled_tasks_store.clone(),
+            tool_proposals: Arc::new(tokio::sync::RwLock::new(
+                api::phoenix_routes::ToolProposalStore::new()
+            )),
+            peer_reviews: Arc::new(tokio::sync::RwLock::new(
+                api::phoenix_routes::PeerReviewStore::new()
+            )),
+            retrospectives: Arc::new(tokio::sync::RwLock::new(
+                api::phoenix_routes::RetrospectiveStore::new()
+            )),
+            ingestor: Some(ingestor),
         }))
-        
+         
         // Playbook search routes
         .merge(api::playbook_routes::create_playbook_router(api::playbook_routes::PlaybookAppState {
             agents_repo_path: agent_repo_path_foundry.clone(),
@@ -5063,6 +5511,33 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     info!(addr = %memory_exchange_grpc_addr, port = memory_exchange_grpc_port, "[PHOENIX] Starting Memory Exchange gRPC server");
     info!(addr = %addr, port = http_port, "Starting Orchestrator HTTP server");
 
+    // Initialize Phoenix Starter Pack of Global Playbooks
+    let qdrant_for_starter = qdrant_client.clone();
+    let embedding_dim = std::env::var("EMBEDDING_MODEL_DIM")
+        .unwrap_or_else(|_| "384".to_string())
+        .parse::<usize>()
+        .unwrap_or(384);
+    tokio::spawn(async move {
+        // Wait a moment for services to be ready
+        tokio::time::sleep(tokio::time::Duration::from_secs(3)).await;
+        
+        match crate::tools::playbook_store::init_starter_playbooks(qdrant_for_starter, embedding_dim).await {
+            Ok(count) => {
+                info!(
+                    created = count,
+                    "Phoenix Starter Pack initialized with {} playbooks",
+                    count
+                );
+            }
+            Err(e) => {
+                warn!(
+                    error = %e,
+                    "Failed to initialize Phoenix Starter Pack (this is OK if playbooks already exist)"
+                );
+            }
+        }
+    });
+
     // Start periodic health checks (every 30 seconds)
     let health_check_interval = env::var("HEALTH_CHECK_INTERVAL_SECS")
         .unwrap_or_else(|_| "30".to_string())
@@ -5070,6 +5545,147 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .unwrap_or(30);
     state.health_manager.start_periodic_checks(Arc::clone(&state), health_check_interval);
     info!(interval = health_check_interval, "Started periodic health checks");
+
+    // Start Phoenix Chronos scheduler loop (checks for due tasks every 60 seconds)
+    let scheduled_tasks_for_scheduler = scheduled_tasks_store.clone();
+    let agent_factory_for_scheduler = state.agent_factory.clone();
+    let message_bus_for_scheduler = message_bus.clone();
+    tokio::spawn(async move {
+    let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(60));
+        loop {
+            interval.tick().await;
+            
+            let now = chrono::Utc::now();
+            let mut tasks_to_run = Vec::new();
+            
+            // Check for due tasks
+            {
+                let store = scheduled_tasks_for_scheduler.read().await;
+                for task in store.get_pending_tasks() {
+                    // Check if task is due based on cron expression
+                    if let Ok(schedule) = cron::Schedule::from_str(&task.cron_expression) {
+                        // Determine the reference time: use last_run if available, otherwise use created_at
+                        let reference_time = task.last_run
+                            .as_ref()
+                            .and_then(|s| chrono::DateTime::parse_from_rfc3339(s).ok())
+                            .map(|dt| dt.with_timezone(&chrono::Utc))
+                            .or_else(|| {
+                                chrono::DateTime::parse_from_rfc3339(&task.created_at)
+                                    .ok()
+                                    .map(|dt| dt.with_timezone(&chrono::Utc))
+                            })
+                            .unwrap_or(now);
+                        
+                        // Get the next scheduled time after the reference time
+                        let upcoming_times: Vec<_> = schedule.after(&reference_time).take(2).collect();
+                        
+                        if let Some(next_run) = upcoming_times.first() {
+                            // If next run time is in the past or within 1 minute, it's due
+                            if *next_run <= now + chrono::Duration::minutes(1) {
+                                tasks_to_run.push(task.clone());
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // Dispatch tasks
+            for task in tasks_to_run {
+                info!(
+                    task_id = %task.id,
+                    task_name = %task.name,
+                    "Dispatching scheduled task"
+                );
+                
+                // Update task status to Running
+                {
+                    let mut store = scheduled_tasks_for_scheduler.write().await;
+                    let last_run = Some(chrono::Utc::now().to_rfc3339());
+                    store.update_task(&task.id, api::phoenix_routes::TaskStatus::Running, last_run);
+                }
+                
+                // Determine which agent to use
+                let agent_id = if let Some(ref specified_agent_id) = task.agent_id {
+                    // Use specified agent if provided
+                    specified_agent_id.clone()
+                } else {
+                    // Try to find best agent using semantic search
+                    // For now, we'll use the first available agent or create a default one
+                    let agents = agent_factory_for_scheduler.list_agents().await;
+                    if let Some(agent) = agents.first() {
+                        agent.agent_id.clone()
+                    } else {
+                        // No agents available, mark task as failed
+                        warn!(
+                            task_id = %task.id,
+                            "No agents available for scheduled task"
+                        );
+                        let mut store = scheduled_tasks_for_scheduler.write().await;
+                        store.update_task(
+                            &task.id,
+                            api::phoenix_routes::TaskStatus::Failed,
+                            Some(chrono::Utc::now().to_rfc3339()),
+                        );
+                        continue;
+                    }
+                };
+                
+                // Build task message from payload
+                let task_message = if task.task_payload.is_string() {
+                    task.task_payload.as_str().unwrap_or("").to_string()
+                } else {
+                    format!("Scheduled task: {}\nPayload: {}", task.name, task.task_payload)
+                };
+                
+                // Dispatch task to agent
+                match agent_factory_for_scheduler.post_task(&agent_id, task_message).await {
+                    Ok(_) => {
+                        info!(
+                            task_id = %task.id,
+                            agent_id = %agent_id,
+                            "Scheduled task dispatched successfully"
+                        );
+                        
+                        // Publish event to message bus
+                        let _ = message_bus_for_scheduler.publish(
+                            crate::bus::PhoenixEvent::TaskUpdate {
+                                agent_id: agent_id.clone(),
+                                task: format!("Scheduled: {}", task.name),
+                                status: "dispatched".to_string(),
+                                timestamp: chrono::Utc::now().to_rfc3339(),
+                            }
+                        );
+                        
+                        // Reset task to Pending after dispatch (it will run again based on cron schedule)
+                        // The update_task method already calculates next_run, so we just need to reset status
+                        let mut store = scheduled_tasks_for_scheduler.write().await;
+                        store.update_task(
+                            &task.id,
+                            api::phoenix_routes::TaskStatus::Pending,
+                            Some(chrono::Utc::now().to_rfc3339()),
+                        );
+                    }
+                    Err(e) => {
+                        error!(
+                            task_id = %task.id,
+                            agent_id = %agent_id,
+                            error = %e,
+                            "Failed to dispatch scheduled task"
+                        );
+                        
+                        // Mark task as failed
+                        let mut store = scheduled_tasks_for_scheduler.write().await;
+                        store.update_task(
+                            &task.id,
+                            api::phoenix_routes::TaskStatus::Failed,
+                            Some(chrono::Utc::now().to_rfc3339()),
+                        );
+                    }
+                }
+            }
+        }
+    });
+    info!("Started Phoenix Chronos scheduler loop");
 
     // Start mDNS service for network discovery
     let node_id_for_mdns = state.handshake_service.identity.node_id.clone();

@@ -67,6 +67,13 @@ export interface ChatRequest {
 // --- 2. Response to Frontend (Agent Output) ---
 // Discriminated union matching Rust backend's ChatResponse enum
 
+export interface DomainAttribution {
+  mind: number;
+  body: number;
+  heart: number;
+  soul: number;
+}
+
 export interface CompleteMessage {
   type: 'complete_message';
   id: string; // UUID as string
@@ -76,6 +83,7 @@ export interface CompleteMessage {
   source_memories: string[]; // RAG sources cited
   issued_command: AgentCommand | null;
   raw_orchestrator_decision?: string | null;
+  domain_attribution?: DomainAttribution; // Domain contribution percentages
 }
 
 export interface MessageChunk {

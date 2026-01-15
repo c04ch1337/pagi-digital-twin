@@ -13,6 +13,12 @@ use tracing::{info, warn, error};
 
 use crate::bus::{GlobalMessageBus, PhoenixEvent};
 
+fn qdrant_string_value(value: impl Into<String>) -> qdrant_client::qdrant::Value {
+    qdrant_client::qdrant::Value {
+        kind: Some(qdrant_client::qdrant::value::Kind::StringValue(value.into())),
+    }
+}
+
 /// Quarantine entry for a node
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct QuarantineEntry {
@@ -171,14 +177,19 @@ impl QuarantineManager {
         // Ensure collection exists
         let collection_name = "quarantine_list";
         let _ = qdrant
-            .create_collection(&qdrant_client::qdrant::CreateCollection {
+            .create_collection(qdrant_client::qdrant::CreateCollection {
                 collection_name: collection_name.to_string(),
                 vectors_config: Some(qdrant_client::qdrant::VectorsConfig {
                     config: Some(qdrant_client::qdrant::vectors_config::Config::Params(
-                        qdrant_client::qdrant::VectorsParams {
+                        qdrant_client::qdrant::VectorParams {
                             size: 128, // Dummy size for metadata-only storage
                             distance: qdrant_client::qdrant::Distance::Cosine as i32,
-                        },
+                            hnsw_config: None,
+                            quantization_config: None,
+                            on_disk: None,
+                            datatype: None,
+                            multivector_config: None,
+                        }
                     )),
                 }),
                 ..Default::default()
@@ -187,28 +198,41 @@ impl QuarantineManager {
 
         // Store as point with metadata
         let point_id = uuid::Uuid::new_v4().to_string();
-        let payload: HashMap<String, serde_json::Value> = [
-            ("node_id".to_string(), serde_json::Value::String(entry.node_id.clone())),
-            ("ip_address".to_string(), entry.ip_address.as_ref().map(|ip| serde_json::Value::String(ip.clone())).unwrap_or(serde_json::Value::Null)),
-            ("reason".to_string(), serde_json::Value::String(entry.reason.clone())),
-            ("timestamp".to_string(), serde_json::Value::String(entry.timestamp.clone())),
-            ("quarantined_by".to_string(), serde_json::Value::String(entry.quarantined_by.clone())),
-        ]
-        .iter()
-        .cloned()
-        .collect();
+        let mut payload: HashMap<String, qdrant_client::qdrant::Value> = HashMap::new();
+        payload.insert("node_id".to_string(), qdrant_string_value(entry.node_id.clone()));
+        payload.insert("reason".to_string(), qdrant_string_value(entry.reason.clone()));
+        payload.insert(
+            "timestamp".to_string(),
+            qdrant_string_value(entry.timestamp.clone()),
+        );
+        payload.insert(
+            "quarantined_by".to_string(),
+            qdrant_string_value(entry.quarantined_by.clone()),
+        );
+        if let Some(ref ip) = entry.ip_address {
+            payload.insert("ip_address".to_string(), qdrant_string_value(ip.clone()));
+        }
 
         let vector = vec![0.0f32; 128]; // Dummy vector
 
         qdrant
-            .upsert_points(&qdrant_client::qdrant::UpsertPoints {
+            .upsert_points(qdrant_client::qdrant::UpsertPoints {
                 collection_name: collection_name.to_string(),
                 points: vec![qdrant_client::qdrant::PointStruct {
                     id: Some(qdrant_client::qdrant::PointId {
                         point_id_options: Some(qdrant_client::qdrant::point_id::PointIdOptions::Uuid(point_id)),
                     }),
                     vectors: Some(qdrant_client::qdrant::Vectors {
-                        vectors_options: Some(qdrant_client::qdrant::vectors::VectorsOptions::Vector(qdrant_client::qdrant::Vector { data: vector })),
+                        vectors_options: Some(qdrant_client::qdrant::vectors::VectorsOptions::Vector(
+                            qdrant_client::qdrant::Vector {
+                                data: Vec::new(),
+                                indices: None,
+                                vectors_count: None,
+                                vector: Some(qdrant_client::qdrant::vector::Vector::Dense(
+                                    qdrant_client::qdrant::DenseVector { data: vector },
+                                )),
+                            },
+                        )),
                     }),
                     payload,
                 }],
@@ -233,7 +257,7 @@ impl QuarantineManager {
                     qdrant_client::qdrant::FieldCondition {
                         key: "node_id".to_string(),
                         r#match: Some(qdrant_client::qdrant::Match {
-                            match_value: Some(qdrant_client::qdrant::r#match::MatchValue::Value(
+                            match_value: Some(qdrant_client::qdrant::r#match::MatchValue::Keyword(
                                 node_id.to_string(),
                             )),
                         }),
@@ -245,7 +269,7 @@ impl QuarantineManager {
         };
 
         let search_result = qdrant
-            .scroll(&qdrant_client::qdrant::ScrollPoints {
+            .scroll(qdrant_client::qdrant::ScrollPoints {
                 collection_name: collection_name.to_string(),
                 filter: Some(filter),
                 limit: Some(100),
@@ -263,7 +287,7 @@ impl QuarantineManager {
 
         if !point_ids.is_empty() {
             qdrant
-                .delete_points(&qdrant_client::qdrant::DeletePoints {
+                .delete_points(qdrant_client::qdrant::DeletePoints {
                     collection_name: collection_name.to_string(),
                     points: Some(qdrant_client::qdrant::PointsSelector {
                         points_selector_one_of: Some(
@@ -292,7 +316,7 @@ impl QuarantineManager {
 
         // Try to scroll all quarantine entries
         let result = qdrant
-            .scroll(&qdrant_client::qdrant::ScrollPoints {
+            .scroll(qdrant_client::qdrant::ScrollPoints {
                 collection_name: collection_name.to_string(),
                 limit: Some(1000),
                 ..Default::default()
@@ -305,41 +329,32 @@ impl QuarantineManager {
                 let mut ips = self.quarantined_ips.write().await;
 
                 for point in response.result {
-                    if let Some(payload) = point.payload {
-                        let node_id = payload
-                            .get("node_id")
-                            .and_then(|v| v.as_str())
-                            .map(|s| s.to_string());
-                        let ip_address = payload
-                            .get("ip_address")
-                            .and_then(|v| v.as_str())
-                            .map(|s| s.to_string());
+                    let payload = &point.payload;
 
-                        if let Some(node_id) = node_id {
-                            let entry = QuarantineEntry {
-                                node_id: node_id.clone(),
-                                ip_address: ip_address.clone(),
-                                reason: payload
-                                    .get("reason")
-                                    .and_then(|v| v.as_str())
-                                    .map(|s| s.to_string())
-                                    .unwrap_or_else(|| "unknown".to_string()),
-                                timestamp: payload
-                                    .get("timestamp")
-                                    .and_then(|v| v.as_str())
-                                    .map(|s| s.to_string())
-                                    .unwrap_or_else(|| Utc::now().to_rfc3339()),
-                                quarantined_by: payload
-                                    .get("quarantined_by")
-                                    .and_then(|v| v.as_str())
-                                    .map(|s| s.to_string())
-                                    .unwrap_or_else(|| "system".to_string()),
-                            };
+                    let get_str = |k: &str| -> Option<String> {
+                        payload.get(k).and_then(|v| match v.kind.as_ref()? {
+                            qdrant_client::qdrant::value::Kind::StringValue(s) => Some(s.clone()),
+                            _ => None,
+                        })
+                    };
 
-                            nodes.insert(node_id.clone(), entry.clone());
-                            if let Some(ip) = ip_address {
-                                ips.insert(ip, node_id);
-                            }
+                    let node_id = get_str("node_id");
+                    let ip_address = get_str("ip_address");
+
+                    if let Some(node_id) = node_id {
+                        let entry = QuarantineEntry {
+                            node_id: node_id.clone(),
+                            ip_address: ip_address.clone(),
+                            reason: get_str("reason").unwrap_or_else(|| "unknown".to_string()),
+                            timestamp: get_str("timestamp")
+                                .unwrap_or_else(|| Utc::now().to_rfc3339()),
+                            quarantined_by: get_str("quarantined_by")
+                                .unwrap_or_else(|| "system".to_string()),
+                        };
+
+                        nodes.insert(node_id.clone(), entry);
+                        if let Some(ip) = ip_address {
+                            ips.insert(ip, node_id);
                         }
                     }
                 }

@@ -80,4 +80,22 @@ export interface TelemetryData {
   timestamp: string;
 }
 
-export type AppView = 'chat' | 'settings' | 'orchestrator' | 'logs' | 'search' | 'memory-explorer' | 'evolution' | 'gallery' | 'system-status' | 'orchestrator-settings' | 'file-processing-monitor' | 'agent-forge' | 'tool-forge' | 'phoenix' | 'audit' | 'knowledge-atlas';
+export type AppView =
+  | 'chat'
+  | 'settings'
+  | 'orchestrator'
+  | 'intelligence-hub'
+  | 'logs'
+  | 'search'
+  | 'memory-explorer'
+  | 'evolution'
+  | 'gallery'
+  | 'system-status'
+  | 'orchestrator-settings'
+  | 'file-processing-monitor'
+  | 'agent-forge'
+  | 'tool-forge'
+  // Back-compat: older navigation target for the intelligence view.
+  | 'phoenix'
+  | 'audit'
+  | 'knowledge-atlas';

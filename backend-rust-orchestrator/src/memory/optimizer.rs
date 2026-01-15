@@ -64,6 +64,7 @@ async fn reindex_collection(
         max_indexing_threads: None,
         on_disk: None,
         payload_m: None,
+        inline_storage: None,
     };
 
     let update_request = UpdateCollection {
@@ -74,6 +75,8 @@ async fn reindex_collection(
         vectors_config: None,
         quantization_config: None,
         sparse_vectors_config: None,
+        metadata: Default::default(),
+        strict_mode_config: None,
         timeout: None,
     };
 

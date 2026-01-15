@@ -60,7 +60,7 @@ const PhoenixMemoryFlow: React.FC = () => {
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const [pruningTopic, setPruningTopic] = useState<string | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const animationFrameRef = useRef<number>();
+  const animationFrameRef = useRef<number | undefined>(undefined);
   const eventSourceRef = useRef<EventSource | null>(null);
 
   const [canvasPalette, setCanvasPalette] = useState(() => {

@@ -103,7 +103,8 @@ async fn prune_collection(
     // Qdrant filter logic: must = AND, should = OR, must_not = NOT
     // We want: must = [timestamp < cutoff] AND must_not = [importance_score > threshold AND status == "essential"]
     
-    let mut must_conditions = Vec::new();
+    // NOTE: We currently scroll + filter in code (timestamps are RFC3339 strings).
+    // Any server-side filter predicates can be added later once the payload schema is standardized.
     
     // Condition 1: timestamp < cutoff (as string comparison)
     // Since timestamps are RFC3339 strings, we can use string comparison
@@ -251,6 +252,8 @@ async fn prune_collection(
             continue;
         }
 
+        let batch_deleted = points_to_delete.len();
+
         // Delete the points
         let delete_request = DeletePoints {
             collection_name: collection_name.to_string(),
@@ -278,11 +281,11 @@ async fn prune_collection(
                 e
             })?;
 
-        total_deleted += points_to_delete.len();
+        total_deleted += batch_deleted;
         info!(
             collection = %collection_name,
             deleted_so_far = total_deleted,
-            batch_size = points_to_delete.len(),
+            batch_size = batch_deleted,
             "Deleted batch of points"
         );
 

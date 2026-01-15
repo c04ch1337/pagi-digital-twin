@@ -1,7 +1,82 @@
-import React, { useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
+import { Brain } from 'lucide-react';
 import { Twin, TwinStatus, AppView } from '../types';
 import { getAssetUrl, checkAssetExists } from '../services/assetService';
+import { listAgents } from '../services/agentService';
 import { getUserName } from '../utils/userName';
+import { getPendingToolProposals } from '../services/toolProposalService';
+
+type CrewStatus = {
+  agentCount: number | null;
+  anyActive: boolean;
+};
+
+const CrewStatusBadge: React.FC<{ collapsed: boolean }> = ({ collapsed }) => {
+  const [crewStatus, setCrewStatus] = useState<CrewStatus>({ agentCount: null, anyActive: false });
+
+  useEffect(() => {
+    let cancelled = false;
+    let intervalId: number | undefined;
+    let inFlight = false;
+
+    const refresh = async () => {
+      if (inFlight) return;
+      inFlight = true;
+
+      try {
+        const res = await listAgents();
+        if (cancelled) return;
+        const agents = res?.agents ?? [];
+        const anyActive = agents.some((a) => (a.status || '').toLowerCase() !== 'idle');
+        setCrewStatus({ agentCount: agents.length, anyActive });
+      } catch {
+        // Silent failure: don't break navigation/UI if backend isn't reachable.
+        if (cancelled) return;
+        setCrewStatus({ agentCount: null, anyActive: false });
+      } finally {
+        inFlight = false;
+      }
+    };
+
+    refresh();
+    intervalId = window.setInterval(refresh, 10_000);
+
+    return () => {
+      cancelled = true;
+      if (intervalId !== undefined) window.clearInterval(intervalId);
+    };
+  }, []);
+
+  const pillText = useMemo(() => {
+    if (crewStatus.agentCount === null) return '?';
+    return String(crewStatus.agentCount);
+  }, [crewStatus.agentCount]);
+
+  // When collapsed, we only show the activity dot (if any) to keep the sidebar compact.
+  if (collapsed) {
+    if (!crewStatus.anyActive) return null;
+    return (
+      <span
+        className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-400 animate-pulse ring-2 ring-[var(--bg-secondary)]"
+        aria-label="Crew active"
+      />
+    );
+  }
+
+  return (
+    <span className="flex items-center gap-1.5 shrink-0">
+      {crewStatus.anyActive && (
+        <span
+          className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"
+          aria-label="Crew active"
+        />
+      )}
+      <span className="text-xs bg-blue-500/20 text-blue-400 px-1.5 py-0.5 rounded-full border border-blue-500/30 leading-none">
+        {pillText}
+      </span>
+    </span>
+  );
+};
 
 interface SidebarLeftProps {
   twins: Twin[];
@@ -9,6 +84,7 @@ interface SidebarLeftProps {
   currentView: AppView;
   onSelectTwin: (id: string) => void;
   onSelectOrchestrator: () => void;
+  onSelectIntelligenceHub?: () => void;
   onOpenCreateModal: () => void;
   onSelectSearch: () => void;
   onSelectMemoryExplorer: () => void;
@@ -27,12 +103,14 @@ interface SidebarLeftProps {
   onDeleteProject: (projectId: string) => void;
   onConfigureWatchPath?: (projectId: string, watchPath: string) => void;
   onSelectOrchestratorSettings?: () => void;
+  onOpenToolProposals?: () => void;
 }
 
-const SidebarLeft: React.FC<SidebarLeftProps> = ({ twins, activeTwinId, currentView, onSelectTwin, onSelectOrchestrator, onOpenCreateModal, onSelectSearch, onSelectMemoryExplorer, onSelectEvolution, onSelectSystemStatus, onSelectPhoenix, onSelectFileProcessingMonitor, onSelectAgentForge, onSelectToolForge, onSelectAudit, onSelectKnowledgeAtlas, projects, onSelectProject, onCreateProject, onRenameProject, onDeleteProject, onConfigureWatchPath, onSelectOrchestratorSettings }) => {
+const SidebarLeft: React.FC<SidebarLeftProps> = ({ twins, activeTwinId, currentView, onSelectTwin, onSelectOrchestrator, onSelectIntelligenceHub, onOpenCreateModal, onSelectSearch, onSelectMemoryExplorer, onSelectEvolution, onSelectSystemStatus, onSelectPhoenix, onSelectFileProcessingMonitor, onSelectAgentForge, onSelectToolForge, onSelectAudit, onSelectKnowledgeAtlas, projects, onSelectProject, onCreateProject, onRenameProject, onDeleteProject, onConfigureWatchPath, onSelectOrchestratorSettings, onOpenToolProposals }) => {
   const [logoUrl, setLogoUrl] = useState('/ferrellgas-agi-badge.svg');
   const [userName, setUserName] = useState(getUserName());
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [pendingProposalsCount, setPendingProposalsCount] = useState(0);
 
   const orchestratorName = twins.find(t => t.isOrchestrator)?.name || 'Phoenix';
 
@@ -96,6 +174,23 @@ const SidebarLeft: React.FC<SidebarLeftProps> = ({ twins, activeTwinId, currentV
     };
   }, []);
 
+  // Fetch pending tool proposals count
+  useEffect(() => {
+    const fetchPendingProposals = async () => {
+      try {
+        const response = await getPendingToolProposals();
+        setPendingProposalsCount(response.proposals.length);
+      } catch (err) {
+        console.error('[SidebarLeft] Failed to fetch pending proposals:', err);
+      }
+    };
+
+    fetchPendingProposals();
+    // Refresh every 30 seconds
+    const interval = setInterval(fetchPendingProposals, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
   return (
     <aside className={`${isCollapsed ? 'w-16' : 'w-64'} bg-[var(--bg-secondary)] flex flex-col shrink-0 border-r border-[rgb(var(--bg-steel-rgb)/0.3)] transition-all duration-300`}>
       <div className={`p-4 border-b border-[rgb(var(--bg-steel-rgb)/0.3)] flex items-center gap-3 ${isCollapsed ? 'justify-center' : ''}`}>
@@ -113,15 +208,33 @@ const SidebarLeft: React.FC<SidebarLeftProps> = ({ twins, activeTwinId, currentV
             <span className="text-[9px] text-[var(--text-secondary)] font-bold tracking-wider uppercase mt-1">Tactical Agent Desktop</span>
           </div>
         )}
-        <button
-          onClick={() => setIsCollapsed(!isCollapsed)}
-          className="ml-auto p-1.5 hover:bg-[var(--bg-muted)] rounded-lg transition-colors text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-          title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-        >
-          <span className="material-symbols-outlined text-sm">
-            {isCollapsed ? 'chevron_right' : 'chevron_left'}
-          </span>
-        </button>
+        <div className="flex items-center gap-2">
+          {onOpenToolProposals && pendingProposalsCount > 0 && (
+            <button
+              onClick={onOpenToolProposals}
+              className="relative p-1.5 hover:bg-[var(--bg-muted)] rounded-lg transition-colors text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+              title={`${pendingProposalsCount} pending tool installation proposal(s)`}
+            >
+              <span className={`material-symbols-outlined text-sm ${pendingProposalsCount > 0 ? 'text-yellow-500' : ''}`}>
+                notifications
+              </span>
+              {pendingProposalsCount > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-yellow-500 rounded-full flex items-center justify-center text-[8px] font-bold text-white animate-pulse">
+                  {pendingProposalsCount > 9 ? '9+' : pendingProposalsCount}
+                </span>
+              )}
+            </button>
+          )}
+          <button
+            onClick={() => setIsCollapsed(!isCollapsed)}
+            className="p-1.5 hover:bg-[var(--bg-muted)] rounded-lg transition-colors text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+            title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          >
+            <span className="material-symbols-outlined text-sm">
+              {isCollapsed ? 'chevron_right' : 'chevron_left'}
+            </span>
+          </button>
+        </div>
       </div>
 
       <nav className="flex-1 overflow-y-auto p-3 space-y-6">
@@ -149,6 +262,33 @@ const SidebarLeft: React.FC<SidebarLeftProps> = ({ twins, activeTwinId, currentV
                 </div>
               )}
             </button>
+
+            {onSelectIntelligenceHub && (
+              <button
+                onClick={onSelectIntelligenceHub}
+                className={`w-full flex items-center ${isCollapsed ? 'justify-center' : 'gap-3'} p-3 rounded-xl transition-all ${isCollapsed ? '' : 'text-left'} ${
+                  currentView === 'intelligence-hub'
+                    ? 'bg-[var(--bg-steel)] text-[var(--text-on-accent)] border border-[var(--bg-steel)]'
+                    : 'text-[var(--text-primary)] hover:bg-[var(--bg-muted)] hover:text-[var(--text-primary)] border border-transparent'
+                }`}
+                title={isCollapsed ? 'Intelligence Hub - Agent Orchestration' : undefined}
+              >
+                <div className="relative p-1.5 bg-[rgb(var(--surface-rgb)/0.4)] rounded-lg">
+                  <Brain size={16} className="text-[var(--bg-steel)]" />
+                  <CrewStatusBadge collapsed={isCollapsed} />
+                </div>
+                {!isCollapsed && (
+                  <div className="min-w-0">
+                    <div className="text-xs font-bold uppercase tracking-wider flex items-center gap-2">
+                      <span className="min-w-0 truncate">Intelligence Hub</span>
+                      <CrewStatusBadge collapsed={isCollapsed} />
+                    </div>
+                    <div className="text-[9px] text-[var(--text-secondary)] truncate">Agent orchestration</div>
+                  </div>
+                )}
+              </button>
+            )}
+
             <button
               onClick={onSelectSearch}
               className={`w-full flex items-center ${isCollapsed ? 'justify-center' : 'gap-3'} p-3 rounded-xl transition-all ${isCollapsed ? '' : 'text-left'} ${

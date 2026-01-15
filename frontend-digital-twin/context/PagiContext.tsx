@@ -3,6 +3,7 @@ import { PAGIClient } from '../services/pagiClient';
 import { ChatRequest, ChatResponse, CompleteMessage, MessageChunk, StatusUpdate } from '../types/protocol';
 import { usePagiSession } from '../hooks/usePagiSession';
 import { getUserName } from '../utils/userName';
+import { useDomainAttribution } from './DomainAttributionContext';
 
 // --- Define Context State ---
 interface PagiContextType {
@@ -21,6 +22,7 @@ const PagiContext = createContext<PagiContextType | undefined>(undefined);
 // --- Provider Component ---
 export const PagiProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { userId, sessionId, createNewSession, switchToSession } = usePagiSession();
+  const { updateAttribution, clearAttribution } = useDomainAttribution();
   const [client, setClient] = useState<PAGIClient | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const [messages, setMessages] = useState<ChatResponse[]>([]);
@@ -30,24 +32,34 @@ export const PagiProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setMessages(prev => {
       // Handle streaming chunks: if message ID exists, append to existing content
       if (response.type === 'message_chunk') {
-        const existingIndex = prev.findIndex(m => m.id === response.id);
+        const chunkMsg = response as MessageChunk;
+        const existingIndex = prev.findIndex(m => m.type === 'message_chunk' && (m as MessageChunk).id === chunkMsg.id);
         if (existingIndex >= 0) {
           // Update existing chunk message
           const existing = prev[existingIndex] as MessageChunk;
           const updated: MessageChunk = {
             ...existing,
-            content_chunk: existing.content_chunk + response.content_chunk,
-            is_final: response.is_final,
+            content_chunk: existing.content_chunk + chunkMsg.content_chunk,
+            is_final: chunkMsg.is_final,
           };
           const newMessages = [...prev];
           newMessages[existingIndex] = updated;
           return newMessages;
         }
       }
+      
+      // Extract domain attribution from complete messages
+      if (response.type === 'complete_message') {
+        const completeMsg = response as CompleteMessage;
+        if (completeMsg.domain_attribution) {
+          updateAttribution(completeMsg.domain_attribution, completeMsg.id);
+        }
+      }
+      
       // For complete messages or new chunks, append
       return [...prev, response];
     });
-  }, []);
+  }, [updateAttribution]);
 
   const handleConnectionStatus = useCallback((connected: boolean) => {
     setIsConnected(connected);
@@ -130,6 +142,7 @@ export const PagiProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       // Clear the in-memory transcript so the UI starts clean for the new session.
       setMessages([]);
+      clearAttribution();
 
       // Disconnect old client
       clientRef.current.disconnect();

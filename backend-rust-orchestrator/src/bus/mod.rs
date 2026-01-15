@@ -154,6 +154,68 @@ pub enum PhoenixEvent {
         applied_by: String, // node_id that applied the rule
         timestamp: String,
     },
+    /// Tool installation proposal created by an agent (e.g., Phoenix Auditor)
+    ToolProposalCreated {
+        proposal_id: String,
+        agent_name: String,
+        tool_name: String,
+    },
+    /// Tool installation proposal approved by human
+    ToolProposalApproved {
+        proposal_id: String,
+        tool_name: String,
+        installation_command: String,
+    },
+    /// Tool installation proposal rejected by human
+    ToolProposalRejected {
+        proposal_id: String,
+        tool_name: String,
+    },
+    /// Peer review request - agent requesting review from expert
+    PeerReviewRequest {
+        review_id: String,
+        requesting_agent_id: String,
+        requesting_agent_name: String,
+        expert_agent_id: String,
+        expert_agent_name: String,
+        tool_proposal_id: String,
+        tool_name: String,
+        github_url: String,
+        reasoning: String,
+        timestamp: String,
+    },
+    /// Peer review response - expert agent's review
+    PeerReviewResponse {
+        review_id: String,
+        expert_agent_id: String,
+        expert_agent_name: String,
+        decision: String, // "concur" or "object"
+        reasoning: String,
+        alternative_playbook_id: Option<String>,
+        timestamp: String,
+    },
+    /// Peer review debate completed - consensus reached
+    PeerReviewConsensus {
+        review_id: String,
+        tool_proposal_id: String,
+        consensus: String, // "approved" or "rejected"
+        requesting_agent_id: String,
+        expert_agent_id: String,
+        timestamp: String,
+    },
+    /// Post-mortem retrospective analysis for failed tool installation
+    PostMortemRetrospective {
+        retrospective_id: String,
+        playbook_id: String,
+        tool_name: String,
+        agent_id: String,
+        agent_name: String,
+        root_cause: String,
+        error_pattern: String,
+        suggested_patch: Option<String>, // JSON-encoded PlaybookPatch
+        reliability_impact: f64,
+        timestamp: String,
+    },
 }
 
 impl GlobalMessageBus {

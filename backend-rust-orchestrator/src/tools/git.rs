@@ -154,7 +154,7 @@ impl GitOperations {
         message: &str,
         author_name: &str,
         author_email: &str,
-    ) -> Result<Commit, String> {
+    ) -> Result<git2::Oid, String> {
         let signature = Signature::now(author_name, author_email)
             .map_err(|e| format!("Failed to create signature: {}", e))?;
 
@@ -186,12 +186,9 @@ impl GitOperations {
             &signature,
             message,
             &tree,
-            &parents.iter().map(|p| p).collect::<Vec<_>>(),
+            &parents,
         )
         .map_err(|e| format!("Failed to create commit: {}", e))?;
-
-        let commit = repo.find_commit(commit_id)
-            .map_err(|e| format!("Failed to find commit: {}", e))?;
 
         info!(
             commit_id = %commit_id,
@@ -199,7 +196,7 @@ impl GitOperations {
             "Created commit"
         );
 
-        Ok(commit)
+        Ok(commit_id)
     }
 
     /// Push to remote repository with SSH authentication
@@ -335,8 +332,12 @@ impl GitOperations {
             // Update remote URL if it exists
             let mut remote = repo.find_remote(remote_name)
                 .map_err(|e| format!("Failed to find remote '{}': {}", remote_name, e))?;
-            remote.set_url(remote_url)
-                .map_err(|e| format!("Failed to update remote URL: {}", e))?;
+            // Note: git2::Remote doesn't have set_url in version 0.20
+            // We need to remove and re-add the remote
+            repo.remote_delete(remote_name)
+                .map_err(|e| format!("Failed to delete remote '{}': {}", remote_name, e))?;
+            repo.remote(remote_name, remote_url)
+                .map_err(|e| format!("Failed to add remote '{}': {}", remote_name, e))?;
         }
         Ok(())
     }
@@ -551,7 +552,7 @@ impl GitOperations {
         // Commit with retry logic for locked index
         let commit_result = loop {
             match Self::commit(&repo, &commit_message, "Orchestrator", "orchestrator@digital-twin.local") {
-                Ok(commit) => break Ok(commit),
+                Ok(commit_id) => break Ok(commit_id),
                 Err(e) => {
                     if e.contains("locked") || e.contains("index.lock") {
                         warn!("Index locked during commit, retrying...");

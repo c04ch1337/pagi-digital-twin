@@ -8,6 +8,10 @@ import {
   AlertTriangle,
   CheckCircle
 } from 'lucide-react';
+import { ScrollArea } from './ui/scroll-area';
+import { Badge } from './ui/badge';
+import { Button } from './ui/button';
+import { Alert, AlertDescription } from './ui/alert';
 
 interface CommitHistory {
   hash: string;

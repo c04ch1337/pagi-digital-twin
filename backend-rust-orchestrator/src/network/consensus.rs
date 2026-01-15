@@ -231,6 +231,9 @@ impl PhoenixConsensus {
         agents_repo_path: &PathBuf,
         node_id: &str,
     ) {
+        // Snapshot config for the session creation path (cannot `.await` inside `or_insert_with`).
+        let cfg_snapshot = { config.read().await.clone() };
+
         let vote = Vote {
             node_id: voting_node.to_string(),
             compliance_score,
@@ -242,19 +245,17 @@ impl PhoenixConsensus {
         let should_evaluate = {
             let mut sessions = sessions.write().await;
             let session = sessions.entry(commit_hash.to_string()).or_insert_with(|| {
-                let cfg = config.read().await;
                 ConsensusSession {
                     commit_hash: commit_hash.to_string(),
                     requesting_node: node_id.to_string(),
                     votes: Vec::new(),
                     started_at: Utc::now().to_rfc3339(),
-                    config: cfg.clone(),
+                    config: cfg_snapshot.clone(),
                 }
             });
             session.votes.push(vote.clone());
             
             // Check if we have enough votes or timeout
-            let cfg = config.read().await;
             let peer_count = if let Some(ref hs) = handshake_service {
                 hs.get_verified_peers().await.len()
             } else {

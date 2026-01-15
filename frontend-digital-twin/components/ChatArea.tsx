@@ -4,6 +4,7 @@ import { AVAILABLE_TOOLS } from '../constants';
 import { commitToMemory } from '../services/memory';
 import { useSpeechToText } from '../hooks/useSpeechToText';
 import { getUserName } from '../utils/userName';
+import { useDomainAttribution } from '../context/DomainAttributionContext';
 
 interface ChatAreaProps {
   messages: Message[];
@@ -14,6 +15,7 @@ interface ChatAreaProps {
 }
 
 const ChatArea: React.FC<ChatAreaProps> = ({ messages, activeTwin, onSendMessage, onRunTool, onOpenSettings }) => {
+  const { getAttributionForMessage, getDominantDomain } = useDomainAttribution();
   const [input, setInput] = useState('');
   const [isToolMenuOpen, setIsToolMenuOpen] = useState(false);
   const [saveStatus, setSaveStatus] = useState<Record<string, boolean>>({});
@@ -135,10 +137,32 @@ const ChatArea: React.FC<ChatAreaProps> = ({ messages, activeTwin, onSendMessage
             )}
             
             <div className={`max-w-[85%] md:max-w-[70%] space-y-2 group relative`}>
-              <div className={`text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-wider mb-1 px-1 ${
-                msg.sender === 'user' ? 'text-right' : 'text-left'
+              <div className={`flex items-center gap-2 text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-wider mb-1 px-1 ${
+                msg.sender === 'user' ? 'justify-end' : 'justify-start'
               }`}>
-                {getSenderDisplayName(msg.sender)}
+                <span>{getSenderDisplayName(msg.sender)}</span>
+                {msg.sender === 'assistant' && (() => {
+                  const attribution = getAttributionForMessage(msg.id);
+                  const dominantDomain = getDominantDomain(attribution);
+                  if (!dominantDomain) return null;
+                  
+                  const domainLabels = { M: 'Mind', B: 'Body', H: 'Heart', S: 'Soul' };
+                  const domainColors = {
+                    M: 'text-[var(--bg-steel)] bg-[rgb(var(--bg-steel-rgb)/0.15)] border-[rgb(var(--bg-steel-rgb)/0.3)]',
+                    B: 'text-[var(--bg-steel)] bg-[rgb(var(--bg-steel-rgb)/0.15)] border-[rgb(var(--bg-steel-rgb)/0.3)]',
+                    H: 'text-[rgb(var(--warning-rgb))] bg-[rgb(var(--warning-rgb)/0.15)] border-[rgb(var(--warning-rgb)/0.3)]',
+                    S: 'text-[rgb(var(--danger-rgb))] bg-[rgb(var(--danger-rgb)/0.15)] border-[rgb(var(--danger-rgb)/0.3)]',
+                  };
+                  
+                  return (
+                    <span 
+                      className={`px-1.5 py-0.5 rounded text-[8px] font-bold border ${domainColors[dominantDomain]}`}
+                      title={`Domain: ${domainLabels[dominantDomain]} (${attribution ? Math.round(attribution[dominantDomain === 'M' ? 'mind' : dominantDomain === 'B' ? 'body' : dominantDomain === 'H' ? 'heart' : 'soul']) : 0}%)`}
+                    >
+                      {dominantDomain}
+                    </span>
+                  );
+                })()}
               </div>
               <div className={`p-4 rounded-2xl text-sm leading-relaxed shadow-sm ${
                 msg.sender === 'user' 

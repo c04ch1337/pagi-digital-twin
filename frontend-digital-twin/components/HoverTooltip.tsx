@@ -5,7 +5,7 @@ type Placement = 'top' | 'bottom';
 
 export interface HoverTooltipProps {
   title: string;
-  description: string;
+  description: string | React.ReactNode;
   children: React.ReactElement;
 }
 
@@ -131,7 +131,7 @@ const HoverTooltip: React.FC<HoverTooltipProps> = ({ title, description, childre
                 {title}
               </div>
               <div className="text-[10px] text-[var(--text-secondary)] leading-snug whitespace-normal break-words">
-                {description}
+                {typeof description === 'string' ? description : description}
               </div>
 
               {/* Arrow */}

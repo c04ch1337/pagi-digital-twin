@@ -6,3 +6,4 @@ pub mod phoenix_routes;
 pub mod playbook_routes;
 pub mod reports;
 pub mod feedback_storage;
+pub mod knowledge_pathfinding;

@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
-use tokio::sync::{broadcast, mpsc, RwLock};
+use tokio::sync::{broadcast, mpsc, Mutex, RwLock};
 use tracing::{error, info, warn};
 use uuid::Uuid;
 use sysinfo::{System, Pid};
@@ -27,7 +27,7 @@ pub struct AgentFactory {
     /// Message bus sender for publishing events.
     message_bus_tx: broadcast::Sender<crate::bus::PhoenixEvent>,
     /// Memory client for episodic memory logging
-    memory_client: Option<Arc<crate::memory_client::memory_service_client::MemoryServiceClient<Channel>>>,
+    memory_client: Option<Arc<Mutex<crate::memory_client::memory_service_client::MemoryServiceClient<Channel>>>>,
 }
 
 #[derive(Default)]
@@ -92,7 +92,7 @@ impl AgentFactory {
             openrouter_api_key,
             subagent_model,
             message_bus_tx: message_bus_tx.clone(),
-            memory_client: memory_client.map(Arc::new),
+            memory_client: memory_client.map(|c| Arc::new(Mutex::new(c))),
         };
 
         // Start the resource monitor hook
@@ -255,16 +255,6 @@ impl AgentFactory {
         let last_activity: Arc<RwLock<chrono::DateTime<chrono::Utc>>> = 
             Arc::new(RwLock::new(chrono::Utc::now()));
         
-        // Publish AgentHandshake event
-        let bus_tx = self.message_bus_tx.clone();
-        let handshake_event = crate::bus::PhoenixEvent::AgentHandshake {
-            agent_id: agent_id.clone(),
-            agent_name: info.name.clone(),
-            mission: info.mission.clone(),
-            timestamp: created_at.clone(),
-        };
-        let _ = bus_tx.send(handshake_event);
-
         let info = AgentInfo {
             agent_id: agent_id.clone(),
             name,
@@ -273,6 +263,16 @@ impl AgentFactory {
             status: "idle".to_string(),
             created_at,
         };
+
+        // Publish AgentHandshake event
+        let bus_tx = self.message_bus_tx.clone();
+        let handshake_event = crate::bus::PhoenixEvent::AgentHandshake {
+            agent_id: agent_id.clone(),
+            agent_name: info.name.clone(),
+            mission: info.mission.clone(),
+            timestamp: info.created_at.clone(),
+        };
+        let _ = bus_tx.send(handshake_event);
 
         // Clone what the worker loop needs.
         let http_client = self.http_client.clone();
@@ -579,7 +579,7 @@ async fn openrouter_chat(
 
 /// Log episodic memory (success or failure) to Qdrant for playbook distillation
 async fn log_episodic_memory(
-    memory_client: Arc<crate::memory_client::memory_service_client::MemoryServiceClient<Channel>>,
+    memory_client: Arc<Mutex<crate::memory_client::memory_service_client::MemoryServiceClient<Channel>>>,
     agent_id: &str,
     agent_name: &str,
     task: &str,
@@ -608,8 +608,9 @@ async fn log_episodic_memory(
         risk_level: if outcome == "Failure" { "Medium".to_string() } else { "Low".to_string() },
         metadata,
     });
-    
-    match memory_client.commit_memory(request).await {
+
+    let mut client = memory_client.lock().await;
+    match client.commit_memory(request).await {
         Ok(response) => {
             let resp = response.into_inner();
             if resp.success {

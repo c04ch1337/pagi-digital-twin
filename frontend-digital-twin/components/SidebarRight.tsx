@@ -5,9 +5,12 @@ import TelemetryCharts from './TelemetryCharts';
 import NeuralMemorySearch from './NeuralMemorySearch';
 import MemoryHealth from './MemoryHealth';
 import HoverTooltip from './HoverTooltip';
+import IngestorDashboard from './IngestorDashboard';
 import { fetchNamespaceMetrics, MemoryStatus } from '../services/memory';
 import { useTelemetry } from '../context/TelemetryContext';
 import { fetchSyncMetrics } from '../services/systemService';
+
+import { DomainAttribution } from '../types/protocol';
 
 interface SidebarRightProps {
   jobs: Job[];
@@ -16,13 +19,15 @@ interface SidebarRightProps {
   onDeny: (id: string) => void;
   activeTwin: Twin;
   onViewLogs: (jobId: string) => void;
+  domainAttribution?: DomainAttribution;
 }
 
-const SidebarRight: React.FC<SidebarRightProps> = ({ jobs, approvals, onApprove, onDeny, activeTwin, onViewLogs }) => {
+const SidebarRight: React.FC<SidebarRightProps> = ({ jobs, approvals, onApprove, onDeny, activeTwin, onViewLogs, domainAttribution }) => {
   // Get telemetry data from context (SSE stream)
   const { telemetry, isConnected: isTelemetryConnected } = useTelemetry();
   const [memoryInfo, setMemoryInfo] = useState<MemoryStatus | null>(null);
   const [neuralSync, setNeuralSync] = useState<number>(100);
+  const [showAttributionDetails, setShowAttributionDetails] = useState<boolean>(false);
 
   const latest = telemetry.length > 0 ? telemetry[telemetry.length - 1] : { cpu: 0, memory: 0, network: 0, gpu: 0, timestamp: '' };
 
@@ -299,6 +304,136 @@ const SidebarRight: React.FC<SidebarRightProps> = ({ jobs, approvals, onApprove,
            </div>
          </section>
 
+        {/* DOMAIN CONFIDENCE GAUGES */}
+        <section className="p-4 border-b border-[rgb(var(--bg-steel-rgb)/0.2)]">
+          <div className="flex items-center justify-between mb-4">
+            <HoverTooltip
+              title="Domain Confidence Gauges"
+              description="Shows which knowledge domains (Mind/Body/Heart/Soul) are contributing to the current chat session. Higher percentages indicate stronger domain influence on agent responses."
+            >
+              <div className="flex items-center gap-2 cursor-help">
+                <div className="p-1.5 bg-[rgb(var(--surface-rgb)/0.4)] text-[var(--bg-steel)] rounded">
+                  <ICONS.Brain />
+                </div>
+                <h3 className="text-xs font-bold uppercase tracking-widest text-[var(--text-secondary)]">Domain Confidence</h3>
+              </div>
+            </HoverTooltip>
+            <button
+              onClick={() => setShowAttributionDetails(!showAttributionDetails)}
+              className="px-2 py-1 text-[8px] bg-[rgb(var(--surface-rgb)/0.5)] hover:bg-[rgb(var(--surface-rgb)/0.7)] text-[var(--text-secondary)] rounded transition-all border border-[rgb(var(--bg-steel-rgb)/0.3)]"
+              title={showAttributionDetails ? "Hide percentage details" : "Show percentage details"}
+            >
+              {showAttributionDetails ? 'Hide %' : 'Show %'}
+            </button>
+          </div>
+
+          <div className="bg-[rgb(var(--surface-rgb)/0.3)] p-3 rounded-xl border border-[rgb(var(--bg-steel-rgb)/0.3)] space-y-3">
+            {/* Mind Domain */}
+            <HoverTooltip
+              title="Mind (Intellectual) Domain"
+              description="Technical specifications, logical procedures, playbooks, and verified code patterns. High values indicate technical/logical knowledge is driving responses."
+            >
+              <div className="space-y-1.5 cursor-help">
+                  <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="material-symbols-outlined text-[12px] text-[var(--bg-steel)]">psychology</span>
+                    <span className="text-[9px] text-[var(--text-secondary)] font-bold">Mind</span>
+                  </div>
+                  {showAttributionDetails && (
+                    <span className="text-[9px] text-[var(--bg-steel)] font-mono font-bold">
+                      {domainAttribution ? Math.round(domainAttribution.mind) : 0}%
+                    </span>
+                  )}
+                </div>
+                <div className="h-1 bg-[rgb(var(--surface-rgb)/0.5)] rounded-full overflow-hidden">
+                  <div 
+                    className="h-full bg-[var(--bg-steel)] transition-all duration-500" 
+                    style={{ width: `${domainAttribution ? domainAttribution.mind : 0}%` }} 
+                  />
+                </div>
+              </div>
+            </HoverTooltip>
+
+            {/* Body Domain */}
+            <HoverTooltip
+              title="Body (Physical) Domain"
+              description="Real-time telemetry data, system state, hardware metrics, and performance data. High values indicate physical/system state is driving responses."
+            >
+              <div className="space-y-1.5 cursor-help">
+                  <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <ICONS.Activity />
+                    <span className="text-[9px] text-[var(--text-secondary)] font-bold">Body</span>
+                  </div>
+                  {showAttributionDetails && (
+                    <span className="text-[9px] text-[var(--bg-steel)] font-mono font-bold">
+                      {domainAttribution ? Math.round(domainAttribution.body) : 0}%
+                    </span>
+                  )}
+                </div>
+                <div className="h-1 bg-[rgb(var(--surface-rgb)/0.5)] rounded-full overflow-hidden">
+                  <div 
+                    className="h-full bg-[var(--bg-steel)] transition-all duration-500" 
+                    style={{ width: `${domainAttribution ? domainAttribution.body : 0}%` }} 
+                  />
+                </div>
+              </div>
+            </HoverTooltip>
+
+            {/* Heart Domain */}
+            <HoverTooltip
+              title="Heart (Emotional) Domain"
+              description="User preferences, agent personas, personalized context, and interaction history. High values indicate personalized alignment is driving responses."
+            >
+              <div className="space-y-1.5 cursor-help">
+                  <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="material-symbols-outlined text-[12px] text-[var(--bg-steel)]">favorite</span>
+                    <span className="text-[9px] text-[var(--text-secondary)] font-bold">Heart</span>
+                  </div>
+                  {showAttributionDetails && (
+                    <span className="text-[9px] text-[var(--bg-steel)] font-mono font-bold">
+                      {domainAttribution ? Math.round(domainAttribution.heart) : 0}%
+                    </span>
+                  )}
+                </div>
+                <div className="h-1 bg-[rgb(var(--surface-rgb)/0.5)] rounded-full overflow-hidden">
+                  <div 
+                    className="h-full bg-[var(--bg-steel)] transition-all duration-500" 
+                    style={{ width: `${domainAttribution ? domainAttribution.heart : 0}%` }} 
+                  />
+                </div>
+              </div>
+            </HoverTooltip>
+
+            {/* Soul Domain */}
+            <HoverTooltip
+              title="Soul (Ethical) Domain"
+              description="Corporate governance, leadership wisdom, audit trails, safety guardrails, and ethical guidelines. High values indicate ethical/governance constraints are driving responses."
+            >
+              <div className="space-y-1.5 cursor-help">
+                  <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="material-symbols-outlined text-[12px] text-[var(--bg-steel)]">shield</span>
+                    <span className="text-[9px] text-[var(--text-secondary)] font-bold">Soul</span>
+                  </div>
+                  {showAttributionDetails && (
+                    <span className="text-[9px] text-[var(--bg-steel)] font-mono font-bold">
+                      {domainAttribution ? Math.round(domainAttribution.soul) : 0}%
+                    </span>
+                  )}
+                </div>
+                <div className="h-1 bg-[rgb(var(--surface-rgb)/0.5)] rounded-full overflow-hidden">
+                  <div 
+                    className="h-full bg-[var(--bg-steel)] transition-all duration-500" 
+                    style={{ width: `${domainAttribution ? domainAttribution.soul : 0}%` }} 
+                  />
+                </div>
+              </div>
+            </HoverTooltip>
+          </div>
+        </section>
+
         {/* GLOBAL MISSION STATUS */}
         <section className="p-4 border-b border-[rgb(var(--bg-steel-rgb)/0.2)]">
           <HoverTooltip
@@ -344,6 +479,11 @@ const SidebarRight: React.FC<SidebarRightProps> = ({ jobs, approvals, onApprove,
               </div>
             </HoverTooltip>
           </div>
+        </section>
+
+        {/* INGESTION PROGRESS DASHBOARD */}
+        <section className="p-4 border-b border-[rgb(var(--bg-steel-rgb)/0.2)]">
+          <IngestorDashboard />
         </section>
 
         {/* ACTIVE JOBS */}

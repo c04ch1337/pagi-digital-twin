@@ -23,7 +23,14 @@ const CrewList: React.FC<CrewListProps> = ({ twinId }) => {
       setAgents(response.agents);
       setMaxAgents(response.max_agents);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch agents');
+      const msg = err instanceof Error ? err.message : 'Failed to fetch agents';
+      // When the browser throws a generic network error, add actionable context.
+      // HTTP status/detail (e.g. 404/502 body) is handled by agentService.
+      setError(
+        msg === 'Failed to fetch'
+          ? 'Failed to fetch agents: network error (Gateway/Orchestrator unreachable or blocked)'
+          : msg
+      );
     } finally {
       setLoading(false);
     }

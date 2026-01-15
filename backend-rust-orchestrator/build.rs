@@ -4,7 +4,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .build_server(false)
         .build_client(true)
         .protoc_arg("--experimental_allow_proto3_optional")
-        .compile(
+        .compile_protos(
             &["../backend-rust-memory/proto/memory.proto"],
             &["../backend-rust-memory/proto/"],
         )?;
@@ -14,7 +14,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .build_server(false)
         .build_client(true)
         .protoc_arg("--experimental_allow_proto3_optional")
-        .compile(
+        .compile_protos(
             &["../backend-rust-tools/proto/tools.proto"],
             &["../backend-rust-tools/proto/"],
         )?;

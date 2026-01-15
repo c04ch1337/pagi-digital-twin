@@ -1,1836 +1,1694 @@
-# PAGI Chat Desktop - Comprehensive Guide
+# PAGI Digital Twin Platform
 
-> **A polyglot microservices architecture** designed for fast iteration on an **agent + tools + gateway + memory** backend system.
+A polyglot microservices architecture implementing a **Tri-Layer Phoenix Architecture** for production-grade agent orchestration, secure tool execution, and persistent memory management. The system features decentralized P2P networking (Blue Flame), Phoenix Consensus Sync for mesh-wide voting, Phoenix Memory Exchange for peer-to-peer knowledge transfer, and an Auto-Domain Ingestor that automatically classifies and routes knowledge into Mind/Body/Heart/Soul domains.
 
 ---
 
 ## Table of Contents
 
-1. [Overview](#overview)
-2. [Architecture Diagram](#architecture-diagram)
-3. [Services Overview](#services-overview)
-4. [Blue Flame Decentralized Network](#blue-flame-decentralized-network)
-   - [Phoenix Consensus Sync](#6-phoenix-consensus-sync-)
-   - [Phoenix Memory Exchange](#7-phoenix-memory-exchange-)
-5. [Request Flow](#request-flow)
-6. [Technology Stack](#technology-stack)
-7. [Getting Started](#getting-started)
-8. [Long-Term Memory & Evolving Playbooks](#long-term-memory--evolving-playbooks)
-9. [Frontend Application & User Interface](#-frontend-application--user-interface)
-10. [Audio/Video & Screenshare Recording](#-audiovideo--screenshare-recording)
-11. [Service Details](#service-details)
-12. [API Endpoints](#api-endpoints)
-13. [Development Guide](#development-guide)
-14. [Troubleshooting](#troubleshooting)
-15. [Appendix: Production Build & Deployment](#appendix-production-build--deployment)
-
-> **📚 For detailed architecture documentation, implementation choices, and production recommendations, see [`docs/PROJECT_DELIVERY_SUMMARY.md`](docs/PROJECT_DELIVERY_SUMMARY.md)**
+- [Overview](#overview)
+- [Quick Start](#quick-start)
+- [User Guide](#user-guide)
+  - [What You Can Do](#what-you-can-do)
+  - [Installation](#installation)
+  - [First Run](#first-run)
+  - [Using the App](#using-the-app)
+  - [Configuration (User)](#configuration-user)
+  - [Common Tasks](#common-tasks)
+  - [Troubleshooting (User)](#troubleshooting-user)
+  - [FAQ (User)](#faq-user)
+- [Admin Guide](#admin-guide)
+  - [Admin Responsibilities](#admin-responsibilities)
+  - [System Requirements](#system-requirements)
+  - [Deployment Options](#deployment-options)
+  - [Configuration (Admin)](#configuration-admin)
+  - [Operations](#operations)
+  - [Monitoring & Logging](#monitoring--logging)
+  - [Backup & Recovery](#backup--recovery)
+  - [Security](#security)
+  - [Upgrades & Versioning](#upgrades--versioning)
+  - [Troubleshooting (Admin)](#troubleshooting-admin)
+  - [Runbooks](#runbooks)
+- [Architecture](#architecture)
+- [API Reference](#api-reference)
+- [Contributing](#contributing)
+- [License](#license)
 
 ---
 
 ## Overview
 
-PAGI Digital Twin implements a **Tri-Layer Phoenix Architecture** with an explicit observability plane, designed for production-grade agent orchestration, secure tool execution, and persistent memory management. The system features **Phoenix Consensus Sync** for mesh-wide agent update voting and **Phoenix Memory Exchange** for secure peer-to-peer knowledge transfer.
+The PAGI Digital Twin Platform is a distributed AI agent orchestration system designed for autonomous task execution, knowledge management, and secure tool execution. The platform consists of multiple microservices written in Rust, Go, and Python, organized into four architectural layers:
 
-### Architecture Layers
+1. **Gateway Layer** - Edge protocol handling (WebSocket, HTTP, SSE)
+2. **Orchestrator Layer** - Planning, policy mediation, and human-in-the-loop gating
+3. **Infrastructure Layer** - Memory storage (Qdrant), tool execution (sandboxed), and data stores
+4. **Observability Plane** - Telemetry, tracing (Jaeger), and metrics (Prometheus)
 
-The system is organized into four distinct layers:
+### Key Components
 
-1. **Gateway Layer** (Edge Protocol + UI Integration)
-   - **Rust Gateway** - WebSocket ingress, HTTP proxy, SSE telemetry proxy
-   - Single entry point for frontend connections
-   - Protocol translation and request routing
+- **Rust Gateway** (port 8181) - Single entry point for frontend connections
+- **Rust Orchestrator** (port 8182) - Core planning and decision engine
+- **Rust Memory Service** (port 50052) - Vector storage via Qdrant
+- **Rust Tools Service** (port 50054) - Secure tool execution with sandboxing
+- **Rust Build Service** (port 50055) - Dynamic tool compilation
+- **Rust Telemetry Service** (port 8183) - Real-time system metrics
+- **Frontend Application** (port 3000) - React/TypeScript UI
+- **Qdrant Database** (ports 6333/6334) - Vector database for semantic memory
 
-2. **Orchestrator Layer** (Planning + Policy Mediation)
-   - **Rust Orchestrator** - Structured planning via OpenRouter with deterministic fallback
-   - Human-in-the-loop (HITL) gating for memory queries and tool execution
-   - Single decision point for agent actions
+### Who It's For
 
-3. **Infrastructure Layer** (Memory + Tool Execution + Data Stores)
-   - **Rust Memory Service** - Qdrant-backed vector storage (Neural Archive)
-   - **Rust Tools Service** - Secure tool execution with bubblewrap sandboxing
-   - **Qdrant DB** - Production-grade vector database for persistent memory
-
-4. **Observability Plane** (Telemetry + Tracing/Metrics)
-   - **Rust Telemetry Service** - Real-time host telemetry via SSE
-   - **Jaeger** - Distributed tracing
-   - **Prometheus** - Metrics collection and alerting
-
-### Technology Stack
-
-The system leverages multiple programming languages to optimize for each layer:
-
-- **Rust** - Gateway, Orchestrator, Memory, Tools, Telemetry (performance, security, memory safety)
-- **Go** - Legacy Agent Planner, Model Gateway, BFF (high-performance HTTP/gRPC services)
-- **Python** - Legacy Memory Service, Agent (rapid prototyping, AI/ML ecosystem)
-- **gRPC** - Efficient inter-service communication
-- **Qdrant** - Production vector database for semantic memory
-
-### Runtime Profiles
-
-This repo supports multiple deployment profiles:
-
-1. **Docker Compose (Production / Recommended)**
-   - Full Tri-Layer architecture with all services
-   - Qdrant-backed memory, bubblewrap sandboxing
-   - Complete observability stack (Jaeger, Prometheus)
-   - See [`docker-compose.yml`](docker-compose.yml:1)
-
-2. **Bare Metal (Development)**
-   - Runs core services directly without Docker
-   - Faster iteration for development
-   - See [`scripts/run_all_dev.py`](scripts/run_all_dev.py:1)
-
-3. **Legacy Demo Stack (Deprecated)**
-   - Go BFF + Python Agent demo stack
-   - Maintained for backward compatibility
-   - See [`scripts/run_all_dev.py`](scripts/run_all_dev.py:1) (`--profile legacy`)
+- **End Users**: Interact with AI agents through the web interface for task automation, knowledge queries, and system management
+- **Administrators**: Deploy, configure, monitor, and maintain the multi-service platform
+- **Developers**: Extend functionality, create new tools, and contribute to the codebase
 
 ---
 
-## Architecture Diagram
-
-### Tri-Layer Phoenix Architecture (Production Stack)
-
-```mermaid
-graph TB
-    subgraph "Client Layer"
-        FE[Frontend Application<br/>React/TypeScript<br/>:3000]
-    end
-
-    subgraph "Gateway Layer"
-        GW[Rust Gateway<br/>HTTP/WebSocket/SSE<br/>:8181]
-    end
-
-    subgraph "Orchestrator Layer"
-        OR[Rust Orchestrator<br/>HTTP<br/>:8182]
-    end
-
-    subgraph "Infrastructure Layer"
-        MEM[Rust Memory Service<br/>gRPC<br/>:50052]
-        TOOLS[Rust Tools Service<br/>gRPC<br/>:50054]
-        BUILD[Rust Build Service<br/>gRPC<br/>:50055]
-        QD[Qdrant DB<br/>Vector Storage<br/>:6333/:6334]
-    end
-
-    subgraph "Observability Plane"
-        TEL[Rust Telemetry<br/>SSE<br/>:8183]
-        J[Jaeger<br/>Tracing<br/>:16686]
-        P[Prometheus<br/>Metrics<br/>:9090]
-    end
-
-    FE -->|WebSocket| GW
-    FE -->|HTTP| GW
-    FE -->|SSE| GW
-    GW -->|HTTP Proxy| OR
-    GW -->|SSE Proxy| TEL
-    OR -->|gRPC| MEM
-    OR -->|gRPC| TOOLS
-    OR -->|gRPC| BUILD
-    BUILD -.->|Compiles| TOOLS
-    MEM -->|gRPC| QD
-    OR -.->|Traces| J
-    OR -.->|Metrics| P
-
-    style GW fill:#CE412B,stroke:#8B2E1F,stroke-width:3px,color:#fff
-    style OR fill:#CE412B,stroke:#8B2E1F,stroke-width:3px,color:#fff
-    style MEM fill:#CE412B,stroke:#8B2E1F,stroke-width:2px,color:#fff
-    style TOOLS fill:#CE412B,stroke:#8B2E1F,stroke-width:2px,color:#fff
-    style BUILD fill:#CE412B,stroke:#8B2E1F,stroke-width:2px,color:#fff
-    style QD fill:#FF6B6B,stroke:#CC5555,stroke-width:2px,color:#fff
-    style TEL fill:#CE412B,stroke:#8B2E1F,stroke-width:2px,color:#fff
-```
-
-### Legacy Architecture (Agent Planner Stack)
-
-> **Note:** This architecture is maintained for backward compatibility. New deployments should use the Tri-Layer architecture above.
-
-```mermaid
-graph TB
-    subgraph "Client"
-        C[Client / UI]
-    end
-
-    subgraph "HTTP"
-        AP[Go Agent Planner<br/>HTTP :8585]
-    end
-
-    subgraph "gRPC"
-        MG[Go Model Gateway<br/>gRPC :50051]
-        MS[Python Memory Service<br/>HTTP :8003 + gRPC :50052]
-        RS[Rust Sandbox<br/>gRPC :50053]
-    end
-
-    subgraph "Infra"
-        R[Redis :6379]
-        CH[Chroma :8000]
-        J[Jaeger :16686]
-        P[Prometheus :9090]
-    end
-
-    C -->|HTTP| AP
-    AP -->|gRPC| MG
-    AP -->|gRPC| MS
-    AP -->|gRPC| RS
-    MS -->|HTTP| CH
-    AP -->|pub/sub| R
-
-    style AP fill:#00ADD8,stroke:#007A9B,stroke-width:2px,color:#fff
-    style MG fill:#00ADD8,stroke:#007A9B,stroke-width:2px,color:#fff
-    style MS fill:#3776AB,stroke:#1F4788,stroke-width:2px,color:#fff
-    style RS fill:#CE412B,stroke:#8B2E1F,stroke-width:2px,color:#fff
-```
-
-### Bare-metal dev harness profile (BFF + Python Agent demo)
-
-> This is the older “fan-out BFF” demo stack started by [`make run-legacy-dev`](Makefile:1) / [`scripts/run_all_dev.py`](scripts/run_all_dev.py:1).
-
-```mermaid
-graph TB
-    subgraph "Client Layer"
-        FE[Frontend Application<br/>Next.js]
-    end
-
-    subgraph "API Gateway Layer"
-        BFF[Go BFF Service<br/>HTTP :8002<br/>Gin]
-    end
-
-    subgraph "Core Services"
-        PY[Python Agent<br/>HTTP :8000<br/>FastAPI]
-        RS2[Rust Sandbox<br/>HTTP :8001<br/>Axum/Tokio]
-        MM[Mock Memory<br/>HTTP :8003<br/>FastAPI]
-    end
-
-    subgraph "Model Gateway"
-        MG2[Go Model Gateway<br/>gRPC :50051]
-    end
-
-    FE -->|HTTP| BFF
-    BFF -->|HTTP POST| PY
-    BFF -->|HTTP POST| RS2
-    BFF -->|HTTP GET| MM
-    PY -->|gRPC| MG2
-
-    style BFF fill:#00ADD8,stroke:#007A9B,stroke-width:2px,color:#fff
-    style PY fill:#3776AB,stroke:#1F4788,stroke-width:2px,color:#fff
-    style RS2 fill:#CE412B,stroke:#8B2E1F,stroke-width:2px,color:#fff
-    style MG2 fill:#00ADD8,stroke:#007A9B,stroke-width:2px,color:#fff
-```
-
----
-
-## Services Overview
-
-### Tri-Layer Architecture Services (Production Stack)
-
-#### Gateway Layer
-
-| Service | Language | Framework | Ports | Purpose | Key Features |
-|---------|----------|-----------|-------|---------|--------------|
-| **Rust Gateway** | Rust | Axum | 8181 (HTTP/WebSocket/SSE) | Edge protocol + UI integration | • WebSocket ingress for real-time chat<br>• WebSocket signaling for media coordination<br>• HTTP proxy to Orchestrator<br>• SSE proxy for telemetry streaming<br>• Media upload proxy<br>• Single entry point for frontend |
-
-#### Orchestrator Layer
-
-| Service | Language | Framework | Ports | Purpose | Key Features |
-|---------|----------|-----------|-------|---------|--------------|
-| **Rust Orchestrator** | Rust | Axum | 8182 (HTTP) | Planning + policy mediation | • Structured planning via OpenRouter or mock<br>• Human-in-the-loop (HITL) gating<br>• Deterministic fallback for offline work<br>• Typed JSON action contracts<br>• Multi-modal awareness (media recordings)<br>• Transcript summarization (gRPC)<br>• Sub-agent factory with episodic memory logging<br>• Weekly playbook distillation and GitHub integration<br>• **Blue Flame P2P network** (mDNS discovery, handshake protocol, quarantine system)<br>• **Mesh health reporting** (alignment metrics, network status)<br>• **Phoenix Consensus Sync** (mesh-wide voting for agent updates)<br>• **Phoenix Memory Exchange** (peer-to-peer knowledge transfer with redaction) |
-
-#### Infrastructure Layer
-
-| Service | Language | Framework | Ports | Purpose | Key Features |
-|---------|----------|-----------|-------|---------|--------------|
-| **Rust Memory Service** | Rust | gRPC | 50052 (gRPC) | Neural Archive vector storage | • Qdrant-backed persistent memory<br>• Namespace-based collections<br>• Operational heartbeat monitoring<br>• Mandatory fail-fast on startup |
-| **Rust Tools Service** | Rust | gRPC | 50054 (gRPC) | Secure tool execution | • Bubblewrap OS-level sandboxing (Linux)<br>• Cross-platform cwd isolation<br>• Policy-based authorization<br>• Hard timeout enforcement |
-| **Rust Build Service** | Rust | gRPC | 50055 (gRPC) | Tool compilation and creation | • High-privilege code writing and compilation<br>• Queue-based build limiting (backpressure)<br>• Automatic Cargo.toml generation<br>• Tool name sanitization for security |
-| **Qdrant DB** | N/A | qdrant | 6333 (REST) / 6334 (gRPC) | Production vector database | • High-performance similarity search<br>• Persistent storage volumes<br>• Multi-tenant namespace support<br>• Production-grade reliability |
-
-#### Observability Plane
-
-| Service | Language | Framework | Ports | Purpose | Key Features |
-|---------|----------|-----------|-------|---------|--------------|
-| **Rust Telemetry Service** | Rust | Axum | 8183 (SSE) | Real-time host telemetry | • CPU, Memory, Process metrics<br>• Server-Sent Events streaming<br>• Media upload and storage<br>• Low-latency monitoring |
-| **Jaeger** | N/A | jaeger | 16686 (UI) / 4317-4318 (ports) | Distributed tracing | • Request tracing across services<br>• Performance bottleneck identification<br>• Debugging complex flows |
-| **Prometheus** | N/A | prometheus | 9090 | Metrics collection | • System metrics scraping<br>• Alerting rule evaluation<br>• Historical metric storage |
-
-### Legacy Services (Backward Compatibility)
-
-| Service | Language | Framework | Ports | Purpose | Status |
-|---------|----------|-----------|-------|---------|--------|
-| **Go Agent Planner** | Go | chi | 8585 | Legacy agent loop entrypoint | Deprecated |
-| **Go Model Gateway** | Go | gRPC | 50051 | LLM model gateway | Maintained |
-| **Python Memory Service** | Python | FastAPI | 8003 (HTTP) / 50052 (gRPC) | Legacy memory (Chroma-backed) | Deprecated |
-| **Rust Sandbox** | Rust | Axum + gRPC | 50053 (gRPC) / 8001 (HTTP) | Legacy tool execution | Deprecated |
-| **Chroma DB** | N/A | chroma | 8000 | Legacy vector store | Being phased out |
-| **Redis** | N/A | redis | 6379 | Async notifications | Optional |
-| **Notification Service** | Go | N/A | N/A | Redis notification subscriber | Optional |
-
-### Bare-metal dev harness services
-
-| Service | Language | Framework | Port | Purpose |
-|---------|----------|-----------|------|---------|
-| **Go BFF** | Go | Gin | 8002 | Fan-out aggregator for demo UI |
-| **Python Agent** | Python | FastAPI | 8000 | Demo agent planning (calls model gateway) |
-| **Rust Sandbox** | Rust | Axum/Tokio | 8001 | Demo HTTP tool execution |
-| **Mock Memory** | Python | FastAPI | 8003 | Mock memory service for local dev demo |
-| **Go Model Gateway** | Go | gRPC | 50051 | LLM model gateway (gRPC service) |
-
----
-
-## Blue Flame Decentralized Network
-
-PAGI Digital Twin implements a **"Blue Flame"** decentralized AGI network that enables multiple orchestrator nodes to discover, verify, and trust each other automatically. This creates a self-organizing, transparent, and auditable distributed intelligence system.
-
-### Network Features
-
-#### 1. **3D Trust Network Visualization**
-- **Component:** `TrustNetworkMap.tsx` (React + Three.js)
-- **Location:** Frontend Network tab in OrchestratorHub
-- **Features:**
-  - Real-time 3D visualization of network topology using `react-force-graph-3d`
-  - Node representation:
-    - **Verified Nodes:** Green spheres with blue emissive glow (pulsing effect)
-    - **Pending Nodes:** Yellow spheres with dashed borders
-    - **Quarantined Nodes:** Red spheres with cross indicators
-  - Link representation:
-    - **Trust Links:** Green lines between verified nodes
-    - **Weak Links:** Dashed yellow lines to pending nodes
-  - Interactive node details on hover/click
-  - Dark grid-patterned background with orbital controls
-  - **Mesh Health Summary Card:** Displays real-time network metrics
-
-#### 2. **mDNS Service Discovery**
-- **Service:** `backend-rust-orchestrator/src/network/mdns.rs`
-- **Purpose:** Automatic peer discovery on local network
-- **Features:**
-  - Service registration: Announces node as `_blueflame._tcp.local`
-  - Service discovery: Browses for other Blue Flame nodes
-  - TXT records include: `node_id`, `software_version`, `guardrail_version`
-  - Automatic handshake initiation on discovery
-  - Long-lived tokio task for continuous operation
-
-#### 3. **Node Handshake Protocol**
-- **Service:** `backend-rust-orchestrator/src/network/handshake.rs`
-- **Port:** 8285 (gRPC) - Configurable via `HANDSHAKE_GRPC_PORT`
-- **Protocol Flow:**
-  1. **Initiation:** Node A sends `HandshakeRequest` (NodeID, SoftwareVersion, ManifestHash)
-  2. **Challenge:** Node B responds with nonce that must be signed
-  3. **Verification:** Both nodes exchange Alignment Token (hash of system_prompt + KB)
-  4. **Validation:** If validation fails, connection is dropped and event is broadcast
-- **Security:**
-  - ED25519 signature verification
-  - Manifest hash validation
-  - Alignment token matching (ensures same values/guardrails)
-  - Nonce-based challenge-response (30-second TTL)
-
-#### 4. **Quarantine System**
-- **Service:** `backend-rust-orchestrator/src/network/quarantine.rs`
-- **Purpose:** Safety guard for network isolation
-- **Features:**
-  - Automatic quarantine of nodes with failed handshakes
-  - Persistent storage in Qdrant `quarantine_list` collection
-  - IP-based and node-ID-based blocking
-  - Re-integration support for recovered nodes
-  - Event broadcasting on quarantine/reintegration
-
-#### 5. **Mesh Health Reporting**
-- **Service:** `backend-rust-orchestrator/src/analytics/mesh_health.rs`
-- **Endpoint:** `GET /api/network/mesh-health`
-- **Metrics:**
-  - **Total Nodes:** Count of unique node IDs
-  - **Aligned Nodes:** Count of verified nodes (not quarantined)
-  - **Quarantined Nodes:** Count of isolated nodes
-  - **Alignment Drift:** Percentage of nodes with outdated manifest hashes
-  - **Last Updated:** Timestamp of report generation
-- **Performance:** 1-minute caching to reduce database load
-- **UI Integration:** Displayed in TrustNetworkMap component
-
-#### 6. **Phoenix Consensus Sync** 🏛️
-- **Service:** `backend-rust-orchestrator/src/network/consensus.rs`
-- **Purpose:** Mesh-wide voting mechanism for agent library updates
-- **Flow:**
-  1. **Commit Detection:** Node detects new commit in `pagi-agent-repo` → broadcasts `ConsensusRequest`
-  2. **Mesh Voting:** Peers respond with `ConsensusVote` containing local compliance scores
-  3. **Automatic Adoption:** If average score ≥ 70% AND ≥ 50% approval → auto `git pull` + `DiscoveryRefresh`
-  4. **Quarantine Sync:** Rejected commits added to mesh-wide quarantine list
-- **Configuration:**
-  - `min_average_score`: 70.0 (minimum compliance score to approve)
-  - `min_approval_percentage`: 50.0 (minimum % of nodes that must approve)
-  - `vote_timeout_seconds`: 30 (timeout for collecting votes)
-- **Events:**
-  - `ConsensusRequest`: Broadcast when new commit detected
-  - `ConsensusVote`: Peer responses with compliance scores
-  - `ConsensusResult`: Final consensus decision (approved/rejected)
-- **Integration:** Automatically triggered when `sync_library` detects new commits
-- **Documentation:** See [`docs/PHOENIX_CONSENSUS_AND_MEMORY_EXCHANGE.md`](backend-rust-orchestrator/docs/PHOENIX_CONSENSUS_AND_MEMORY_EXCHANGE.md)
-
-#### 7. **Phoenix Memory Exchange** 🧠
-- **Service:** `backend-rust-orchestrator/src/network/memory_exchange.rs`
-- **Proto:** `backend-rust-orchestrator/proto/memory_exchange.proto`
-- **Purpose:** Peer-to-peer knowledge transfer with automatic redaction
-- **Flow:**
-  1. **Knowledge Request:** Node A requests vectors via `PhoenixEvent::MemoryExchangeRequest`
-  2. **Sovereign Scrubbing:** Node B retrieves Qdrant data → applies **Phoenix-Redacted** filter
-  3. **Identity Verification:** Only verified peers (via `PhoenixHandshake`) can exchange
-  4. **Streaming Transfer:** Clean embeddings streamed via gRPC to Node A
-- **Security:**
-  - Alignment token verification required
-  - All content scrubbed using `PrivacyFilter` (hostnames, IPs, secrets)
-  - Only verified peers can participate
-- **gRPC Service:**
-  - `ExchangeMemory`: Stream redacted memory vectors for a topic
-  - `VerifyAlignment`: Verify alignment token before exchange
-- **Events:**
-  - `MemoryExchangeRequest`: Request for memory vectors on specific topic
-- **Documentation:** See [`docs/PHOENIX_CONSENSUS_AND_MEMORY_EXCHANGE.md`](backend-rust-orchestrator/docs/PHOENIX_CONSENSUS_AND_MEMORY_EXCHANGE.md)
-
-### Network API Endpoints
-
-| Endpoint | Method | Purpose | Response |
-|----------|--------|---------|----------|
-| `/api/network/topology` | GET | Get network graph data (nodes + links) | JSON with nodes and links arrays |
-| `/api/network/mesh-health` | GET | Get mesh health metrics | JSON with health metrics |
-| `/api/network/peers` | GET | List all discovered peers | JSON with peers array |
-| `/api/network/quarantine` | GET | List quarantined nodes | JSON with quarantined array |
-| `/api/network/quarantine` | POST | Quarantine a node | JSON success response |
-| `/api/network/quarantine/:node_id` | DELETE | Reintegrate a node | JSON success response |
-
-### Network Architecture
-
-```mermaid
-graph TB
-    subgraph "Node A"
-        OR1[Rust Orchestrator<br/>:8182]
-        MDNS1[mDNS Service<br/>Discovery + Registration]
-        HS1[Handshake Service<br/>gRPC :8285]
-        QM1[Quarantine Manager]
-    end
-
-    subgraph "Node B"
-        OR2[Rust Orchestrator<br/>:8182]
-        MDNS2[mDNS Service<br/>Discovery + Registration]
-        HS2[Handshake Service<br/>gRPC :8285]
-        QM2[Quarantine Manager]
-    end
-
-    subgraph "Network Discovery"
-        MDNS[Multicast DNS<br/>_blueflame._tcp.local]
-    end
-
-    subgraph "Storage"
-        QD[Qdrant DB<br/>audit_logs + quarantine_list]
-    end
-
-    MDNS1 <-->|mDNS| MDNS
-    MDNS2 <-->|mDNS| MDNS
-    MDNS1 -.->|NodeDiscovered Event| OR1
-    MDNS2 -.->|NodeDiscovered Event| OR2
-    OR1 -->|Handshake Request| HS2
-    HS2 -->|Challenge| OR1
-    OR1 -->|Signed Response| HS2
-    HS2 -->|Verification| QM2
-    HS1 -->|Log Success| QD
-    HS2 -->|Log Success| QD
-    QM1 -->|Check Quarantine| QD
-    QM2 -->|Check Quarantine| QD
-
-    style OR1 fill:#CE412B,stroke:#8B2E1F,stroke-width:2px,color:#fff
-    style OR2 fill:#CE412B,stroke:#8B2E1F,stroke-width:2px,color:#fff
-    style MDNS fill:#4A90E2,stroke:#2E5C8A,stroke-width:2px,color:#fff
-    style QD fill:#FF6B6B,stroke:#CC5555,stroke-width:2px,color:#fff
-```
-
-### Configuration
-
-#### Environment Variables
-
-| Variable | Default | Purpose |
-|----------|---------|---------|
-| `NODE_ID` | Auto-generated UUID | Unique node identifier |
-| `HANDSHAKE_GRPC_PORT` | 8285 | gRPC port for handshake service |
-| `SOFTWARE_VERSION` | 2.1.0 | Software version for handshake |
-| `GUARDRAIL_VERSION` | 2.1.0 | Guardrail version for handshake |
-
-#### Node Identity
-
-Each node generates an ED25519 key pair on first startup:
-- **Location:** `backend-rust-orchestrator/config/node_identity.key`
-- **Purpose:** Cryptographic signing for handshake challenges
-- **Persistence:** Key is stored locally and reused across restarts
-
-### Network Events
-
-The system uses a `GlobalMessageBus` to broadcast network events:
-
-- **`NodeDiscovered`**: New node discovered via mDNS
-- **`PeerVerified`**: Node successfully verified and added to trusted peers
-- **`UnauthorizedNodeDetected`**: Node failed handshake validation
-- **`NodeIsolated`**: Node quarantined
-- **`NodeReintegrated`**: Node removed from quarantine
-- **`ConsensusRequest`**: Request for consensus on a new commit
-- **`ConsensusVote`**: Vote from a peer on a commit (with compliance score)
-- **`ConsensusResult`**: Final consensus decision (approved/rejected with metrics)
-- **`MemoryExchangeRequest`**: Request for memory vectors from a peer
-
-### Frontend Integration
-
-The network visualization is accessible via:
-1. Navigate to **OrchestratorHub** in the frontend
-2. Click the **"Network"** tab
-3. View the 3D trust network map with real-time updates
-4. Monitor mesh health metrics in the summary card
-
----
-
-## Request Flow
-
-### Tri-Layer Architecture Request Flow (Production)
-
-```mermaid
-sequenceDiagram
-    participant FE as Frontend
-    participant GW as Rust Gateway<br/>(:8181)
-    participant OR as Rust Orchestrator<br/>(:8182)
-    participant MEM as Rust Memory<br/>(gRPC :50052)
-    participant TOOLS as Rust Tools<br/>(gRPC :50054)
-    participant BUILD as Rust Build<br/>(gRPC :50055)
-    participant QD as Qdrant DB
-    participant TEL as Telemetry<br/>(:8183)
-
-    FE->>GW: WebSocket: Chat Message
-    activate GW
-    GW->>OR: HTTP POST: /v1/chat
-    activate OR
-    
-    Note over OR: Structured Planning<br/>(OpenRouter or Mock)
-    OR->>OR: Generate LLMAction (JSON)
-    
-    alt Action: Query Memory
-        OR->>MEM: gRPC: QueryMemory()
-        activate MEM
-        MEM->>QD: Vector Search
-        QD-->>MEM: Results
-        MEM-->>OR: Memory Context
-        deactivate MEM
-        OR-->>GW: HITL Command: [MEMORY_SHOWN]
-        GW-->>FE: UI Modal: Approve Memory Access
-        FE-->>GW: User Approval
-        GW->>OR: Continue with Memory Context
-    else Action: Execute Tool
-        OR-->>GW: HITL Command: [TOOL_EXECUTED]
-        GW-->>FE: UI Modal: Approve Tool Execution
-        FE-->>GW: User Approval
-        GW->>OR: Continue with Tool Execution
-        OR->>TOOLS: gRPC: ExecuteTool()
-        activate TOOLS
-        Note over TOOLS: Bubblewrap Sandbox<br/>(Linux) or CWD Isolation
-        TOOLS-->>OR: Tool Result
-        deactivate TOOLS
-    else Action: Build Tool
-        OR->>BUILD: gRPC: CreateTool(tool_name, tool_code)
-        activate BUILD
-        Note over BUILD: Write src/main.rs<br/>Run cargo build
-        BUILD-->>OR: Build Result (stdout, stderr, exit_code)
-        deactivate BUILD
-        OR->>TOOLS: Register New Tool
-        OR-->>GW: Tool Created Successfully
-    else Action: Self-Improve
-        OR->>OR: Update System Prompt
-        OR-->>GW: Prompt Updated
-    else Action: Respond
-        OR->>OR: Generate Response
-    end
-    
-    OR-->>GW: ChatResponse + Raw Decision
-    deactivate OR
-    GW-->>FE: WebSocket: Response
-    deactivate GW
-    
-    Note over FE,TEL: Telemetry Stream (SSE)
-    FE->>GW: GET /v1/telemetry/stream
-    GW->>TEL: SSE Proxy
-    TEL-->>GW: Real-time Metrics
-    GW-->>FE: SSE Stream
-```
-
-**Key Flow Characteristics:**
-- **Human-in-the-Loop (HITL):** Memory queries and tool executions require explicit user approval
-- **Structured Planning:** Orchestrator uses OpenRouter with JSON response format for deterministic parsing
-- **Fail-Safe Fallback:** Mock planner available when OpenRouter is unavailable or API key is missing (automatic fallback)
-- **Self-Developing Capabilities:** Orchestrator can create new tools (via Build Service) and improve its own system prompt
-- **Multi-Modal Awareness:** Orchestrator can access media recordings (voice/video/screen) from Telemetry Service
-- **Transcript Summarization:** gRPC service for automated transcript analysis (P50)
-- **Observability:** All actions are traceable via Jaeger and metered via Prometheus
-
-### Legacy Agent Planner Request Flow
-
-> **Note:** This flow is maintained for backward compatibility.
-
-```mermaid
-sequenceDiagram
-    participant Client
-    participant AP as Agent Planner<br/>(:8585)
-    participant MS as Memory Service<br/>(gRPC :50052)
-    participant MG as Model Gateway<br/>(gRPC :50051)
-    participant RS as Rust Sandbox<br/>(gRPC :50053)
-    participant Redis as Redis<br/>(:6379)
-
-    Client->>AP: POST /plan {prompt, session_id}
-    activate AP
-    AP->>MS: GetSessionHistory(session_id)
-    AP->>MS: GetRAGContext(prompt)
-    AP->>MG: GetPlan(planner_input, resources)
-    AP->>RS: ExecuteTool(tool_call)
-    AP->>Redis: Publish notification (async)
-    AP-->>Client: {result}
-    deactivate AP
-```
-
-### Main Dashboard request flow (Bare-metal dev harness)
-
-```mermaid
-sequenceDiagram
-    participant Client
-    participant BFF as Go BFF<br/>(Port 8002)
-    participant PyAgent as Python Agent<br/>(Port 8000)
-    participant RustSandbox as Rust Sandbox<br/>(Port 8001)
-    participant Memory as Mock Memory<br/>(Port 8003)
-    participant ModelGateway as Go Model Gateway<br/>(gRPC 50051)
-    
-    Client->>BFF: GET /api/v1/agi/dashboard-data
-    activate BFF
-    
-    par Concurrent Requests
-        BFF->>PyAgent: POST /api/v1/plan
-        activate PyAgent
-        PyAgent->>ModelGateway: gRPC GetPlan()
-        activate ModelGateway
-        ModelGateway-->>PyAgent: PlanResponse
-        deactivate ModelGateway
-        PyAgent->>BFF: POST /api/v1/echo (wiring check)
-        PyAgent-->>BFF: Plan + Echo Response
-        deactivate PyAgent
-    and
-        BFF->>RustSandbox: POST /api/v1/execute_tool
-        activate RustSandbox
-        RustSandbox-->>BFF: Tool Execution Result
-        deactivate RustSandbox
-    and
-        BFF->>Memory: GET /memory/latest
-        activate Memory
-        Memory-->>BFF: Memory Data
-        deactivate Memory
-    end
-    
-    BFF->>BFF: Aggregate all responses
-    BFF-->>Client: Combined Dashboard Data
-    deactivate BFF
-```
-
-**Key Points:**
-- The BFF makes **3 concurrent requests** to improve performance
-- Python Agent calls Model Gateway via **gRPC** (faster than HTTP)
-- The echo call is a **non-recursive wiring check** to verify connectivity
-
----
-
-## Technology Stack
-
-```mermaid
-graph LR
-    subgraph "Languages"
-        GO[Go 1.22<br/>🟦]
-        PY[Python 3.x<br/>🟨]
-        RS[Rust<br/>🟥]
-    end
-    
-    subgraph "Frameworks"
-        GIN[Gin<br/>Web Framework]
-        FAST[FastAPI<br/>Async Web]
-        AXUM[Axum<br/>Async Web]
-        GRPC[gRPC<br/>RPC Framework]
-    end
-    
-    subgraph "Protocols"
-        HTTP[HTTP/REST<br/>JSON]
-        GRPC_PROTO[gRPC<br/>Protocol Buffers]
-    end
-    
-    subgraph "Infrastructure"
-        DOCKER[Docker<br/>Containerization]
-        COMPOSE[Docker Compose<br/>Orchestration]
-    end
-    
-    GO --> GIN
-    GO --> GRPC
-    PY --> FAST
-    RS --> AXUM
-    
-    GIN --> HTTP
-    FAST --> HTTP
-    AXUM --> HTTP
-    GRPC --> GRPC_PROTO
-    
-    DOCKER --> COMPOSE
-    
-    style GO fill:#00ADD8,stroke:#007A9B,stroke-width:2px,color:#fff
-    style PY fill:#3776AB,stroke:#1F4788,stroke-width:2px,color:#fff
-    style RS fill:#CE412B,stroke:#8B2E1F,stroke-width:2px,color:#fff
-    style GIN fill:#00ADD8,stroke:#007A9B,stroke-width:2px,color:#fff
-    style FAST fill:#3776AB,stroke:#1F4788,stroke-width:2px,color:#fff
-    style AXUM fill:#CE412B,stroke:#8B2E1F,stroke-width:2px,color:#fff
-    style GRPC fill:#244C5A,stroke:#1A2F3A,stroke-width:2px,color:#fff
-```
-
----
-
-## Getting Started
+## Quick Start
 
 ### Prerequisites
 
-Before you begin, ensure you have the following installed:
+- **Docker & Docker Compose** (recommended) OR
+- **Bare-metal**: Rust toolchain, Node.js 18+, Python 3.10+, Go 1.21+
+- **OpenRouter API Key** (for LLM planning) - Get from https://openrouter.ai/
 
-- **Python 3.8+** with `pip`
-- **Go 1.22+**
-- **Rust** (latest stable version)
-- **Docker** and **Docker Compose** (for containerized deployment)
-- **Make** (optional, for convenience commands)
+### Fastest Path (Docker Compose)
 
-### Quick Start (Docker Compose - Recommended)
-
-This is the **production-ready Tri-Layer architecture** with all services containerized.
-
-**Use Cases for Docker Compose:**
-- **Production Deployments:** Consistent environments across development, staging, and production
-- **Team Collaboration:** Shared development environment with all dependencies containerized
-- **Observability:** Full observability stack (Jaeger, Prometheus) for production monitoring
-- **Multi-Service Coordination:** Complex deployments requiring multiple services and databases
-
-```bash
-# 0. (Optional) Create .env file for configuration
-# See ENV_SETUP.md or docs/CONFIGURATION.md for details
-# For development without API keys, LLM_PROVIDER defaults to "mock"
-# For production, set LLM_PROVIDER=openrouter and OPENROUTER_API_KEY
-
-# 1. Start all services
-docker compose up --build
-
-# 2. Verify services are running
-curl http://localhost:8181/api/health      # Gateway
-curl http://localhost:8182/health          # Orchestrator
-curl http://localhost:8183/health          # Telemetry
-curl http://localhost:6333/health          # Qdrant
-
-# 3. Access frontend
-# Open browser to http://localhost:3000
-```
-
-**Example Use Cases:**
-- **Production Deployment:** Deploy to production with all services orchestrated
-- **Development Environment:** Full-stack development with all dependencies
-- **Testing:** Integration testing with complete service stack
-- **Demonstrations:** Showcase complete system capabilities
-
-### Quick Start (Bare Metal - Development)
-
-For local development without Docker overhead, use the bare metal setup.
-
-**Use Cases for Bare Metal Setup:**
-- **Local Development:** Developers working on agent logic without Docker overhead
-- **CI/CD Pipelines:** Automated testing environments that need fast startup
-- **Resource-Constrained Systems:** Systems where Docker is not available or desired
-
-```bash
-# 0. (Optional) copy env template
-cp .env.example .env
-
-# 1. Start core services
-# NOTE: By default, LLM_PROVIDER=mock (no API key required).
-# Set LLM_PROVIDER=openrouter and OPENROUTER_API_KEY for real AI planning.
-python scripts/run_all_dev.py --profile core
-
-# Or (if you have Make):
-make run-dev
-
-# 2. Verify core endpoints
-curl http://localhost:8181/api/health      # Gateway
-curl http://localhost:8182/health          # Orchestrator
-
-# 3. Test chat endpoint
-curl -X POST http://localhost:8182/v1/chat \
-  -H "Content-Type: application/json" \
-  -d '{"message": "Hello", "session_id": "test"}'
-```
-
-**Example Use Cases:**
-- **Security Research:** Security researchers testing agent behavior in isolated environments
-- **Custom Agent Development:** Building specialized agents for specific domains
-- **Performance Testing:** Benchmarking agent response times without container overhead
-
-### Key Implementation Features
-
-The Tri-Layer architecture includes several critical implementation choices:
-
-1. **Structured Planning with OpenRouter**
-   - Orchestrator uses OpenRouter for typed JSON decision-making
-   - Configurable via `LLM_PROVIDER` environment variable (`openrouter` or `mock`)
-   - Automatic fallback to mock planner if `LLM_PROVIDER=openrouter` but `OPENROUTER_API_KEY` is missing
-   - Default is `mock` for development without API keys
-   - See [`backend-rust-orchestrator/src/main.rs`](backend-rust-orchestrator/src/main.rs) for implementation
-
-2. **Human-in-the-Loop (HITL) Gating**
-   - Tool execution and memory queries require explicit user approval
-   - Pending actions stored in orchestrator state
-   - UI commands trigger approval modals
-   - See [`docs/PROJECT_DELIVERY_SUMMARY.md`](docs/PROJECT_DELIVERY_SUMMARY.md#21-agi-core--openrouter-structured-planning--human-in-the-loop-p34) for details
-
-3. **Qdrant-Backed Neural Archive**
-   - Mandatory persistent vector storage (fail-fast on startup)
-   - Namespace-based collections for multi-tenant isolation
-   - Operational heartbeat monitoring
-   - See [`docs/QDRANT_SETUP.md`](docs/QDRANT_SETUP.md) for setup instructions
-
-4. **Secure Tool Execution with Bubblewrap**
-   - OS-level sandboxing on Linux (bubblewrap/bwrap)
-   - Cross-platform cwd isolation fallback
-   - Policy-based authorization
-   - Hard timeout enforcement
-   - See [`backend-rust-tools/README.md`](backend-rust-tools/README.md) for details
-
-5. **Self-Developing AGI Capabilities (P38/P39)**
-   - **Build Service (P38):** High-privilege service for compiling new tools from Rust source code
-     - Queue-based build limiting to prevent resource exhaustion
-     - Automatic Cargo.toml generation
-     - Tool name sanitization for security
-     - See [`backend-rust-build/README.md`](backend-rust-build/README.md) and [`docs/build_service.md`](docs/build_service.md) for details
-   - **Self-Improvement Action (P39):** Orchestrator can modify its own system prompt
-     - Enables the AGI to enhance its capabilities autonomously
-     - Requires explicit authorization through HITL
-     - See [`backend-rust-orchestrator/src/main.rs`](backend-rust-orchestrator/src/main.rs) for system prompt implementation
-
-**Self-Developing Workflow:**
-1. **Plan:** Orchestrator decides to create a new tool or improve itself
-2. **Build:** Build Service compiles Rust code into executable binary
-3. **Register/Execute:** Tools Service registers and executes the new tool
-4. **Self-Improve:** Orchestrator updates its system prompt for enhanced capabilities
-
-6. **Long-Term Memory & Evolving Playbooks**
-   - **Episodic Memory Logging:** Every sub-agent task (success/failure) is automatically logged to Qdrant
-   - **Weekly Playbook Distillation:** Analyzes episodic memories and generates Markdown playbooks
-   - **GitHub Integration:** Automatically commits and pushes playbooks for global knowledge sharing
-   - See [Long-Term Memory & Evolving Playbooks](#long-term-memory--evolving-playbooks) section for complete documentation
-
-For complete architecture documentation, see [`docs/PROJECT_DELIVERY_SUMMARY.md`](docs/PROJECT_DELIVERY_SUMMARY.md).
-
----
-
-## Long-Term Memory & Evolving Playbooks
-
-The orchestrator implements a **Playbook Feedback Loop** that enables agents to learn from their successes and failures over time, creating evolving knowledge that improves performance across all nodes.
-
-### Overview
-
-This system automatically:
-1. **Logs Episodic Memory:** Every sub-agent task completion (success or failure) is stored in Qdrant
-2. **Distills Playbooks:** Weekly analysis of episodic memories generates Markdown playbooks
-3. **Commits to GitHub:** Playbooks are automatically committed and pushed to your repository
-4. **Global Knowledge Sharing:** Other nodes/users pull the repo to inherit learned wisdom
-
-### How It Works
-
-#### 1. Episodic Memory Logging
-
-Every time a sub-agent completes a task, the system automatically logs:
-- **Agent Information:** Agent ID, name, and mission
-- **Task Details:** The task that was executed
-- **Outcome:** Success or Failure
-- **Result:** The complete result or error message
-- **Timestamp:** When the task was completed
-
-This data is stored in Qdrant under the `episodic_memory` namespace, enabling semantic search and analysis.
-
-**Example Episodic Memory Entry:**
-```
-Agent: Log Analyst
-Task: Analyze system logs for errors
-Outcome: Success
-Result: Found 3 critical errors in /var/log/syslog...
-```
-
-#### 2. Playbook Distillation
-
-Once per week, the orchestrator:
-- Queries all episodic memories from the past 7 days
-- Groups memories by task pattern (e.g., "analyze_logs", "optimize_memory")
-- Generates Markdown playbooks with:
-  - ✅ **Successful Patterns:** What worked and how
-  - ❌ **Failure Patterns:** What failed and lessons learned
-  - 📋 **Best Practices:** Success rates and recommendations
-
-**Example Playbook Structure:**
-```markdown
-# Playbook: analyze_system_logs
-
-## ✅ Successful Patterns
-### Success #1
-**Agent:** Log Analyst
-**Task:** Analyze system logs for errors
-**Result:** [successful approach details]
-
-## ❌ Failure Patterns (Lessons Learned)
-### Failure #1
-**Agent:** Log Analyst
-**Task:** Analyze system logs for errors
-**Error:** [what went wrong]
-
-## 📋 Best Practices
-- Total attempts: 15
-- Success rate: 86.7%
-```
-
-#### 3. GitHub Integration
-
-Generated playbooks are automatically:
-- Committed to the repository with descriptive messages
-- Pushed to the configured remote (default: `origin/main`)
-- Available for other nodes to pull and learn from
-
-**Git Commit Example:**
-```
-Weekly playbook update: 5 playbooks generated
-```
-
-### Configuration
-
-#### Prerequisites
-
-1. **Qdrant Running:** Episodic memory requires Qdrant to be accessible
-2. **Git Repository:** Your project must be a git repository
-3. **Git Remote (Optional):** For auto-push, configure GitHub remote:
+1. **Clone the repository:**
    ```bash
-   git remote add origin <your-github-repo-url>
+   git clone <repository-url>
+   cd pagi-digital-twin
    ```
 
-#### Environment Variables
+2. **Create `.env` file:**
+   ```bash
+   cp .env.example .env  # If .env.example exists, otherwise create manually
+   ```
 
-No additional environment variables are required. The system uses:
-- `MEMORY_GRPC_ADDR` - For connecting to memory service (default: `http://127.0.0.1:50052`)
-- Current working directory - For playbook storage and git operations
+3. **Set required environment variables:**
+   ```bash
+   # Minimum required
+   OPENROUTER_API_KEY=sk-your-api-key-here
+   ```
 
-#### Playbook Storage
+4. **Start all services:**
+   ```bash
+   docker compose up --build
+   ```
 
-Playbooks are stored in `./playbooks/` directory (created automatically):
-```
-playbooks/
-├── analyze_system_logs.md
-├── optimize_windows_ram.md
-├── network_scanning.md
-└── ...
-```
+5. **Verify services are running:**
+   - Frontend: http://localhost:3000
+   - Gateway health: http://localhost:8181/api/health
+   - Orchestrator health: http://localhost:8182/health
 
-### Usage
+6. **Access the application:**
+   Open http://localhost:3000 in your browser to start using the platform.
 
-#### Automatic Operation
+### Verification Checklist
 
-The system runs automatically:
-- **Episodic Memory:** Logged immediately after each agent task
-- **Playbook Generation:** Runs weekly (every 7 days)
-- **Git Commit/Push:** Executed after playbook generation
-
-#### Manual Trigger (via Chat)
-
-You can manually trigger playbook generation and git push via the chat interface:
-
-```json
-{
-  "action_type": "ActionGitPush",
-  "details": {
-    "repo_path": "/path/to/repo",
-    "playbooks_dir": "./playbooks",
-    "commit_message": "Manual playbook update",
-    "remote_name": "origin",
-    "branch": "main"
-  }
-}
-```
-
-Or simply ask the orchestrator:
-> "Generate playbooks from episodic memory and push to GitHub"
-
-#### Querying Episodic Memory
-
-You can query episodic memories via the memory service:
-
-```bash
-# List recent episodic memories
-curl -X POST http://localhost:8182/v1/memory/list \
-  -H "Content-Type: application/json" \
-  -d '{
-    "namespace": "episodic_memory",
-    "twin_id": "orchestrator",
-    "page": 1,
-    "page_size": 50
-  }'
-```
-
-### Benefits
-
-1. **Continuous Learning:** Agents improve over time by learning from past experiences
-2. **Knowledge Sharing:** Playbooks can be shared across multiple nodes/deployments
-3. **Pattern Recognition:** Identifies successful and failed approaches automatically
-4. **Documentation:** Self-documenting system that creates knowledge base automatically
-5. **Global Intelligence:** One node's learning benefits all nodes via GitHub sync
-
-### Architecture
-
-```
-┌─────────────────┐
-│  Sub-Agent      │
-│  Task Execution │
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────┐
-│ Episodic Memory │
-│   (Qdrant)      │
-│  Namespace:     │
-│ episodic_memory │
-└────────┬────────┘
-         │
-         │ (Weekly)
-         ▼
-┌─────────────────┐
-│ Playbook        │
-│ Distiller       │
-│ (Analysis)       │
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────┐
-│ Markdown        │
-│ Playbooks       │
-│ ./playbooks/    │
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────┐
-│ Git Commit      │
-│ & Push          │
-│ (GitHub)        │
-└─────────────────┘
-```
-
-### Implementation Details
-
-- **Episodic Memory Logging:** [`backend-rust-orchestrator/src/agents/factory.rs`](backend-rust-orchestrator/src/agents/factory.rs)
-- **Playbook Distillation:** [`backend-rust-orchestrator/src/playbook_distiller.rs`](backend-rust-orchestrator/src/playbook_distiller.rs)
-- **Git Operations:** [`backend-rust-orchestrator/src/tools/git.rs`](backend-rust-orchestrator/src/tools/git.rs)
-- **Weekly Scheduler:** [`backend-rust-orchestrator/src/main.rs`](backend-rust-orchestrator/src/main.rs) (lines ~4138-4194)
-
-### Troubleshooting
-
-**Playbooks not generating:**
-- Check that Qdrant is running and accessible
-- Verify episodic memories exist: Query `episodic_memory` namespace
-- Check orchestrator logs for errors
-
-**Git push failing:**
-- Ensure git repository is initialized: `git init`
-- Configure remote: `git remote add origin <url>`
-- Set up authentication (SSH keys or GitHub token)
-- Check logs: Push failures are logged but don't crash the system
-
-**No episodic memories:**
-- Verify sub-agents are being spawned and completing tasks
-- Check memory service connectivity
-- Review orchestrator logs for "Episodic memory logged" messages
-
-### Future Enhancements
-
-- **LLM-Based Summarization:** Use AI to generate more sophisticated playbook summaries
-- **Playbook Consumption:** Load playbooks into agent context for better decision-making
-- **Pattern Extraction:** Advanced NLP for better task pattern recognition
-- **Success Rate Thresholds:** Only generate playbooks if success rate exceeds threshold
-- **Playbook Versioning:** Track playbook evolution over time
-- **Cross-Node Sync:** Automatic playbook pulling on orchestrator startup
+- [ ] All Docker containers are running (`docker compose ps`)
+- [ ] Frontend loads at http://localhost:3000
+- [ ] Health endpoints return `{"status": "ok"}` or similar
+- [ ] WebSocket connection establishes (check browser console)
+- [ ] No critical errors in container logs
 
 ---
 
-### Frontend Access
+## User Guide
 
-Once services are running, access the frontend application:
+### What You Can Do
 
-**URL:** http://localhost:3000
+As an end user, you can:
 
-**Prerequisites (Tri-Layer Architecture):**
-- Rust Gateway service must be running (port 8181)
-- Rust Orchestrator service must be running (port 8182)
-- Rust Telemetry service must be running (port 8183)
-- Rust Memory service must be running (port 50052)
-- Rust Tools service must be running (port 50054)
-- Rust Build service must be running (port 50055) - for self-developing capabilities
-- Qdrant DB must be running (ports 6333/6334)
+- **Chat with AI Agents**: Interact with specialized agents through natural language
+- **Query Knowledge Base**: Search semantic memory across Mind/Body/Heart/Soul domains
+- **Execute Tools**: Request tool execution (requires approval in UI)
+- **View System Status**: Monitor telemetry, agent health, and network topology
+- **Explore Knowledge Atlas**: Visualize 3D semantic relationships in the memory network
+- **Upload Media**: Record and analyze audio/video/screen recordings
+- **Manage Agents**: View, spawn, and manage sub-agent instances
+- **Auto-Ingest Files**: Drop files into `data/ingest/` for automatic classification and routing
 
-**Initial Setup:**
-1. Start all services via Docker Compose: `docker compose up`
-2. Configure frontend environment variables (optional, for generative features):
-   - Create `frontend-digital-twin/.env.local`
-   - Add `VITE_OPENROUTER_API_KEY` for image generation (or `GEMINI_API_KEY` for fallback)
-   - Add `VITE_REPLICATE_API_KEY` for video generation (free tier available)
-3. Open browser to http://localhost:3000
-4. You'll see the Orchestrator Hub by default
-5. Use left sidebar to navigate between views
-6. Create your first agent using "+ Create Twin" button
+### Installation
 
-**Frontend Environment Variables (Optional):**
-For full generative capabilities, create `frontend-digital-twin/.env.local`:
-```env
-# OpenRouter API Key (for image generation via DALL-E 3)
-VITE_OPENROUTER_API_KEY=YOUR_OPENROUTER_API_KEY_HERE
+#### Option 1: Docker Compose (Recommended)
 
-# Replicate API Key (for video generation - free tier available)
-VITE_REPLICATE_API_KEY=YOUR_REPLICATE_API_KEY_HERE
+Follow the [Quick Start](#quick-start) section above.
 
-# Gemini API Key (optional fallback for image generation)
-GEMINI_API_KEY=YOUR_GEMINI_API_KEY_HERE
+#### Option 2: Bare-Metal Development
 
-# WebSocket and Telemetry URLs (usually auto-detected)
-VITE_WS_URL=ws://127.0.0.1:8181/ws/chat
-VITE_SSE_URL=http://127.0.0.1:8181/v1/telemetry/stream
+**Prerequisites:**
+- Rust 1.70+ (`rustup install stable`)
+- Node.js 18+ (`node --version`)
+- Python 3.10+ (`python --version`)
+- Go 1.21+ (`go version`)
+- Qdrant running locally or remotely
+
+**Installation Steps:**
+
+1. **Install Rust services:**
+   ```bash
+   cd backend-rust-memory && cargo build --release
+   cd ../backend-rust-tools && cargo build --release
+   cd ../backend-rust-orchestrator && cargo build --release
+   cd ../backend-rust-gateway && cargo build --release
+   cd ../backend-rust-telemetry && cargo build --release
+   ```
+
+2. **Install frontend dependencies:**
+   ```bash
+   cd frontend-digital-twin
+   npm install
+   ```
+
+3. **Install Python dependencies (if using Python services):**
+   ```bash
+   cd backend-python-memory
+   pip install -r requirements.txt
+   ```
+
+4. **Install Go dependencies (if using Go services):**
+   ```bash
+   cd backend-go-model-gateway
+   go mod download
+   ```
+
+5. **Start Qdrant** (if not using Docker):
+   ```bash
+   # Download Qdrant binary or use Docker
+   docker run -p 6333:6333 -p 6334:6334 qdrant/qdrant:latest
+   ```
+
+### First Run
+
+1. **Configure environment:**
+   ```bash
+   # Create .env file in project root
+   OPENROUTER_API_KEY=sk-your-key-here
+   QDRANT_URL=http://127.0.0.1:6334
+   ORCHESTRATOR_HTTP_PORT=8182
+   GATEWAY_PORT=8181
+   MEMORY_GRPC_PORT=50052
+   TOOLS_GRPC_PORT=50054
+   ```
+
+2. **Start services in order** (bare-metal):
+   ```bash
+   # Terminal 1: Memory Service
+   cd backend-rust-memory && cargo run
+   
+   # Terminal 2: Tools Service
+   cd backend-rust-tools && cargo run
+   
+   # Terminal 3: Orchestrator
+   cd backend-rust-orchestrator && cargo run
+   
+   # Terminal 4: Gateway
+   cd backend-rust-gateway && cargo run
+   
+   # Terminal 5: Telemetry
+   cd backend-rust-telemetry && cargo run
+   
+   # Terminal 6: Frontend
+   cd frontend-digital-twin && npm run dev
+   ```
+
+3. **Or use the development harness:**
+   ```bash
+   make run-dev  # Starts core services via Python script
+   ```
+
+4. **Access the UI:**
+   - Open http://localhost:3000
+   - Create a new session or connect to existing twin
+
+### Using the App
+
+#### Chat Interface
+
+1. **Start a conversation:**
+   - Enter your message in the chat input
+   - The orchestrator will plan actions and request approvals if needed
+
+2. **Approve/Deny Actions:**
+   - When an action requires approval, a notification appears
+   - Click "Approve" or "Deny" to proceed or cancel
+
+3. **View Responses:**
+   - Agent responses appear in the chat stream
+   - Actions taken are listed in the response metadata
+
+#### Intelligence Hub
+
+Access via the "Intelligence Hub" view to:
+
+- **Agent Vitality**: View agent stations and their health status
+- **Neural Map**: Explore 3D knowledge graph visualization
+- **Attribution Analytics**: See domain balance (Mind/Body/Heart/Soul)
+- **Ingestion Progress Dashboard**: Real-time monitoring of knowledge ingestion with animated progress bars
+- **Intelligence Stream**: Real-time activity feed
+
+#### Knowledge Base Operations
+
+- **Query Memory**: Use natural language to search across domains
+- **View Knowledge Atlas**: Navigate semantic relationships
+- **Trace Paths**: Find connections between knowledge nodes
+- **Auto-Ingest**: Drop files into `data/ingest/` directory for automatic processing
+
+#### Ingestion Progress Dashboard
+
+The **Ingestion Progress Dashboard** provides real-time visualization of knowledge ingestion in the right sidebar:
+
+**Features:**
+- **Real-Time Progress Bars**: Animated progress indicators for each file being processed (using Framer Motion)
+- **Domain Classification**: Files are automatically classified into Mind/Body/Heart/Soul domains with confidence percentages
+- **Color-Coded Domains**:
+  - 🔵 **Blue (Mind)**: Technical specifications, APIs, code patterns
+  - 🟢 **Green (Body)**: System telemetry, logs, performance data
+  - 🟠 **Orange (Heart)**: User preferences, personas, personalization
+  - 🔴 **Red (Soul)**: Security audits, governance, ethical guidelines
+- **Toast Notifications**: Real-time notifications when files complete: *"Security Audit classified as SOUL (98% confidence)"*
+- **Summary Statistics**: View processed, failed, and active file counts
+- **Error Display**: Failed ingestions show detailed error messages
+
+**How to Use:**
+1. Drop files (text, logs, JSON) into the `data/ingest/` directory
+2. Watch the dashboard update in real-time as files are processed
+3. Receive toast notifications when classification completes
+4. Monitor the radar chart in Attribution Analytics as knowledge bases grow
+
+**Location**: The dashboard appears in the right sidebar below the Domain Confidence Gauges section.
+
+#### Media Recording
+
+- **Start Recording**: Enable microphone/camera/screen share
+- **Upload Media**: Recordings are automatically stored
+- **View Gallery**: Access past recordings in Media Gallery
+- **Transcript Analysis**: Recordings can be transcribed and analyzed
+
+### Configuration (User)
+
+User-configurable settings (via UI or environment):
+
+| Setting | Description | Default | Location |
+|---------|-------------|---------|----------|
+| `VITE_WS_URL` | WebSocket URL for chat | `ws://localhost:8181/ws/chat` | Frontend `.env` |
+| `VITE_SSE_URL` | SSE URL for telemetry | `http://localhost:8181/v1/telemetry/stream` | Frontend `.env` |
+| `VITE_ORCHESTRATOR_URL` | Orchestrator API URL | `http://127.0.0.1:8182` | Frontend `.env` |
+
+**Note**: Most configuration is handled by administrators. Users primarily interact through the UI.
+
+### Common Tasks
+
+#### Start/Stop Services
+
+**Docker:**
+```bash
+docker compose up      # Start
+docker compose down    # Stop
+docker compose restart # Restart
 ```
 
-See [`frontend-digital-twin/ENV_SETUP.md`](frontend-digital-twin/ENV_SETUP.md) for detailed frontend configuration.
-
-**Use Cases:**
-- **Security Operations Center:** Real-time dashboard for security teams monitoring multiple agents
-- **Development Environment:** Developers interact with agents during development and testing
-- **Demo & Presentations:** Showcase agent capabilities to stakeholders and clients
-- **Training:** Onboard new team members with interactive agent interface
-
-> **📚 For detailed architecture documentation and implementation choices, see [`docs/PROJECT_DELIVERY_SUMMARY.md`](docs/PROJECT_DELIVERY_SUMMARY.md)**
-
-### E2E Verification (Trace ID + Async Notification + Audit Log)
-
-An automated end-to-end script is provided to validate:
-
-- `X-Trace-ID` propagation on the Agent Planner HTTP response
-- notification delivery via Redis (`notification-service` logs contain the trace id)
-- structured audit log persistence (SQLite rows exist for the trace id)
-
-**Use Cases for E2E Verification:**
-- **CI/CD Pipelines:** Automated testing to ensure observability features work correctly
-- **Compliance Auditing:** Verify that all operations are properly logged and traceable
-- **Debugging:** Validate that trace IDs propagate correctly across service boundaries
-- **Production Readiness:** Ensure observability stack is functioning before deployment
-
+**Bare-metal:**
 ```bash
-# NOTE: run in a bash-compatible shell (Linux/macOS, WSL, or Git Bash)
-bash scripts/verify_e2e_audit.sh
+make run-dev          # Start (via harness)
+make stop-dev         # Stop
+# Or manually: Ctrl+C in each terminal
 ```
 
-**What This Validates:**
-- **Distributed Tracing:** Request can be traced across all services using trace ID
-- **Event Notification:** Async notifications are delivered correctly via Redis
-- **Audit Compliance:** All operations are logged to SQLite audit database
-- **Observability Integration:** Jaeger and Prometheus can collect metrics and traces
+#### Reset Session State
 
-**To stop all services:**
+- Clear browser local storage
+- Or use "Clear" button in Intelligence Stream (if available)
+
+#### Export/Import Data
+
+- **Knowledge Base**: TBD (verify in `backend-rust-memory/src/main.rs`)
+- **Agent Configurations**: Stored in `config/agents/` directory
+- **Playbooks**: Stored in `test-agent-repo/playbooks/`
+
+### Troubleshooting (User)
+
+#### Frontend Won't Load
+
+**Symptom**: Browser shows connection error or blank page
+
+**Likely Causes:**
+1. Gateway service not running
+2. Wrong port configuration
+3. CORS issues
+
+**Fix:**
+1. Check Gateway health: `curl http://localhost:8181/api/health`
+2. Verify `VITE_WS_URL` matches Gateway port
+3. Check browser console for errors
+4. Ensure services started in correct order
+
+#### Chat Not Responding
+
+**Symptom**: Messages sent but no response
+
+**Likely Causes:**
+1. Orchestrator not running
+2. OpenRouter API key invalid/missing
+3. WebSocket connection dropped
+
+**Fix:**
+1. Check Orchestrator health: `curl http://localhost:8182/health`
+2. Verify `OPENROUTER_API_KEY` is set correctly
+3. Check browser Network tab for WebSocket status
+4. Review orchestrator logs for errors
+
+#### Actions Stuck in "Pending"
+
+**Symptom**: Actions require approval but UI doesn't show approval prompt
+
+**Likely Causes:**
+1. UI notification system not working
+2. Action expired
+3. Session state corrupted
+
+**Fix:**
+1. Refresh the page
+2. Check browser console for JavaScript errors
+3. Clear browser cache and reload
+4. Check orchestrator logs for action status
+
+#### Knowledge Queries Return Empty
+
+**Symptom**: Memory searches return no results
+
+**Likely Causes:**
+1. Qdrant not running or unreachable
+2. Memory service not connected to Qdrant
+3. No data ingested yet
+
+**Fix:**
+1. Verify Qdrant: `curl http://localhost:6333/collections`
+2. Check `QDRANT_URL` environment variable
+3. Verify memory service logs for connection errors
+4. Ingest some knowledge base files (see Admin Guide)
+
+### FAQ (User)
+
+**Q: Do I need an API key to use the system?**  
+A: Yes, an OpenRouter API key is required for LLM planning. Get one from https://openrouter.ai/
+
+**Q: Can I use the system offline?**  
+A: Limited functionality is available with `LLM_PROVIDER=mock`, but full features require internet connectivity for OpenRouter API calls.
+
+**Q: How do I add my own knowledge?**  
+A: Drop files (PDFs, text, logs, JSON) into the `data/ingest/` directory. The Auto-Domain Ingestor will automatically classify and route them.
+
+**Q: What file formats are supported for ingestion?**  
+A: Currently supports text-based files (`.txt`, `.md`, `.log`, `.json`, etc.). PDF parsing TBD. See `backend-rust-orchestrator/src/knowledge/ingestor.rs` for details.
+
+**Q: How do I monitor ingestion progress?**  
+A: The Ingestion Progress Dashboard in the right sidebar shows real-time progress bars, domain classifications, and completion notifications. It polls the ingestion status every 2 seconds while files are processing.
+
+**Q: How do I create custom agents?**  
+A: See Admin Guide section on Agent Templates. Agent definitions are in `test-agent-repo/agent-templates/`.
+
+**Q: Can I run this on Windows?**  
+A: Yes, Docker Compose works on Windows. Bare-metal requires WSL2 or native Rust/Node/Python installations.
+
+---
+
+## Admin Guide
+
+### Admin Responsibilities
+
+Administrators are responsible for:
+
+- **Deployment**: Setting up and maintaining the multi-service architecture
+- **Configuration**: Managing environment variables, secrets, and service URLs
+- **Security**: Implementing access controls, secret rotation, and network hardening
+- **Monitoring**: Tracking service health, logs, and performance metrics
+- **Backup**: Ensuring data persistence for Qdrant and other stateful services
+- **Upgrades**: Safely updating services and migrating configurations
+- **Troubleshooting**: Diagnosing and resolving operational issues
+
+### System Requirements
+
+#### Minimum Requirements (Development)
+
+- **CPU**: 2 cores
+- **RAM**: 4 GB
+- **Disk**: 10 GB free
+- **OS**: Linux, macOS, or Windows (with WSL2/Docker)
+
+#### Recommended Requirements (Production)
+
+- **CPU**: 4+ cores
+- **RAM**: 8+ GB
+- **Disk**: 50+ GB (for Qdrant vector storage and logs)
+- **OS**: Linux (Ubuntu 22.04+ recommended) or containerized deployment
+- **Network**: Stable internet connection for OpenRouter API
+
+#### Software Dependencies
+
+| Component | Version | Purpose |
+|-----------|---------|---------|
+| Docker | 20.10+ | Container orchestration (recommended) |
+| Docker Compose | 2.0+ | Multi-container management |
+| Rust | 1.70+ | Core services (if bare-metal) |
+| Node.js | 18+ | Frontend build/runtime |
+| Python | 3.10+ | Python services (if used) |
+| Go | 1.21+ | Go services (if used) |
+| Qdrant | Latest | Vector database (can run in Docker) |
+
+### Deployment Options
+
+#### Option 1: Docker Compose (Recommended for Production)
+
+**Advantages:**
+- Isolated service environments
+- Easy scaling and updates
+- Consistent across environments
+- Built-in service discovery
+
+**Setup:**
 ```bash
+# 1. Configure environment
+cp .env.example .env
+# Edit .env with your settings
+
+# 2. Start all services
+docker compose up -d
+
+# 3. View logs
+docker compose logs -f
+
+# 4. Stop services
 docker compose down
 ```
 
-### Legacy Dev Harness (BFF + Python Agent demo)
+**Service Dependencies:**
+- Qdrant must start before Memory Service
+- Memory/Tools Services must start before Orchestrator
+- Orchestrator must start before Gateway
+- Gateway must start before Frontend
 
-For local development without Docker:
+**Networking:**
+- Services communicate via Docker network `pagi-network`
+- External ports exposed: 3000, 8181, 8182, 8183, 6333, 6334
+- Internal service names: `rust-orchestrator`, `rust-memory-service`, etc.
 
-#### Step 1: Install Dependencies
+#### Option 2: Bare-Metal Deployment
 
-**Python Services:**
+**Advantages:**
+- Faster development iteration
+- Direct access to logs and processes
+- Lower resource overhead
+- Easier debugging
+
+**Setup:**
 ```bash
-# Create virtual environment
-python -m venv .venv
+# 1. Install prerequisites (see System Requirements)
 
-# Activate virtual environment
-# On Windows:
-.venv\Scripts\activate
-# On Linux/Mac:
-source .venv/bin/activate
+# 2. Build Rust services
+cd backend-rust-memory && cargo build --release
+cd ../backend-rust-tools && cargo build --release
+cd ../backend-rust-orchestrator && cargo build --release
+cd ../backend-rust-gateway && cargo build --release
+cd ../backend-rust-telemetry && cargo build --release
 
-# Install Python dependencies
-pip install -r backend-python-agent/requirements.txt
+# 3. Start Qdrant (if not using Docker)
+# Option A: Docker
+docker run -d -p 6333:6333 -p 6334:6334 qdrant/qdrant:latest
+
+# Option B: Native binary
+# Download from https://github.com/qdrant/qdrant/releases
+./qdrant
+
+# 4. Configure environment
+export OPENROUTER_API_KEY=sk-your-key
+export QDRANT_URL=http://127.0.0.1:6334
+export MEMORY_GRPC_PORT=50052
+export TOOLS_GRPC_PORT=50054
+export ORCHESTRATOR_HTTP_PORT=8182
+export GATEWAY_PORT=8181
+
+# 5. Start services (use development harness)
+make run-dev
+
+# Or start manually in separate terminals (see First Run section)
 ```
 
-**Go Services:**
+**Service Management:**
+- Use `systemd` units for production (TBD - verify in `scripts/` directory)
+- Or use process managers like `supervisord` or `pm2`
+- Logs go to stdout/stderr (redirect as needed)
+
+#### Option 3: Hybrid Deployment
+
+Run some services in Docker (Qdrant, observability) and others bare-metal (core services) for development flexibility.
+
+### Configuration (Admin)
+
+#### Environment Variables
+
+Create a `.env` file in the project root. All services read from this file.
+
+**Required Variables:**
+
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `OPENROUTER_API_KEY` | OpenRouter API key for LLM | `sk-or-...` |
+| `QDRANT_URL` | Qdrant gRPC endpoint | `http://127.0.0.1:6334` |
+
+**Service Ports:**
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `GATEWAY_PORT` | `8181` | Gateway HTTP/WebSocket port |
+| `ORCHESTRATOR_HTTP_PORT` | `8182` | Orchestrator HTTP API port |
+| `MEMORY_GRPC_PORT` | `50052` | Memory service gRPC port |
+| `TOOLS_GRPC_PORT` | `50054` | Tools service gRPC port |
+| `BUILD_SERVICE_PORT` | `50055` | Build service gRPC port |
+| `TELEMETRY_PORT` | `8183` | Telemetry SSE port |
+| `ORCHESTRATOR_GRPC_PORT` | `50057` | Orchestrator public gRPC port |
+| `ORCHESTRATOR_ADMIN_GRPC_PORT` | `50056` | Orchestrator admin gRPC port |
+
+**LLM Configuration:**
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `LLM_PROVIDER` | `openrouter` | LLM provider: `openrouter` or `mock` |
+| `OPENROUTER_URL` | `https://openrouter.ai/api/v1/chat/completions` | OpenRouter API endpoint |
+| `OPENROUTER_MODEL` | `google/gemini-2.0-flash-exp` | Model name for planning |
+
+**Memory/Embedding Configuration:**
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `EMBEDDING_MODEL_DIM` | `384` | Vector dimension (all-MiniLM-L6-v2) |
+| `EMBEDDING_MODEL_NAME` | `all-MiniLM-L6-v2` | Embedding model identifier |
+| `QDRANT_API_KEY` | (optional) | Qdrant API key if required |
+
+**Security Gates (Research Only - Use with Caution):**
+
+See [`ENV_SETUP.md`](ENV_SETUP.md) for detailed security gate documentation. These bypass normal security restrictions:
+
+- `ALLOW_PUBLIC_NETWORK_SCAN` - Enable public IP scanning
+- `ALLOW_ARBITRARY_PORT_SCAN` - Allow custom port ranges
+- `BYPASS_HITL_TOOL_EXEC` - Skip human approval for tools
+- `BYPASS_HITL_MEMORY` - Skip human approval for memory ops
+- `ALLOW_RESTRICTED_COMMANDS` - Allow destructive commands
+
+**⚠️ WARNING**: Security gates are for research environments only. Do not enable in production.
+
+**Ingestion Configuration:**
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `INGEST_DIR` | `data/ingest` | Directory watched for auto-ingestion |
+| `INGEST_POLL_INTERVAL_MS` | `2000` | Frontend polling interval for ingestion status (milliseconds) |
+
+**Logging:**
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `LOG_LEVEL` | `info` | Log verbosity: `trace`, `debug`, `info`, `warn`, `error` |
+
+**Service URLs (for bare-metal):**
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `ORCHESTRATOR_URL` | `http://127.0.0.1:8182` | Orchestrator HTTP URL |
+| `MEMORY_GRPC_ADDR` | `http://127.0.0.1:50052` | Memory service gRPC address |
+| `TOOLS_GRPC_ADDR` | `http://127.0.0.1:50054` | Tools service gRPC address |
+
+**Frontend Configuration:**
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `VITE_WS_URL` | `ws://localhost:8181/ws/chat` | WebSocket URL |
+| `VITE_SSE_URL` | `http://localhost:8181/v1/telemetry/stream` | SSE telemetry URL |
+| `VITE_ORCHESTRATOR_URL` | `http://127.0.0.1:8182` | Orchestrator API URL |
+| `VITE_GATEWAY_URL` | `http://127.0.0.1:8181` | Gateway URL |
+
+#### Secret Management
+
+**Best Practices:**
+
+1. **Never commit `.env` to version control** (already in `.gitignore`)
+2. **Use `.env.example` as a template** (without actual secrets)
+3. **Rotate API keys regularly** in production
+4. **Use different keys** for development and production
+5. **Store secrets securely** in production (use secret management systems)
+
+**For Production:**
+
+- Use environment variable injection from secret managers (HashiCorp Vault, AWS Secrets Manager, etc.)
+- Or mount secrets as files in Docker: `docker run -v /secrets:/app/secrets:ro ...`
+- TBD: Verify secret rotation procedures in `docs/SECURITY_GATES.md`
+
+#### Port Configuration
+
+**Default Port Matrix:**
+
+| Service | Port | Protocol | External Access |
+|---------|------|----------|-----------------|
+| Frontend | 3000 | HTTP | Yes |
+| Gateway | 8181 | HTTP/WS/SSE | Yes |
+| Orchestrator | 8182 | HTTP | Yes |
+| Telemetry | 8183 | HTTP (SSE) | Via Gateway proxy |
+| Memory | 50052 | gRPC | Internal only |
+| Tools | 50054 | gRPC | Internal only |
+| Build | 50055 | gRPC | Internal only |
+| Orchestrator gRPC | 50057 | gRPC | Yes |
+| Qdrant REST | 6333 | HTTP | Yes (admin) |
+| Qdrant gRPC | 6334 | gRPC | Internal only |
+
+**Firewall Considerations:**
+
+- Expose ports 3000, 8181, 8182 to users
+- Restrict 6333 (Qdrant admin) to internal network
+- Block direct access to gRPC ports (50052, 50054, 50055, 6334) from external networks
+- Use reverse proxy (nginx/traefik) for production with TLS
+
+### Operations
+
+#### Starting Services
+
+**Docker Compose:**
 ```bash
-# Verify Go installation
-go version
+# Start all services
+docker compose up -d
 
-# Install Go dependencies (automatic on first run)
-cd backend-go-bff && go mod download
-cd ../backend-go-model-gateway && go mod download
+# Start specific service
+docker compose up -d rust-orchestrator
+
+# View logs
+docker compose logs -f rust-orchestrator
 ```
 
-**Rust Service:**
+**Bare-metal:**
 ```bash
-# Verify Rust installation
-cargo --version
+# Using development harness
+make run-dev
 
-# Dependencies are managed by Cargo.toml
+# Or manually (see First Run section)
 ```
 
-#### Step 2: Generate gRPC Stubs
+#### Stopping Services
+
+**Docker Compose:**
+```bash
+# Graceful shutdown
+docker compose down
+
+# Force stop
+docker compose kill
+docker compose rm -f
+```
+
+**Bare-metal:**
+```bash
+# Using harness
+make stop-dev
+
+# Or send SIGTERM to each process
+# Services handle graceful shutdown
+```
+
+#### Restarting Services
+
+**Docker Compose:**
+```bash
+# Restart all
+docker compose restart
+
+# Restart specific service
+docker compose restart rust-orchestrator
+```
+
+**Bare-metal:**
+```bash
+# Stop and start again
+make stop-dev && make run-dev
+```
+
+#### Health Checks
+
+**HTTP Health Endpoints:**
 
 ```bash
-# Generate Go gRPC code
-make docker-generate
+# Gateway
+curl http://localhost:8181/api/health
 
-# Or manually:
-cd backend-go-model-gateway
-go generate ./...
+# Orchestrator
+curl http://localhost:8182/health
+
+# Qdrant
+curl http://localhost:6333/health
 ```
 
-#### Step 3: Run All Services
+**gRPC Health Checks:**
 
 ```bash
-# Start the legacy demo stack (BFF + Python Agent + Rust Sandbox + Mock Memory + Model Gateway)
-make run-legacy-dev
+# Memory Service (requires grpcurl)
+grpcurl -plaintext localhost:50052 grpc.health.v1.Health/Check
 
-# Or manually run each service in separate terminals:
-# Terminal 1: Python Agent
-cd backend-python-agent
-uvicorn main:app --host 127.0.0.1 --port 8000
-
-# Terminal 2: Rust Sandbox
-cd backend-rust-sandbox
-cargo run
-
-# Terminal 3: Go BFF
-cd backend-go-bff
-go run .
-
-# Terminal 4: Mock Memory
-cd scripts
-uvicorn mock_memory_service:app --host 127.0.0.1 --port 8003
-
-# Terminal 5: Go Model Gateway
-cd backend-go-model-gateway
-go run .
+# Tools Service
+grpcurl -plaintext localhost:50054 grpc.health.v1.Health/Check
 ```
 
-**To stop all services:**
+**Expected Responses:**
+- HTTP: `{"status": "ok"}` or `{"service": "...", "status": "healthy"}`
+- gRPC: `{"status": "SERVING"}`
+
+#### Graceful Shutdown Behavior
+
+- Services listen for SIGTERM/SIGINT
+- Active requests complete before shutdown
+- WebSocket connections close gracefully
+- Qdrant connections close cleanly
+- TBD: Verify shutdown timeout behavior (check `backend-rust-*/src/main.rs`)
+
+### Monitoring & Logging
+
+#### Log Locations
+
+**Docker:**
 ```bash
-make stop-legacy-dev
+# View all logs
+docker compose logs
+
+# View specific service
+docker compose logs rust-orchestrator
+
+# Follow logs
+docker compose logs -f rust-orchestrator
+
+# Last 100 lines
+docker compose logs --tail=100 rust-orchestrator
 ```
 
----
+**Bare-metal:**
+- Logs go to stdout/stderr
+- Redirect to files: `cargo run > orchestrator.log 2>&1`
+- Or use systemd journal: `journalctl -u pagi-orchestrator`
 
-## 🔍 Service Details
+#### Log Formats
 
-### 1. Go BFF (Backend for Frontend) - Port 8002
+- **Rust services**: Structured JSON logging via `tracing` crate
+- **Go services**: Structured JSON logging
+- **Python services**: TBD (verify in `backend-python-*/main.py`)
 
-**Purpose:** Acts as a single entry point for the frontend, aggregating data from multiple backend services.
+**Log Levels:**
+- `trace` - Very verbose (development only)
+- `debug` - Debug information
+- `info` - Normal operation (default)
+- `warn` - Warnings
+- `error` - Errors only
 
-**Key Features:**
-- ✅ Concurrent request handling (fan-out pattern)
-- ✅ Request ID propagation for tracing
-- ✅ Structured JSON logging
-- ✅ Health check endpoint
-
-**Technology:**
-- **Framework:** Gin (Go web framework)
-- **Pattern:** BFF (Backend for Frontend)
-
-```mermaid
-graph LR
-    A[Frontend Request] --> B[Go BFF]
-    B --> C[Concurrent Fan-out]
-    C --> D[Python Agent]
-    C --> E[Rust Sandbox]
-    C --> F[Mock Memory]
-    D --> G[Aggregated Response]
-    E --> G
-    F --> G
-    G --> H[Frontend]
-    
-    style B fill:#00ADD8,stroke:#007A9B,stroke-width:2px,color:#fff
-    style D fill:#3776AB,stroke:#1F4788,stroke-width:2px,color:#fff
-    style E fill:#CE412B,stroke:#8B2E1F,stroke-width:2px,color:#fff
-    style F fill:#3776AB,stroke:#1F4788,stroke-width:2px,color:#fff
+**Set log level:**
+```bash
+export LOG_LEVEL=debug
+# Or in .env: LOG_LEVEL=debug
 ```
 
-**Why Go for BFF?**
-- High performance and low latency
-- Excellent concurrency support (goroutines)
-- Efficient memory usage
-- Perfect for aggregating multiple services
+#### Observability Stack
 
----
+**Jaeger (Tracing):**
+- URL: http://localhost:16686
+- Collects distributed traces from services
+- TBD: Verify which services emit traces (check `backend-rust-orchestrator/src/main.rs`)
 
-### 2. Python Agent - Port 8000
+**Prometheus (Metrics):**
+- URL: http://localhost:9090
+- Collects metrics from services
+- TBD: Verify metrics endpoints (check `observability/prometheus.yml`)
 
-**Purpose:** Handles agent planning logic and orchestrates LLM interactions.
+**Telemetry Service:**
+- SSE stream: http://localhost:8181/v1/telemetry/stream
+- Provides real-time CPU, memory, process counts
+- Updates every 2 seconds (configurable via `TELEMETRY_INTERVAL_MS`)
 
-**Key Features:**
-- ✅ Agent planning endpoint
-- ✅ gRPC client for model gateway
-- ✅ HTTP client for BFF communication
-- ✅ Structured logging middleware
+#### Log Rotation
 
-**Technology:**
-- **Framework:** FastAPI (async Python web framework)
-- **Communication:** HTTP REST + gRPC
+**Docker:**
+- Configure in `docker-compose.yml`:
+  ```yaml
+  logging:
+    driver: "json-file"
+    options:
+      max-size: "10m"
+      max-file: "3"
+  ```
 
-```mermaid
-graph LR
-    A[BFF Request] --> B[Python Agent]
-    B --> C[Plan Request Handler]
-    C --> D[gRPC Call]
-    D --> E[Go Model Gateway]
-    E --> F[LLM Plan Response]
-    F --> C
-    C --> G[Echo to BFF]
-    G --> H[Response to BFF]
-    
-    style B fill:#3776AB,stroke:#1F4788,stroke-width:2px,color:#fff
-    style E fill:#00ADD8,stroke:#007A9B,stroke-width:2px,color:#fff
+**Bare-metal:**
+- Use `logrotate` or systemd journal rotation
+- TBD: Verify recommended rotation settings
+
+#### Monitoring Checklist
+
+- [ ] Services respond to health checks
+- [ ] No error logs in last hour
+- [ ] Qdrant collections accessible
+- [ ] Memory service can connect to Qdrant
+- [ ] WebSocket connections stable
+- [ ] CPU/memory usage within limits
+- [ ] Disk space adequate for Qdrant storage
+- [ ] Ingestion dashboard shows real-time updates (if files are being processed)
+- [ ] Toast notifications appear when files complete ingestion
+
+### Backup & Recovery
+
+#### What Needs Backup
+
+1. **Qdrant Data**: Vector database storage (persistent volumes)
+2. **Agent Configurations**: `config/agents/` directory
+3. **Playbooks**: `test-agent-repo/playbooks/` directory
+4. **Knowledge Bases**: `knowledge_bases/` directory
+5. **Environment Configuration**: `.env` file (securely)
+6. **Audit Logs**: TBD (verify location in `backend-go-agent-planner`)
+
+#### Backup Procedures
+
+**Qdrant Backup (Docker):**
+```bash
+# Qdrant data is in Docker volume
+docker run --rm -v qdrant_data:/data -v $(pwd):/backup \
+  alpine tar czf /backup/qdrant-backup-$(date +%Y%m%d).tar.gz /data
+
+# Or use Qdrant snapshot API
+curl -X POST http://localhost:6333/collections/{collection_name}/snapshots
 ```
 
-**Why Python for Agent?**
-- Rich AI/ML ecosystem (TensorFlow, PyTorch, etc.)
-- Rapid prototyping and iteration
-- Excellent libraries for NLP and AI
-- Easy integration with LLM APIs
-
----
-
-### 3. Rust Sandbox - Port 8001
-
-**Purpose:** Provides a secure environment for executing tools and code safely.
-
-**Key Features:**
-- ✅ Secure code execution
-- ✅ Tool execution endpoint
-- ✅ Structured JSON logging
-- ✅ Request ID tracking
-
-**Technology:**
-- **Framework:** Axum (async Rust web framework)
-- **Runtime:** Tokio (async runtime)
-
-```mermaid
-graph LR
-    A[BFF Request] --> B[Rust Sandbox]
-    B --> C[Tool Execution Handler]
-    C --> D[Secure Execution Environment]
-    D --> E[Result]
-    E --> F[Response to BFF]
-    
-    style B fill:#CE412B,stroke:#8B2E1F,stroke-width:2px,color:#fff
-    style D fill:#8B2E1F,stroke:#5A1F14,stroke-width:2px,color:#fff
+**Qdrant Backup (Bare-metal):**
+```bash
+# Default storage location: ~/.qdrant/storage
+tar czf qdrant-backup-$(date +%Y%m%d).tar.gz ~/.qdrant/storage
 ```
 
-**Why Rust for Sandbox?**
-- Memory safety without garbage collection
-- Zero-cost abstractions
-- Strong security guarantees
-- Perfect for sandboxed execution
-- Prevents common vulnerabilities (buffer overflows, etc.)
-
----
-
-### 4. Go Model Gateway - Port 50051 (gRPC)
-
-**Purpose:** Interfaces with LLM models and provides a unified gateway for AI model interactions.
-
-**Key Features:**
-- ✅ gRPC service (high performance)
-- ✅ Plan generation endpoint
-- ✅ Model abstraction layer
-- ✅ Latency tracking
-
-**Technology:**
-- **Framework:** gRPC (Go implementation)
-- **Protocol:** Protocol Buffers
-
-```mermaid
-graph LR
-    A[Python Agent] --> B[gRPC Client]
-    B --> C[Go Model Gateway]
-    C --> D[Model Interface]
-    D --> E[LLM Model]
-    E --> F[Plan Response]
-    F --> C
-    C --> B
-    B --> A
-    
-    style A fill:#3776AB,stroke:#1F4788,stroke-width:2px,color:#fff
-    style C fill:#00ADD8,stroke:#007A9B,stroke-width:2px,color:#fff
-    style E fill:#FF6B6B,stroke:#CC5555,stroke-width:2px,color:#fff
+**Configuration Backup:**
+```bash
+# Backup config files
+tar czf config-backup-$(date +%Y%m%d).tar.gz \
+  config/ test-agent-repo/ knowledge_bases/ .env
 ```
 
-**Why gRPC?**
-- **Performance:** Binary protocol (faster than JSON)
-- **Type Safety:** Protocol Buffers provide strong typing
-- **Streaming:** Supports bidirectional streaming
-- **Efficiency:** Lower latency and bandwidth usage
+**Automated Backups:**
+- Set up cron job or systemd timer
+- Store backups in secure location
+- Test restore procedures regularly
 
-**Why Go for Gateway?**
-- Excellent gRPC support
-- High throughput
-- Low latency
-- Perfect for gateway patterns
+#### Recovery Procedures
+
+**Restore Qdrant:**
+```bash
+# Stop services
+docker compose down
+
+# Restore volume
+docker run --rm -v qdrant_data:/data -v $(pwd):/backup \
+  alpine tar xzf /backup/qdrant-backup-YYYYMMDD.tar.gz -C /
+
+# Start services
+docker compose up -d
+```
+
+**Restore Configuration:**
+```bash
+# Extract backup
+tar xzf config-backup-YYYYMMDD.tar.gz
+
+# Verify .env is correct
+# Restart services
+```
+
+**Verification:**
+- Health checks pass
+- Knowledge queries return expected results
+- Collections visible in Qdrant: `curl http://localhost:6333/collections`
+
+### Security
+
+#### Threat Model
+
+**Assumptions:**
+- Services run on trusted network (or behind firewall)
+- Qdrant not exposed to public internet
+- API keys stored securely
+- Human-in-the-loop (HITL) provides safety checks
+
+**Threats Addressed:**
+- Unauthorized tool execution (HITL gating)
+- Memory access control (HITL gating)
+- Sandboxed tool execution (bubblewrap/isolated environments)
+- Network scanning restrictions (RFC1918 only by default)
+
+#### Hardening Checklist
+
+- [ ] **Firewall Configuration**
+  - Block external access to gRPC ports (50052, 50054, 50055, 6334)
+  - Restrict Qdrant admin port (6333) to internal network
+  - Use reverse proxy with TLS for production
+
+- [ ] **Secret Management**
+  - Rotate `OPENROUTER_API_KEY` regularly
+  - Use different keys for dev/prod
+  - Never commit secrets to version control
+
+- [ ] **Service Isolation**
+  - Run services with least privilege
+  - Use non-root users in containers
+  - Isolate tool execution in sandboxes
+
+- [ ] **Network Security**
+  - Disable public network scanning (`ALLOW_PUBLIC_NETWORK_SCAN=false`)
+  - Restrict port scanning to required ranges
+  - Use VPN or private networks for multi-node deployments
+
+- [ ] **Access Control**
+  - Keep HITL gates enabled (do not use `BYPASS_*` flags in production)
+  - Monitor approval logs
+  - Review tool execution history regularly
+
+- [ ] **Update Cadence**
+  - Update dependencies regularly
+  - Monitor security advisories for Rust/Go/Python/Node
+  - Update Qdrant to latest stable version
+
+#### Authentication & Authorization
+
+**Current State:**
+- No built-in user authentication (TBD - verify in codebase)
+- HITL provides action-level authorization
+- API key authentication TBD for production (check `backend-go-agent-planner` for `PAGI_API_KEY`)
+
+**Production Recommendations:**
+- Implement API key authentication for all endpoints
+- Add user roles and permissions
+- Use OAuth2/OIDC for user authentication
+- Implement rate limiting
+
+#### Security Gates Documentation
+
+See [`docs/SECURITY_GATES.md`](docs/SECURITY_GATES.md) and [`ENV_SETUP.md`](ENV_SETUP.md) for detailed security gate documentation.
+
+**⚠️ IMPORTANT**: Security gates (`ALLOW_*`, `BYPASS_*`) are for research environments only. Never enable in production.
+
+### Upgrades & Versioning
+
+#### Upgrade Procedure
+
+1. **Backup current state** (see Backup & Recovery)
+2. **Review changelog** (TBD - verify if changelog exists)
+3. **Update code:**
+   ```bash
+   git pull origin main
+   # Or checkout specific version tag
+   git checkout v1.0.0
+   ```
+
+4. **Rebuild services:**
+   ```bash
+   # Docker
+   docker compose build
+   docker compose up -d
+   
+   # Bare-metal
+   cargo build --release  # For Rust services
+   npm install && npm run build  # For frontend
+   ```
+
+5. **Verify health checks**
+6. **Test critical functionality**
+7. **Monitor logs for errors**
+
+#### Configuration Migrations
+
+- Check for new environment variables in updated `.env.example`
+- Review service-specific migration notes (TBD - verify in `docs/`)
+- Test configuration changes in development first
+
+#### Rollback Procedure
+
+1. **Stop services**
+2. **Restore previous version:**
+   ```bash
+   git checkout <previous-version-tag>
+   ```
+
+3. **Restore backups if needed** (see Backup & Recovery)
+4. **Rebuild and restart**
+5. **Verify functionality**
+
+#### Versioning Scheme
+
+- TBD: Verify versioning scheme (check `Cargo.toml` and `package.json` files)
+- Services may have independent versions
+- Use git tags for release versions
+
+### Troubleshooting (Admin)
+
+#### Service Won't Start
+
+**Symptom**: Container exits immediately or process crashes
+
+**Diagnosis:**
+```bash
+# Docker
+docker compose logs <service-name>
+
+# Bare-metal
+# Check stdout/stderr or systemd journal
+journalctl -u <service-name> -n 50
+```
+
+**Common Causes:**
+1. **Missing environment variables**
+   - Fix: Verify `.env` file has all required variables
+   - Check: Service logs for "missing" or "required" errors
+
+2. **Port already in use**
+   - Fix: `lsof -i :8182` (or `netstat -tulpn`) to find process
+   - Kill conflicting process or change port in `.env`
+
+3. **Qdrant not reachable**
+   - Fix: Verify `QDRANT_URL` is correct
+   - Check: `curl http://localhost:6333/health`
+   - Ensure Qdrant container/service is running
+
+4. **Invalid API key**
+   - Fix: Verify `OPENROUTER_API_KEY` is valid
+   - Test: `curl https://openrouter.ai/api/v1/models -H "Authorization: Bearer $OPENROUTER_API_KEY"`
+
+5. **Permission errors**
+   - Fix: Check file permissions for data directories
+   - Ensure user has write access to `data/`, `tools_repo/`, etc.
+
+#### Port Conflicts
+
+**Symptom**: "Address already in use" error
+
+**Fix:**
+```bash
+# Find process using port
+lsof -i :8182  # Linux/macOS
+netstat -ano | findstr :8182  # Windows
+
+# Kill process (replace PID)
+kill -9 <PID>  # Linux/macOS
+taskkill /PID <PID> /F  # Windows
+
+# Or change port in .env
+ORCHESTRATOR_HTTP_PORT=8183
+```
+
+#### Configuration Errors
+
+**Symptom**: Services start but fail to connect or behave incorrectly
+
+**Diagnosis:**
+- Check service logs for configuration-related errors
+- Verify environment variables are loaded: `docker compose config`
+- Test service URLs: `curl http://localhost:8182/health`
+
+**Common Issues:**
+1. **Wrong service URLs** (bare-metal)
+   - Fix: Ensure `ORCHESTRATOR_URL`, `MEMORY_GRPC_ADDR` point to correct addresses
+   - Use `http://127.0.0.1:PORT` for local, `http://service-name:PORT` for Docker
+
+2. **Missing required variables**
+   - Fix: Compare `.env` with `.env.example` (if exists)
+   - Check service-specific requirements in code
+
+3. **Type mismatches**
+   - Fix: Ensure numeric values are numbers, not strings
+   - Check boolean values: use `true`/`false` or `1`/`0`
+
+#### High CPU/Memory Usage
+
+**Symptom**: System becomes slow, services unresponsive
+
+**Diagnosis:**
+```bash
+# Docker
+docker stats
+
+# Bare-metal
+top
+htop
+```
+
+**Common Causes:**
+1. **Qdrant indexing large collections**
+   - Fix: Normal during initial ingestion, wait for completion
+   - Monitor: Qdrant logs for indexing progress
+
+2. **Memory leak in service**
+   - Fix: Restart affected service
+   - Report: If persistent, check service logs and GitHub issues
+
+3. **Too many concurrent requests**
+   - Fix: Implement rate limiting (TBD - verify if exists)
+   - Scale: Add more instances or increase resources
+
+4. **Embedding model loading**
+   - Fix: First request loads model (one-time cost)
+   - Monitor: Subsequent requests should be faster
+
+#### Qdrant Connection Issues
+
+**Symptom**: Memory service can't connect to Qdrant
+
+**Diagnosis:**
+```bash
+# Test Qdrant
+curl http://localhost:6333/health
+curl http://localhost:6333/collections
+
+# Check Memory Service logs
+docker compose logs rust-memory-service
+```
+
+**Common Causes:**
+1. **Qdrant not running**
+   - Fix: Start Qdrant: `docker compose up -d qdrant-db`
+
+2. **Wrong URL**
+   - Fix: Verify `QDRANT_URL=http://qdrant-db:6334` (Docker) or `http://127.0.0.1:6334` (bare-metal)
+
+3. **Network issues**
+   - Fix: Ensure services on same Docker network
+   - Check: `docker network inspect pagi-network`
+
+4. **API key required**
+   - Fix: Set `QDRANT_API_KEY` if Qdrant requires authentication
+
+#### Knowledge Base Not Updating
+
+**Symptom**: Ingested files don't appear in queries
+
+**Diagnosis:**
+```bash
+# Check ingestion status
+curl http://localhost:8182/api/knowledge/ingest/status
+
+# Check Qdrant collections
+curl http://localhost:6333/collections
+
+# Check orchestrator logs for ingestion errors
+docker compose logs rust-orchestrator | grep -i ingest
+```
+
+**Common Causes:**
+1. **Ingestor not running**
+   - Fix: Verify ingestor is initialized (check orchestrator startup logs)
+   - Ensure `data/ingest/` directory exists and is writable
+
+2. **Classification failures**
+   - Fix: Check LLM settings if using semantic classification
+   - Verify fallback keyword classification works
+
+3. **Qdrant write failures**
+   - Fix: Check Qdrant logs and disk space
+   - Verify collections exist: `curl http://localhost:6333/collections`
+
+4. **Dashboard not showing progress**
+   - Fix: Check browser console for JavaScript errors
+   - Verify frontend can reach orchestrator: `curl http://localhost:8182/api/knowledge/ingest/status`
+   - Check that `VITE_ORCHESTRATOR_URL` is correctly configured in frontend `.env`
+
+### Runbooks
+
+#### Runbook: Fresh Install
+
+**Objective**: Deploy PAGI Digital Twin on a clean system
+
+**Steps:**
+
+1. **Prerequisites:**
+   ```bash
+   # Install Docker and Docker Compose
+   # Verify: docker --version && docker compose version
+   ```
+
+2. **Clone repository:**
+   ```bash
+   git clone <repository-url>
+   cd pagi-digital-twin
+   ```
+
+3. **Configure environment:**
+   ```bash
+   # Create .env file
+   cat > .env << EOF
+   OPENROUTER_API_KEY=sk-your-key-here
+   QDRANT_URL=http://qdrant-db:6334
+   LOG_LEVEL=info
+   EOF
+   ```
+
+4. **Start services:**
+   ```bash
+   docker compose up -d
+   ```
+
+5. **Verify:**
+   ```bash
+   # Wait for services to start (30-60 seconds)
+   sleep 60
+   
+   # Check health
+   curl http://localhost:8181/api/health
+   curl http://localhost:8182/health
+   curl http://localhost:6333/health
+   
+   # Check all containers running
+   docker compose ps
+   ```
+
+6. **Access UI:**
+   - Open http://localhost:3000
+   - Verify WebSocket connection establishes
+
+**Success Criteria:**
+- All health checks return `200 OK`
+- Frontend loads without errors
+- Can send chat message and receive response
+
+#### Runbook: Upgrade
+
+**Objective**: Safely upgrade to new version
+
+**Steps:**
+
+1. **Backup:**
+   ```bash
+   # Backup Qdrant
+   docker run --rm -v qdrant_data:/data -v $(pwd):/backup \
+     alpine tar czf /backup/qdrant-backup-$(date +%Y%m%d).tar.gz /data
+   
+   # Backup configuration
+   tar czf config-backup-$(date +%Y%m%d).tar.gz \
+     config/ test-agent-repo/ knowledge_bases/ .env
+   ```
+
+2. **Stop services:**
+   ```bash
+   docker compose down
+   ```
+
+3. **Update code:**
+   ```bash
+   git pull origin main
+   # Or: git checkout <new-version-tag>
+   ```
+
+4. **Rebuild:**
+   ```bash
+   docker compose build --no-cache
+   ```
+
+5. **Start services:**
+   ```bash
+   docker compose up -d
+   ```
+
+6. **Verify:**
+   ```bash
+   # Wait for startup
+   sleep 60
+   
+   # Health checks
+   curl http://localhost:8181/api/health
+   curl http://localhost:8182/health
+   
+   # Test functionality
+   # Send test message, verify response
+   ```
+
+7. **Rollback if needed:**
+   ```bash
+   # If issues occur
+   docker compose down
+   git checkout <previous-version>
+   docker compose up -d
+   # Restore backups if data corrupted
+   ```
+
+**Success Criteria:**
+- All services start successfully
+- Health checks pass
+- Critical functionality works
+- No data loss
+
+#### Runbook: Rotate Secrets
+
+**Objective**: Update API keys and secrets securely
+
+**Steps:**
+
+1. **Prepare new secrets:**
+   - Generate new OpenRouter API key
+   - Update `.env` with new key (keep old for rollback)
+
+2. **Update configuration:**
+   ```bash
+   # Edit .env
+   OPENROUTER_API_KEY=sk-new-key-here
+   ```
+
+3. **Restart services:**
+   ```bash
+   # Restart orchestrator (uses API key)
+   docker compose restart rust-orchestrator
+   
+   # Verify no errors in logs
+   docker compose logs -f rust-orchestrator
+   ```
+
+4. **Test:**
+   ```bash
+   # Send test message
+   curl -X POST http://localhost:8182/v1/chat \
+     -H "Content-Type: application/json" \
+     -d '{"message": "test", "twin_id": "test", "session_id": "test"}'
+   ```
+
+5. **Verify old key no longer works:**
+   - TBD: Verify if old sessions are invalidated
+
+6. **Update other services if needed:**
+   - TBD: Check if other services use API keys
+
+**Success Criteria:**
+- Services restart without errors
+- New API key works
+- Old API key rejected (if applicable)
+
+#### Runbook: Restore From Backup
+
+**Objective**: Recover from data loss or corruption
+
+**Steps:**
+
+1. **Stop services:**
+   ```bash
+   docker compose down
+   ```
+
+2. **Identify backup:**
+   ```bash
+   ls -lh *backup*.tar.gz
+   # Choose appropriate backup date
+   ```
+
+3. **Restore Qdrant:**
+   ```bash
+   # Remove existing volume (WARNING: destroys current data)
+   docker volume rm qdrant_data
+   
+   # Create new volume
+   docker volume create qdrant_data
+   
+   # Restore data
+   docker run --rm -v qdrant_data:/data -v $(pwd):/backup \
+     alpine tar xzf /backup/qdrant-backup-YYYYMMDD.tar.gz -C /
+   ```
+
+4. **Restore configuration (if needed):**
+   ```bash
+   tar xzf config-backup-YYYYMMDD.tar.gz
+   ```
+
+5. **Start services:**
+   ```bash
+   docker compose up -d
+   ```
+
+6. **Verify:**
+   ```bash
+   # Wait for startup
+   sleep 60
+   
+   # Check collections
+   curl http://localhost:6333/collections
+   
+   # Test queries
+   # Send knowledge query, verify results match backup expectations
+   ```
+
+**Success Criteria:**
+- Qdrant collections restored
+- Knowledge queries return expected data
+- Services operate normally
+
+#### Runbook: Diagnose High CPU/Memory
+
+**Objective**: Identify and resolve resource exhaustion
+
+**Steps:**
+
+1. **Identify resource usage:**
+   ```bash
+   # Docker
+   docker stats --no-stream
+   
+   # Bare-metal
+   top
+   # Or: htop, btop
+   ```
+
+2. **Identify problematic service:**
+   - Note which service uses most CPU/memory
+   - Check service logs: `docker compose logs <service>`
+
+3. **Common causes and fixes:**
+
+   **Qdrant indexing:**
+   - Symptom: High CPU during/after large ingestion
+   - Fix: Wait for indexing to complete (normal behavior)
+   - Monitor: Qdrant logs for "indexing" messages
+
+   **Memory leak:**
+   - Symptom: Memory usage grows over time
+   - Fix: Restart service: `docker compose restart <service>`
+   - If persistent: Check service code for leaks, file issue
+
+   **Too many requests:**
+   - Symptom: High CPU with many concurrent users
+   - Fix: Implement rate limiting (TBD - verify if exists)
+   - Scale: Add more service instances
+
+   **Embedding model:**
+   - Symptom: High memory on first request
+   - Fix: Normal behavior, model loads into memory
+   - Monitor: Subsequent requests should use less memory
+
+4. **Apply fixes:**
+   ```bash
+   # Restart service
+   docker compose restart <service-name>
+   
+   # Or scale down temporarily
+   docker compose up -d --scale <service>=1
+   ```
+
+5. **Monitor:**
+   ```bash
+   # Watch resource usage
+   watch -n 1 docker stats
+   ```
+
+**Success Criteria:**
+- Resource usage returns to normal
+- Services remain responsive
+- No service crashes
 
 ---
 
-### 5. Mock Memory Service - Port 8003
+## Architecture
 
-**Purpose:** Provides mock memory storage for testing and development.
+### System Architecture
 
-**Key Features:**
-- ✅ Mock memory endpoint
-- ✅ Health check
-- ✅ FastAPI-based
+The platform uses a **Tri-Layer Phoenix Architecture** with four distinct layers:
 
-**Technology:**
-- **Framework:** FastAPI
+```
+┌─────────────────────────────────────────────────────────┐
+│                    Client Layer                         │
+│  Frontend (React/TypeScript) - Port 3000               │
+└────────────────────┬──────────────────────────────────┘
+                     │ HTTP/WebSocket/SSE
+┌────────────────────▼──────────────────────────────────┐
+│                 Gateway Layer                          │
+│  Rust Gateway - Port 8181                             │
+│  • WebSocket ingress                                   │
+│  • HTTP proxy                                          │
+│  • SSE proxy                                           │
+└────────────────────┬──────────────────────────────────┘
+                     │ HTTP
+┌────────────────────▼──────────────────────────────────┐
+│              Orchestrator Layer                        │
+│  Rust Orchestrator - Port 8182                         │
+│  • LLM planning (OpenRouter)                          │
+│  • Human-in-the-loop gating                           │
+│  • Action routing                                      │
+└────┬──────────────────────┬──────────────────────────┘
+     │ gRPC                  │ gRPC
+┌────▼──────────┐   ┌────────▼──────────┐
+│ Infrastructure│   │  Infrastructure  │
+│   Layer       │   │     Layer        │
+├───────────────┤   ├──────────────────┤
+│ Memory Service│   │  Tools Service   │
+│ Port 50052    │   │  Port 50054      │
+│               │   │                  │
+│ • Qdrant      │   │ • Sandboxed exec │
+│ • Vector DB   │   │ • Build Service  │
+└───────┬───────┘   └──────────────────┘
+        │
+        │ gRPC
+┌───────▼───────┐
+│   Qdrant DB   │
+│ Ports 6333/34 │
+│ Vector Store  │
+└───────────────┘
+```
+
+### Data Flow
+
+**Chat Request Flow:**
+1. User sends message via Frontend
+2. Frontend → Gateway (WebSocket)
+3. Gateway → Orchestrator (HTTP POST /v1/chat)
+4. Orchestrator plans action (LLM via OpenRouter)
+5. If action requires approval → HITL gate → User approves/denies
+6. Orchestrator → Memory Service (gRPC) for knowledge queries
+7. Orchestrator → Tools Service (gRPC) for tool execution
+8. Response flows back through Gateway → Frontend
+
+**Knowledge Ingestion Flow:**
+1. File dropped into `data/ingest/` directory
+2. Auto-Domain Ingestor detects file (via `notify` crate)
+3. Classifies domain (LLM or keyword-based)
+4. Chunks content (domain-aware: 256-1024 tokens)
+5. Generates embeddings (fastembed)
+6. Upserts to Qdrant collection (domain-specific)
+7. Updates knowledge base stats in UI
+8. Frontend polls `/api/knowledge/ingest/status` every 2 seconds
+9. Ingestion Progress Dashboard displays real-time progress with animated bars
+10. Toast notification appears on completion with domain classification
+11. Attribution Analytics radar chart updates to reflect knowledge base growth
+
+### Key Directories
+
+```
+pagi-digital-twin/
+├── backend-rust-orchestrator/    # Core orchestrator service
+│   ├── src/
+│   │   ├── main.rs               # Entry point
+│   │   ├── api/                  # HTTP API routes
+│   │   ├── knowledge/            # Knowledge base logic
+│   │   │   ├── domain_router.rs  # Domain routing (Mind/Body/Heart/Soul)
+│   │   │   └── ingestor.rs       # Auto-domain ingestion
+│   │   ├── network/              # P2P networking (Blue Flame)
+│   │   ├── agents/               # Agent factory and management
+│   │   └── tools/                # Tool execution helpers
+│   └── config/
+│       └── system_prompt.txt      # System prompt template
+├── backend-rust-memory/          # Memory service (Qdrant client)
+├── backend-rust-tools/           # Tools service (sandboxed execution)
+├── backend-rust-gateway/         # Gateway service (edge protocol)
+├── backend-rust-telemetry/       # Telemetry service (SSE metrics)
+├── backend-rust-build/           # Build service (tool compilation)
+├── frontend-digital-twin/        # React frontend
+│   ├── src/
+│   │   ├── components/           # UI components
+│   │   ├── services/             # API clients
+│   │   └── context/              # React contexts
+│   └── package.json
+├── config/                       # Configuration files
+│   └── agents/                   # Agent templates
+├── test-agent-repo/              # Agent repository
+│   ├── agent-templates/          # Agent definitions
+│   └── playbooks/                # AI-generated playbooks
+├── knowledge_bases/               # Knowledge base source files
+├── data/                         # Runtime data
+│   └── ingest/                   # Auto-ingestion directory
+├── tools_repo/                   # Compiled tools (build service output)
+├── scripts/                      # Utility scripts
+│   └── run_all_dev.py            # Development harness
+├── docs/                         # Documentation
+├── docker-compose.yml            # Docker orchestration
+├── Makefile                      # Convenience commands
+└── .env                          # Environment configuration (not in git)
+```
+
+### Component Interactions
+
+**Phoenix Consensus Sync:**
+- Mesh-wide voting for agent updates
+- mDNS discovery for peer nodes
+- Handshake protocol for verification
+- See: `backend-rust-orchestrator/src/network/consensus.rs`
+
+**Phoenix Memory Exchange:**
+- Peer-to-peer knowledge transfer
+- Redaction for privacy
+- Topic-based memory sharing
+- See: `backend-rust-orchestrator/src/network/memory_exchange.rs`
+
+**Phoenix Fleet Manager:**
+- Distributed node registry
+- Health monitoring
+- Cross-node knowledge sharing
+- See: `backend-rust-orchestrator/src/network/fleet.rs`
+
+**Auto-Domain Ingestor:**
+- File watching (notify crate)
+- Semantic classification (LLM + keyword fallback)
+- Domain-aware chunking
+- Qdrant upsert
+- See: `backend-rust-orchestrator/src/knowledge/ingestor.rs`
 
 ---
 
-## 🖥️ Frontend Application & User Interface
+## API Reference
 
-The PAGI Digital Twin frontend is a comprehensive React-based web application that provides an intuitive interface for managing multiple AI agents, monitoring system telemetry, and interacting with the agent orchestration system. This section provides a complete guide to all pages, views, and navigation elements.
+### Rust Gateway (Port 8181)
 
-### Application Overview
+Base URL: `http://localhost:8181`
 
-The frontend application runs on **port 3000** (default) and provides five main views accessible through the left sidebar navigation:
+| Method | Endpoint | Description | Request | Response |
+|--------|----------|-------------|---------|----------|
+| `GET` | `/api/health` | Health check | - | `{"service": "gateway", "status": "ok"}` |
+| `GET` | `/ws/chat/:user_id` | WebSocket chat connection | WebSocket upgrade | Real-time messages |
+| `GET` | `/ws/signaling/:room_id` | WebSocket signaling for media | WebSocket upgrade | Signaling messages |
+| `GET` | `/v1/telemetry/stream` | SSE telemetry proxy | - | Server-Sent Events |
+| `POST` | `/api/media/upload` | Media upload proxy | Multipart form data | `{"success": true, "filename": "...", "path": "..."}` |
 
-1. **Orchestrator Hub** - Global command center for system-wide operations
-2. **Chat Area** - Individual agent conversation interface
-3. **Settings View** - Agent configuration and customization
-4. **Search View** - Global search across all messages and logs
-5. **Job Logs View** - Detailed execution logs for specific jobs
+### Rust Orchestrator (Port 8182)
 
-### Navigation Structure
+Base URL: `http://localhost:8182`
 
-#### Left Sidebar (`SidebarLeft`)
-
-The left sidebar provides primary navigation and agent management:
-
-**Global Command Section:**
-- **Ops Center (Orchestrator Hub)** - Click to access the global orchestrator view
-  - *Use Case:* System administrators use this to issue global directives, generate tactical visuals, and monitor overall system health
-  - *Use Case:* Security teams coordinate multi-agent operations from this centralized hub
-  
-- **Search Archive** - Click to open the global search interface
-  - *Use Case:* Incident responders search across all agent conversations and execution logs to trace security events
-  - *Use Case:* Developers search for specific tool executions or error patterns across the entire system
-
-**Tactical Agent Desktop Section:**
-- Lists all configured digital twin agents
-- Each agent shows:
-  - Avatar/icon
-  - Agent name (codename)
-  - Role/designation
-  - Status indicator (IDLE, THINKING, BUSY)
-- Click any agent to open their chat interface
-- **+ Create Twin** button - Opens modal to create a new agent
-
-**Use Cases for Agent Management:**
-- **Multi-Agent Security Operations:** Create specialized agents for different security domains (network security, endpoint protection, threat intelligence)
-- **DevOps Automation:** Deploy agents for CI/CD pipeline monitoring, automated testing, and deployment orchestration
-- **Customer Support:** Create customer-facing agents with different personalities and knowledge bases
-
-#### Right Sidebar (`SidebarRight`)
-
-The right sidebar provides real-time monitoring and system information:
-
-**Tab Navigation (Top):**
-- **Mind Tab** - Vector vault and semantic memory search
-- **Heart Tab** - Episodic memory and session history
-- **Body Tab** - System telemetry and resource monitoring
-
-**Body Section (System Telemetry):**
-- Real-time CPU, Memory, GPU, and Network metrics
-- Live telemetry charts showing resource usage over time
-- Connection status indicator (LIVE/OFFLINE)
-- *Use Case:* System administrators monitor resource consumption during high-load operations
-- *Use Case:* DevOps teams track performance metrics to optimize agent response times
-
-**Mind Section (Vector Vault):**
-- Namespace status showing memory shard count
-- Visual load indicator (12-segment bar)
-- Neural Memory Search component for semantic search within agent memory
-- *Use Case:* Security analysts search agent memory for specific threat patterns or attack vectors
-- *Use Case:* Researchers query accumulated knowledge for pattern recognition
-
-**Mission Pipeline Section:**
-- Lists all active, pending, completed, and failed jobs
-- Each job shows:
-  - Job name/description
-  - Status badge (color-coded)
-  - Progress bar
-- Click any job to view detailed execution logs
-- *Use Case:* Security teams track the progress of automated threat response missions
-- *Use Case:* Developers monitor long-running code generation or analysis tasks
-
-### Main Views & Pages
-
-#### 1. Orchestrator Hub (`orchestrator` view)
-
-**Purpose:** Central command center for system-wide operations and global agent coordination.
-
-**Layout:**
-- **Left Panel:** Unified Command Stream (chat interface for global directives)
-- **Right Panel:** Task Matrix & Generative Controls
-
-**Features:**
-- **Direct Command Stream:**
-  - Chat interface for sending global directives to The Blue Flame (orchestrator)
-  - Displays conversation history with The Blue Flame
-  - Shows "thinking" status when The Blue Flame is processing
-  - *Use Case:* Security operations center issues global lockdown commands
-  - *Use Case:* System administrators coordinate multi-agent workflows
-
-- **Generative Tasks Panel:**
-  - **Generate Visual Evidence:** Uses OpenRouter/DALL-E 3 (with Gemini fallback) to create tactical visuals
-    - *Use Case:* Security teams generate visual representations of attack patterns
-    - *Use Case:* Incident responders create visual timelines of security events
-    - *Configuration:* Requires `VITE_OPENROUTER_API_KEY` (or `GEMINI_API_KEY` for fallback)
-  - **Reconstruct Scenario:** Uses Replicate API (AnimateDiff) for text-to-video synthesis
-    - *Use Case:* Forensic analysts reconstruct security incident scenarios
-    - *Use Case:* Training teams create realistic attack simulation videos
-    - *Configuration:* Requires `VITE_REPLICATE_API_KEY` (free tier available)
-    - *Note:* Free tier includes credits for testing; get API key from [Replicate](https://replicate.com/account/api-tokens)
-  - **Synthesize Patch:** AI code generation (can be disabled via policy)
-    - *Use Case:* Developers generate security patches based on vulnerability analysis
-    - *Use Case:* DevOps teams create automated remediation scripts
-
-- **Global Mission Status:**
-  - Neural Sync percentage (system-wide agent coordination health)
-  - Threat Suppression percentage (overall security posture)
-  - *Use Case:* CISO dashboard showing real-time security posture metrics
-
-**Navigation:**
-- Access via left sidebar "Ops Center" button
-- Header shows "Command Center" title with indigo status indicator
-
-#### 2. Chat Area (`chat` view)
-
-**Purpose:** Individual agent conversation interface for one-on-one interaction with specific digital twin agents.
-
-**Features:**
-- **Message Display:**
-  - User messages (right-aligned, indigo background)
-  - Agent responses (left-aligned, dark background with agent avatar)
-  - Timestamps and message metadata
-  - *Use Case:* Security analysts have detailed conversations with specialized threat intelligence agents
-  - *Use Case:* Developers interact with code review agents for automated code analysis
-
-- **Message Actions:**
-  - **Save to Memory** button on assistant messages
-    - Commits important information to agent's vector memory
-    - *Use Case:* Security teams save critical threat intelligence for future reference
-    - *Use Case:* Developers save code patterns and solutions to agent knowledge base
-
-- **Tool Execution:**
-  - Tool menu button in input area
-  - Shows only tools authorized for the active agent
-  - Click to execute tools directly
-  - *Use Case:* Security teams execute network scanning tools through agent interface
-  - *Use Case:* DevOps teams trigger deployment tools via agent commands
-
-- **Input Area:**
-  - Text input for sending messages
-  - Tool menu dropdown
-  - Submit button
-  - *Use Case:* Natural language interaction with agents for complex queries
-
-**Navigation:**
-- Access by clicking any agent in left sidebar
-- Header shows agent name with emerald status indicator
-- Toggle to Settings view via "Configure Agent" button in header
-
-#### 3. Settings View (`settings` view)
-
-**Purpose:** Comprehensive agent configuration and customization interface.
-
-**Layout:**
-- **Left Column (8/12 width):** Main configuration sections
-- **Right Column (4/12 width):** Neural Core and Policy Matrix
-
-**Sections:**
-
-**Directive Logic:**
-- Code editor with syntax highlighting (Markdown, YAML, JSON)
-- Line numbers and syntax layer indicator
-- Blueprint templates dropdown:
-  - Red Team Ops (Markdown)
-  - Threat Hunter (YAML)
-  - Policy Audit (JSON)
-- Reset button to restore defaults
-- *Use Case:* Security teams configure agent personas for red team exercises
-- *Use Case:* Compliance officers set up policy audit agents with specific frameworks
-
-**Tactical Identity:**
-- Avatar upload (click to change, 2MB limit)
-- Codename input
-- Designation input
-- Mission Summary input
-- *Use Case:* Branding agents with specific visual identities for different departments
-- *Use Case:* Creating memorable agent personas for user-facing applications
-
-**Neural Core:**
-- **LLM Provider Selection:** Dropdown with 9 providers
-  - OpenRouter (default)
-  - Ollama (local)
-  - Gemini (Google)
-  - OpenAI
-  - Anthropic
-  - Llama (Meta)
-  - DeepSeek
-  - Mistral
-  - Grok
-- **API Key Input:** Secure password field for provider authentication
-- **Logic Variance (Temperature):** Slider 0.0-1.5
-  - *Use Case:* Creative agents use higher temperature (0.8-1.2)
-  - *Use Case:* Precise security analysis agents use lower temperature (0.1-0.3)
-- **Context Shards (Token Limit):** Slider 16K-128K
-  - *Use Case:* Long-form document analysis requires 64K-128K
-  - *Use Case:* Quick response agents use 16K-32K for faster processing
-
-**Policy Matrix:**
-- **Defensive Policies:**
-  - AI Code Generation toggle (can disable for security)
-  - *Use Case:* Production environments disable AI code generation to prevent unauthorized changes
-  - *Use Case:* Development environments enable for rapid prototyping
-- **Tactical Tools:**
-  - Toggle access for each available tool
-  - Visual indicators (enabled = indigo, disabled = grayscale)
-  - *Use Case:* Restrict sensitive tools to authorized agents only
-  - *Use Case:* Enable specific tool sets for different agent roles
-
-**Navigation:**
-- Access via "Configure Agent" button in Chat Area header
-- "Commit Manifest" button saves changes
-- "Discard Changes" button cancels and returns to chat
-
-#### 4. Search View (`search` view)
-
-**Purpose:** Global search interface for finding information across all agents, messages, and execution logs.
-
-**Features:**
-- **Search Input:**
-  - Full-width search bar with terminal icon
-  - Real-time search (minimum 2 characters)
-  - Match count indicator
-  - *Use Case:* Security teams search for specific attack patterns across all agent conversations
-  - *Use Case:* Developers find error messages or tool execution results
-
-- **Results Display:**
-  - **Intel Stream Section:** Message matches
-    - Shows agent name, sender, timestamp
-    - Click to navigate to that agent's chat
-    - *Use Case:* Trace conversation threads related to specific incidents
-  - **Execution Logs Section:** Job log matches
-    - Shows job name, log level, timestamp
-    - Click to navigate to detailed job logs
-    - *Use Case:* Find all instances of specific error conditions
-    - *Use Case:* Track tool execution history across the system
-
-- **Empty States:**
-  - "Neural Index Ready" when no query
-  - "No Matches Found" when query yields zero results
-
-**Navigation:**
-- Access via left sidebar "Search Archive" button
-- Header shows "Neural Index Search" with indigo status indicator
-- Close button returns to Orchestrator Hub
-
-#### 5. Job Logs View (`logs` view)
-
-**Purpose:** Detailed terminal-style view of execution logs for specific jobs/missions.
-
-**Features:**
-- **Terminal Header:**
-  - Job name and agent assignment
-  - Status indicator (color-coded, animated if active)
-  - Close button
-
-- **Log Display:**
-  - Terminal-style formatting
-  - Color-coded log levels:
-    - `plan` (cyan) - Planning and orchestration steps
-    - `tool` (amber) - Tool execution events
-    - `memory` (purple) - Memory operations
-    - `error` (rose) - Error conditions
-    - `warn` (yellow) - Warning messages
-    - `info` (zinc) - General information
-  - Timestamps in 24-hour format
-  - Auto-scrolls to latest entries
-  - *Use Case:* Security teams monitor real-time threat response execution
-  - *Use Case:* Developers debug failed code generation jobs
-
-- **Terminal Footer:**
-  - Memory allocation indicator
-  - Context health percentage
-  - Process ID display
-  - *Use Case:* Performance monitoring during long-running operations
-
-**Navigation:**
-- Access by clicking jobs in right sidebar "Mission Pipeline"
-- Or via Search View results
-- Close button returns to previous view
-
-### Modals & Overlays
-
-#### Create Twin Modal
-
-**Purpose:** Create new digital twin agents.
-
-**Fields:**
-- Agent name (codename)
-- Role/designation
-- Description
-- Avatar selection
-- Initial settings
-
-**Use Cases:**
-- **Rapid Agent Deployment:** Security teams quickly spin up specialized agents for incident response
-- **Multi-Tenant Systems:** Create isolated agents for different customers or departments
-- **A/B Testing:** Create multiple agent variants to test different configurations
-
-#### Command Modal
-
-**Purpose:** Handle agent-initiated commands requiring user approval.
-
-**Command Types:**
-- `show_memory_page` - Agent requests to display memory content
-- `prompt_for_config` - Agent needs configuration input
-- `execute_tool` - Agent requests tool execution authorization
-
-**Use Cases:**
-- **Security Approval Workflows:** Require human approval before executing sensitive tools
-- **Configuration Management:** Agents request missing configuration values
-- **Memory Access Control:** Control when agents can access sensitive memory content
-
-### Use Case Scenarios
-
-#### Scenario 1: Security Incident Response
-
-1. **Initial Detection:** Security analyst receives alert about suspicious network activity
-2. **Agent Selection:** Opens specialized "Threat Hunter" agent from left sidebar
-3. **Investigation:** Uses Chat Area to query agent: "Analyze network traffic patterns from last 24 hours"
-4. **Tool Execution:** Agent requests permission to execute network scanning tool via Command Modal
-5. **Approval:** Analyst approves tool execution
-6. **Monitoring:** Watches job progress in right sidebar Mission Pipeline
-7. **Log Review:** Clicks job to view detailed execution logs in Job Logs View
-8. **Memory Storage:** Saves critical findings to agent memory for future reference
-9. **Global Coordination:** Switches to Orchestrator Hub to coordinate with other security agents
-10. **Search & Analysis:** Uses Search View to find related incidents across all agents
-
-#### Scenario 2: Multi-Agent Development Workflow
-
-1. **Project Setup:** Developer creates three agents:
-   - "Code Reviewer" - Analyzes code quality
-   - "Test Generator" - Creates unit tests
-   - "Documentation Agent" - Generates API docs
-2. **Configuration:** Uses Settings View to configure each agent:
-   - Code Reviewer: Low temperature (0.2), 64K context, code analysis tools
-   - Test Generator: Medium temperature (0.6), 32K context, testing tools
-   - Documentation Agent: High temperature (0.9), 16K context, documentation tools
-3. **Workflow Execution:**
-   - Developer submits code to Code Reviewer via Chat Area
-   - Reviewer identifies issues and suggests fixes
-   - Developer switches to Test Generator to create tests
-   - Finally uses Documentation Agent to update docs
-4. **Monitoring:** Tracks all three agents' jobs in right sidebar
-5. **Search:** Uses Search View to find all code review comments across sessions
-
-#### Scenario 3: Compliance Audit Automation
-
-1. **Agent Creation:** Compliance officer creates "Policy Auditor" agent
-2. **Configuration:** Uses Settings View to load "Policy Audit (JSON)" blueprint
-3. **Framework Setup:** Configures agent with NIST 800-53 and ISO 27001 knowledge
-4. **Audit Execution:** Uses Chat Area to request compliance checks
-5. **Tool Access:** Enables only audit-related tools in Policy Matrix
-6. **Global Search:** Uses Search View to find all compliance findings
-7. **Report Generation:** Uses Orchestrator Hub to generate visual compliance reports
-8. **Memory Management:** Saves audit results to agent memory for historical tracking
-
-#### Scenario 4: Customer Support Multi-Agent System
-
-1. **Agent Fleet:** Support team creates multiple specialized agents:
-   - "Technical Support" - Handles technical issues
-   - "Billing Support" - Manages account and payment questions
-   - "Product Expert" - Answers product feature questions
-2. **Personality Configuration:** Each agent configured with different:
-   - System prompts (personality)
-   - Temperature settings (formality level)
-   - Tool access (department-specific tools)
-3. **Customer Interaction:** Support staff routes customer queries to appropriate agent
-4. **Knowledge Sharing:** Agents save successful resolutions to memory
-5. **Search & Learning:** Team uses Search View to find similar past issues
-6. **Performance Monitoring:** Tracks agent response times via telemetry in right sidebar
-
-### Keyboard Shortcuts & Tips
-
-- **Navigation:** Click agents in left sidebar to switch between chat interfaces
-- **Quick Search:** Use left sidebar "Search Archive" for global search
-- **Settings Access:** Click "Configure Agent" in chat header for agent settings
-- **Job Monitoring:** Right sidebar shows all active jobs - click to view logs
-- **Memory Management:** Click "Save to Memory" on important messages
-- **Tool Execution:** Use tool menu in chat input area for quick tool access
-
-### Frontend Architecture
-
-**Technology Stack:**
-- **React 19** with TypeScript
-- **Vite** for build tooling
-- **WebSocket** for real-time chat communication
-- **Server-Sent Events (SSE)** for telemetry streaming
-- **Tailwind CSS** for styling
-- **Prism.js** for code syntax highlighting
-- **Recharts** for data visualization
-- **Lucide React** for icons
-
-**Key Components:**
-- `App.tsx` - Main application container and routing
-- `PagiContext` - WebSocket connection management
-- `TelemetryContext` - SSE telemetry stream management
-- Component library in `components/` directory
-
-**Connection Endpoints:**
-- WebSocket Chat: `ws://localhost:8181/ws/chat/:user_id`
-- WebSocket Signaling: `ws://localhost:8181/ws/signaling/:room_id`
-- Telemetry SSE: `http://localhost:8181/v1/telemetry/stream`
-- Media Upload: `http://localhost:8181/api/media/upload`
-- Health Check: `http://localhost:8181/api/health`
-- Memory API: Integrated via service layer
-
----
-
-## API Endpoints
-
-### Rust Gateway (Tri-Layer Architecture; port 8181)
+#### HTTP Endpoints
 
 | Method | Endpoint | Description | Request Body | Response |
 |--------|----------|-------------|--------------|----------|
-| `GET` | `/api/health` | Health check | - | `{service, status, version}` |
-| `GET` | `/ws/chat/:user_id` | WebSocket connection for chat | WebSocket upgrade | Real-time chat messages |
-| `GET` | `/ws/signaling/:room_id` | WebSocket connection for media signaling | WebSocket upgrade | Real-time signaling messages |
-| `GET` | `/v1/telemetry/stream` | SSE proxy for telemetry | - | Server-Sent Events stream |
-| `POST` | `/api/media/upload` | Media upload proxy | Multipart form data | `{success, filename, path}` |
+| `GET` | `/health` | Health check | - | `{"service": "orchestrator", "status": "ok"}` |
+| `POST` | `/v1/chat` | Chat request with planning | `{"message": string, "twin_id": string, "session_id": string, "namespace"?: string, "media_active"?: boolean}` | `{"response": string, "job_id": string, "actions_taken": string[], "status": string}` |
+| `POST` | `/api/memory/query` | Query memory (semantic search) | `{"query": string, "namespace"?: string, "top_k"?: number, "domains"?: string[]}` | `{"results": MemoryResult[], "total": number, "domain_attribution"?: DomainAttribution}` |
+| `POST` | `/api/knowledge/ingest` | Trigger file ingestion | `{"file_path"?: string}` | `{"success": boolean, "message": string}` |
+| `GET` | `/api/knowledge/ingest/status` | Get ingestion status | - | `{"status": {"is_active": boolean, "files_processed": number, "files_failed": number, "current_file": string\|null, "last_error": string\|null}}` |
 
-### Rust Orchestrator (Tri-Layer Architecture; port 8182)
+**Ingestion Status Response:**
+- `is_active`: Whether a file is currently being processed
+- `files_processed`: Total number of successfully ingested files
+- `files_failed`: Total number of failed ingestions
+- `current_file`: Path of file currently being processed (null if none)
+- `last_error`: Error message from last failed ingestion (null if none)
 
-| Method | Endpoint | Description | Request Body | Response |
-|--------|----------|-------------|--------------|----------|
-| `GET` | `/health` | Health check | - | `{service, status, version}` |
-| `POST` | `/v1/chat` | Chat request with structured planning | `{message: string, twin_id: string, session_id: string, namespace?: string, media_active?: boolean}` | `{response: string, job_id: string, actions_taken: string[], status: string, issued_command?: object, raw_orchestrator_decision?: string}` |
+**Note**: The frontend polls this endpoint every 2 seconds while `is_active` is true to provide real-time progress updates in the Ingestion Progress Dashboard.
+| `GET` | `/api/knowledge/atlas` | Get knowledge graph data | Query: `?method=pca\|umap&max_nodes=500` | `{"nodes": AtlasNode[], "edges": AtlasEdge[], "total": number}` |
+| `POST` | `/api/knowledge/path` | Find semantic path | `{"source_id": string, "target_id": string}` | `{"path": PathStep[], "total_strength": number, "found": boolean}` |
 
-**gRPC Service (P50 - Transcript Summarization):**
-- `SummarizeTranscript` - Analyzes transcripts and extracts key decisions and action items
-
-**Example Request:**
+**Example Chat Request:**
 ```bash
 curl -X POST http://localhost:8182/v1/chat \
   -H "Content-Type: application/json" \
@@ -1838,1888 +1696,186 @@ curl -X POST http://localhost:8182/v1/chat \
     "message": "Search for security threats",
     "twin_id": "twin-1",
     "session_id": "session-123",
-    "namespace": "default",
-    "media_active": false
+    "namespace": "default"
   }'
 ```
 
-**Note:** Set `media_active: true` when the user is actively recording voice/video or sharing screen. This enables multi-modal awareness in the orchestrator's decision-making.
-
-**Example Response:**
-```json
-{
-  "response": "Authorization required to run a memory search. Please approve or deny in the UI.",
-  "job_id": "550e8400-e29b-41d4-a716-446655440000",
-  "actions_taken": ["Memory authorization requested: memory-123"],
-  "status": "completed",
-  "issued_command": {
-    "command": "show_memory_page",
-    "memory_id": "memory-123",
-    "query": "security threats"
-  },
-  "raw_orchestrator_decision": "{\"action_type\":\"ActionMemory\",\"details\":{\"query\":\"security threats\"}}"
-}
-```
-
-**Action Types:**
-- `ActionMemory` - Query vector memory (requires HITL approval)
-- `ActionTool` - Execute pre-compiled tool (requires HITL approval)
-- `ActionBuildTool` - Create new tool via Build Service (P38)
-- `ActionSelfImprove` - Update system prompt (P39)
-- `ActionListRecordings` - List media recordings from Telemetry Service (P50)
-- `ActionResponse` - Direct conversational response
-
-**Use Cases:**
-- **Agent Conversations:** Primary interface for agent interactions
-- **Tool Creation:** Self-developing agents create new tools on-demand
-- **Self-Improvement:** Agents enhance their own capabilities
-- **Memory Operations:** Semantic search and context retrieval
-- **Media Analysis:** Access and analyze voice/video/screen recordings from Telemetry Service
-- **Transcript Summarization:** Automated analysis of conversation transcripts for key decisions
-
-### Rust Build Service (gRPC; port 50055)
-
-| Method | Endpoint | Description | Request | Response |
-|--------|----------|-------------|---------|----------|
-| `gRPC` | `CreateTool` | Compile Rust code into executable tool | `{tool_name: string, tool_code: string}` | `{stdout: string, stderr: string, exit_code: int32}` |
-| `gRPC` | `HealthCheck` | Service health check | `{}` | `{status: string}` |
-
-### Rust Orchestrator (gRPC; port 50057)
-
-| Method | Endpoint | Description | Request | Response |
-|--------|----------|-------------|---------|----------|
-| `gRPC` | `SummarizeTranscript` | Analyze transcript and extract key decisions (P50) | `{transcript_text: string}` | `{summary: string, key_decisions: string[], follow_up_tasks: string[]}` |
-
-**Configuration:**
-- `ORCHESTRATOR_GRPC_PORT` (default: `50057`) - Public gRPC service port
-- `ORCHESTRATOR_ADMIN_GRPC_PORT` (default: `50056`) - Admin gRPC service port (internal)
-
-**Note:** The Orchestrator also exposes an HTTP API on port 8182 (see [Rust Orchestrator HTTP API](#rust-orchestrator-tri-layer-architecture-port-8182) above).
-
-**Example gRPC Request (via grpcurl):**
+**Example Memory Query:**
 ```bash
-grpcurl -plaintext -d '{
-  "tool_name": "my_tool",
-  "tool_code": "fn main() { println!(\"Hello from new tool\"); }"
-}' localhost:50055 build.BuildService/CreateTool
-```
-
-**Configuration:**
-- `BUILD_SERVICE_PORT` (default: `50055`)
-- `TOOLS_REPO_DIR` (default: `tools_repo`)
-- `BUILD_TIMEOUT_MS` (default: `120000`)
-- `BUILD_MAX_CONCURRENT` (default: `1`)
-- `BUILD_MAX_PENDING` (default: `4`)
-
-**Security Features:**
-- Tool name sanitization (alphanumeric, underscore, hyphen only)
-- Queue-based build limiting to prevent resource exhaustion
-- Automatic `Cargo.toml` generation (std-only, no external dependencies)
-- Build timeout enforcement
-
-**Use Cases:**
-- **Dynamic Tool Creation:** Agents create specialized tools for specific tasks
-- **Rapid Prototyping:** Quick iteration on tool functionality
-- **Self-Extending Systems:** Agents expand their own capabilities
-
-See [`backend-rust-build/README.md`](backend-rust-build/README.md) and [`docs/build_service.md`](docs/build_service.md) for detailed documentation.
-
-### Rust Telemetry Service (SSE; port 8183)
-
-| Method | Endpoint | Description | Request | Response |
-|--------|----------|-------------|---------|----------|
-| `GET` | `/v1/telemetry/stream` | SSE stream of system metrics | - | Server-Sent Events with `TelemetryPayload` |
-| `POST` | `/v1/media/upload` | Upload media files (video/audio) | Multipart form data | `{success, filename, stored_path}` |
-
-**Telemetry Payload Format:**
-```json
-{
-  "ts_ms": 1234567890,
-  "cpu_percent": 45.2,
-  "mem_total": 8589934592,
-  "mem_used": 4294967296,
-  "mem_free": 4294967296,
-  "process_count": 150
-}
-```
-
-**Configuration:**
-- `TELEMETRY_PORT` (default: `8183`)
-- `TELEMETRY_INTERVAL_MS` (default: `2000`)
-- `TELEMETRY_STORAGE_DIR` (default: `./telemetry_storage`)
-
-**Use Cases:**
-- **Real-time Monitoring:** Frontend displays live system metrics
-- **Performance Analysis:** Track resource usage over time
-- **Media Recording:** Store uploaded video/audio files for analysis
-
----
-
-## 🎥 Audio/Video & Screenshare Recording
-
-The PAGI Digital Twin platform includes comprehensive multi-modal recording capabilities that enable agents to access and analyze audio, video, and screen recordings for enhanced context awareness.
-
-### Overview
-
-The recording system provides:
-- **Browser-based Recording:** Frontend captures audio (microphone), video (camera), and screen shares using Web APIs
-- **Automatic Storage:** Recordings are automatically uploaded and stored by the Telemetry Service
-- **Multi-Modal Context:** Orchestrator can access recordings to provide context-aware responses
-- **Transcription Support:** Audio/video recordings can be transcribed for text analysis
-- **Media Gallery:** Frontend provides a gallery interface to browse and manage recordings
-
-### Recording Workflow
-
-```mermaid
-sequenceDiagram
-    participant User
-    participant Frontend
-    participant Gateway
-    participant Telemetry
-    participant Orchestrator
-
-    User->>Frontend: Enable Mic/Camera/Screen
-    Frontend->>Frontend: Request MediaStream (getUserMedia/getDisplayMedia)
-    Frontend->>Frontend: Start MediaRecorder
-    User->>Frontend: Start Recording
-    Frontend->>Frontend: Capture MediaStream chunks
-    User->>Frontend: Stop Recording
-    Frontend->>Frontend: Create Blob from chunks
-    Frontend->>Gateway: POST /api/media/upload (multipart)
-    Gateway->>Telemetry: Proxy to /v1/media/upload
-    Telemetry->>Telemetry: Store in recordings/ directory
-    Telemetry->>Telemetry: Append to recordings.jsonl log
-    Telemetry->>Frontend: SSE Event: "media" (broadcast)
-    Telemetry-->>Gateway: {success, filename, stored_path}
-    Gateway-->>Frontend: Upload confirmation
-    
-    Note over User,Orchestrator: Agent Access
-    User->>Orchestrator: Chat: "list recordings"
-    Orchestrator->>Telemetry: gRPC: ListRecordings()
-    Telemetry-->>Orchestrator: List of recordings
-    Orchestrator-->>User: Display recordings with metadata
-```
-
-### Frontend Recording Features
-
-**Media Controls Component:**
-- **Microphone Toggle:** Enable/disable audio recording
-- **Camera Toggle:** Enable/disable video recording from webcam
-- **Screen Share Toggle:** Enable/disable screen capture recording
-- **Record Button:** Start/stop recording session
-- **Live Preview:** Picture-in-picture preview of active video source
-- **Upload Status:** Real-time upload progress indicator
-
-**Supported Formats:**
-- **Video:** WebM (preferred), MP4
-- **Audio:** WebM audio, MP4 audio
-- **Screen:** WebM screen capture with optional audio
-
-**Recording States:**
-- `micEnabled` - Microphone is active
-- `cameraEnabled` - Camera is active
-- `screenEnabled` - Screen share is active
-- `isRecording` - Recording session in progress
-- `isUploading` - Upload to server in progress
-- `activeVideoSource` - Current video source ('screen' | 'camera' | null)
-
-### Telemetry Service Storage
-
-**Storage Structure:**
-```
-telemetry_storage/
-├── recordings/
-│   ├── rec_twin-1_1234567890.webm
-│   ├── rec_twin-2_1234567891.webm
-│   └── recordings.jsonl          # Metadata log
-└── media/                         # Legacy storage
-    └── rec_*.{webm,mp4}
-```
-
-**Recording Metadata (recordings.jsonl):**
-Each line contains JSON metadata:
-```json
-{
-  "ts_ms": 1234567890,
-  "twin_id": "twin-sentinel",
-  "filename": "rec_twin-sentinel_1234567890.webm",
-  "mime_type": "video/webm",
-  "size_bytes": 1048576,
-  "stored_path": "/path/to/rec_twin-sentinel_1234567890.webm"
-}
-```
-
-**API Endpoints:**
-- `POST /v1/media/upload` - Upload recording (multipart form data)
-- `GET /v1/media/list?twin_id=<id>&limit=<n>` - List recordings
-- `GET /v1/media/transcript?filename=<name>` - Get transcription (if available)
-
-### Orchestrator Integration
-
-**Multi-Modal Awareness:**
-When a user is actively recording, the orchestrator receives `media_active: true` in chat requests, enabling:
-- **Context-Aware Responses:** Agent acknowledges active recording session
-- **Recording References:** Agent can reference stored recordings from previous sessions
-- **Multi-Modal Analysis:** Agent can request transcriptions or summaries of recordings
-
-**Action Types:**
-- `ActionListRecordings` - Query available recordings
-  ```json
-  {
-    "action_type": "ActionListRecordings",
-    "details": {
-      "twin_id": "optional-filter",
-      "limit": 20
-    }
-  }
-  ```
-
-**Example Use Cases:**
-1. **Security Incident Documentation:**
-   - User records screen during security incident
-   - Agent references recording in analysis
-   - Recording stored for compliance/audit
-
-2. **Training & Onboarding:**
-   - User records training session
-   - Agent summarizes key points from recording
-   - Transcription stored for future reference
-
-3. **Multi-Modal Context:**
-   - User shares screen while asking questions
-   - Agent sees visual context and provides relevant responses
-   - Recording saved for later analysis
-
-### WebSocket Signaling
-
-**Signaling Endpoint:**
-- `ws://localhost:8181/ws/signaling/:room_id`
-
-**Purpose:**
-- Coordinate media streams between multiple participants
-- Real-time signaling for WebRTC connections
-- Session management for multi-user scenarios
-
-**Use Cases:**
-- **Multi-Agent Coordination:** Multiple agents can coordinate via signaling
-- **Screen Sharing Sessions:** Manage screen share permissions
-- **Media Synchronization:** Sync recordings across multiple clients
-
-### Transcription & Analysis
-
-**Transcription Service:**
-- Audio/video recordings can be transcribed to text
-- Transcripts stored alongside recordings
-- Orchestrator can access transcripts via `SummarizeTranscript` gRPC endpoint
-
-**Transcript Format:**
-```json
-{
-  "transcript": "Full text transcription...",
-  "summary": "3-sentence summary",
-  "key_decisions": ["Decision 1", "Decision 2"],
-  "follow_up_tasks": ["Task 1", "Task 2"]
-}
-```
-
-**Access Methods:**
-1. **Direct API:** `GET /v1/media/transcript?filename=<name>`
-2. **Orchestrator gRPC:** `SummarizeTranscript` service
-3. **Agent Actions:** Agent can request transcriptions via chat
-
-### Configuration
-
-**Environment Variables:**
-```bash
-# Telemetry Service
-TELEMETRY_STORAGE_DIR=./telemetry_storage    # Storage root directory
-TELEMETRY_PORT=8183                          # Service port
-
-# Frontend (optional)
-VITE_MEDIA_UPLOAD_URL=/api/media/upload      # Upload endpoint (default)
-```
-
-**Storage Limits:**
-- No built-in size limits (limited by disk space)
-- Recordings stored indefinitely unless manually deleted
-- Consider implementing retention policies for production
-
-### Privacy & Security
-
-**Privacy Considerations:**
-- **User Consent:** Recording requires explicit user action (start recording button)
-- **Visual Indicators:** Red recording indicator shows when recording is active
-- **Local Processing:** Recordings processed in browser before upload
-- **Secure Storage:** Recordings stored in isolated telemetry storage directory
-
-**Security Features:**
-- **Twin ID Isolation:** Recordings tagged with `twin_id` for multi-tenant isolation
-- **Filename Sanitization:** Twin IDs sanitized to prevent path traversal
-- **MIME Type Validation:** Only supported media types accepted
-- **Access Control:** Orchestrator requires HITL approval for sensitive operations
-
-### Media Gallery
-
-**Frontend Gallery Features:**
-- Browse all recordings for current twin
-- View recording metadata (timestamp, size, duration)
-- Access transcriptions (if available)
-- Download recordings
-- Delete recordings
-
-**Access:**
-- Available via frontend Media Gallery component
-- Integrated into main application navigation
-- Filterable by twin_id and date range
-
-### Troubleshooting
-
-**Common Issues:**
-
-1. **Recording Not Starting:**
-   - Check browser permissions (microphone/camera/screen)
-   - Verify MediaStream API support
-   - Check browser console for errors
-
-2. **Upload Failing:**
-   - Verify Gateway service is running (port 8181)
-   - Check Telemetry service is running (port 8183)
-   - Verify storage directory permissions
-
-3. **Recordings Not Appearing:**
-   - Check `recordings.jsonl` log file
-   - Verify twin_id matches in queries
-   - Check storage directory exists and is writable
-
-4. **Transcription Not Available:**
-   - Transcription is optional feature
-   - Requires additional service configuration
-   - Check transcription worker logs
-
----
-
-### Go Agent Planner (Docker Compose profile; host port 8585)
-
-| Method | Endpoint | Description | Auth |
-|--------|----------|-------------|------|
-| `GET` | `/health` | Health check | none |
-| `GET` | `/metrics` | Prometheus metrics | none |
-| `POST` | `/plan` | Run the agent loop | optional `X-API-Key` |
-| `POST` | `/run` | Alias for `/plan` | optional `X-API-Key` |
-
-**Example request:**
-
-```bash
-curl -X POST http://localhost:8585/plan -H "Content-Type: application/json" -H "X-Trace-ID: test-trace-123" -d "{\"prompt\":\"Generate a 3-step plan\",\"session_id\":\"s1\",\"resources\":[] }"
-```
-
-> **Auth note:** If `PAGI_API_KEY` is set (see [`.env.example`](.env.example:1)), requests require `X-API-Key: <key>` (or `Authorization: Bearer <key>`). If not set, auth is **disabled** (dev mode).
-
-**Use Cases:**
-- **Automated Security Scans:** Security teams programmatically trigger threat analysis missions
-- **CI/CD Integration:** Build pipelines call Agent Planner to generate deployment plans
-- **API-First Workflows:** External systems integrate with PAGI without using the frontend
-- **Bulk Operations:** Scripts process multiple requests in parallel for large-scale operations
-
-### Go BFF (Bare-metal dev harness; port 8002)
-
-| Method | Endpoint | Description | Request Body | Response |
-|--------|----------|-------------|--------------|----------|
-| `GET` | `/health` | Health check | - | `{service, status, version}` |
-| `POST` | `/api/v1/echo` | Echo endpoint for wiring checks | `{ping, request_id}` | `{service, received, request_id}` |
-| `GET` | `/api/v1/agi/dashboard-data` | Aggregates data from all services | - | `{service, status, request_id, data}` |
-
-**Example Request:**
-```bash
-curl -X GET http://localhost:8002/api/v1/agi/dashboard-data \
-  -H "X-Request-Id: test-123"
-```
-
-**Example Response:**
-```json
-{
-  "service": "backend-go-bff",
-  "status": "ok",
-  "request_id": "test-123",
-  "data": {
-    "python_agent": {...},
-    "rust_sandbox": {...},
-    "memory": {...}
-  }
-}
-```
-
----
-
-### Python Agent (Port 8000)
-
-| Method | Endpoint | Description | Request Body | Response |
-|--------|----------|-------------|--------------|----------|
-| `GET` | `/health` | Health check | - | `{service, status, version}` |
-| `POST` | `/api/v1/plan` | Generate agent plan | `{prompt: string}` | `{service, status, plan, llm_response, bff_echo}` |
-
-**Example Request:**
-```bash
-curl -X POST http://localhost:8000/api/v1/plan \
+curl -X POST http://localhost:8182/api/memory/query \
   -H "Content-Type: application/json" \
-  -H "X-Request-Id: test-456" \
-  -d '{"prompt": "Generate a 3-step plan to solve X"}'
+  -d '{
+    "query": "security audit procedures",
+    "top_k": 10,
+    "domains": ["soul", "mind"]
+  }'
 ```
 
----
+#### gRPC Services
 
-### Rust Sandbox (Port 8001)
+**Orchestrator Service (Port 50057):**
+- `SummarizeTranscript` - Analyze transcript and extract decisions
+  - Request: `{transcript_text: string}`
+  - Response: `{summary: string, key_decisions: string[], follow_up_tasks: string[]}`
 
-| Method | Endpoint | Description | Request Body | Response |
-|--------|----------|-------------|--------------|----------|
-| `GET` | `/health` | Health check | - | `{service, status, version}` |
-| `POST` | `/api/v1/execute_tool` | Execute a tool | `{tool_name: string, code?: string}` | `{tool_status, result}` |
+**Admin Service (Port 50056):**
+- `HealthCheck` - Service health
+- `GetPromptHistory` - Retrieve prompt change history
+- `UpdateSystemPrompt` - Update system prompt
+- TBD: Verify all admin endpoints (check `backend-rust-orchestrator/src/main.rs`)
 
-**Example Request:**
-```bash
-curl -X POST http://localhost:8001/api/v1/execute_tool \
-  -H "Content-Type: application/json" \
-  -H "X-Request-Id: test-789" \
-  -d '{"tool_name": "demo"}'
-```
+### Rust Memory Service (Port 50052 - gRPC)
 
----
+**Service:** `memory.MemoryService`
 
-### Mock Memory (Bare-metal dev harness; port 8003)
+| Method | Description | Request | Response |
+|--------|-------------|---------|----------|
+| `CommitMemory` | Store memory fragment | `{content: string, namespace: string, twin_id: string, ...}` | `{memory_id: string, success: boolean}` |
+| `QueryMemory` | Semantic search | `{query: string, namespace: string, top_k: number}` | `{results: MemoryResult[]}` |
+| `ListMemories` | List memories | `{namespace: string, limit: number}` | `{memories: Memory[]}` |
+| `DeleteMemory` | Delete memory | `{memory_id: string}` | `{success: boolean}` |
+| `HealthCheck` | Health check | `{}` | `{status: string}` |
 
-| Method | Endpoint | Description | Request Body | Response |
-|--------|----------|-------------|--------------|----------|
-| `GET` | `/health` | Health check | - | `{service, status, version}` |
-| `GET` | `/memory/latest` | Get latest memory | - | Memory data |
-
----
-
-### Rust Memory Service (gRPC :50052)
-
-The Rust Memory Service provides persistent vector storage for the Neural Archive. All operations are performed via gRPC.
-
-#### Memory Commitment Examples
-
-**1. Corporate Leadership Knowledge (RAGSource)**
-
+**Example (using grpcurl):**
 ```bash
 grpcurl -plaintext -d '{
-  "content": "James E. Ferrell serves as Chairman of Ferrellgas. He transformed the company from a small-town shop into one of the nation'\''s leading propane suppliers with over 4,000 employee-owners.",
+  "query": "security policies",
   "namespace": "corporate_context",
-  "twin_id": "twin-aegis",
-  "memory_type": "RAGSource",
-  "risk_level": "Low",
-  "metadata": {
-    "source": "leadership_kb",
-    "priority": "high",
-    "person": "James E. Ferrell"
-  }
-}' localhost:50052 memory.MemoryService/CommitMemory
-```
-
-**2. Threat Intelligence Indicator (Episodic)**
-
-```bash
-grpcurl -plaintext -d '{
-  "content": "Indicator of Compromise (IOC) detected: C2 beaconing to 185.x.x.x identified in outbound firewall logs. Timestamp: 2024-01-15 14:32:00 UTC",
-  "namespace": "threat_intel",
-  "twin_id": "twin-sentinel",
-  "memory_type": "Episodic",
-  "risk_level": "High",
-  "metadata": {
-    "ioc_type": "c2_beacon",
-    "ip_address": "185.x.x.x",
-    "detection_method": "firewall_logs"
-  }
-}' localhost:50052 memory.MemoryService/CommitMemory
-```
-
-**3. Security Policy Alert (Semantic)**
-
-```bash
-grpcurl -plaintext -d '{
-  "content": "Policy Alert: Administrative accounts must use MFA for all lateral RDP sessions. This policy was updated on 2024-01-10 and applies to all domain controllers.",
-  "namespace": "threat_intel",
-  "twin_id": "twin-aegis",
-  "memory_type": "Semantic",
-  "risk_level": "Medium",
-  "metadata": {
-    "policy_type": "authentication",
-    "enforcement_date": "2024-01-10"
-  }
-}' localhost:50052 memory.MemoryService/CommitMemory
-```
-
-**4. Transcript Summary (RAGSource)**
-
-```bash
-grpcurl -plaintext -d '{
-  "content": "Summary: Security analyst reviewed network logs and identified suspicious patterns.\n\nKey Decisions:\n1. Escalated to incident response team\n2. Isolated affected systems\n\nFollow-up Tasks:\n1. Deep packet inspection required\n2. Update firewall rules",
-  "namespace": "insights",
-  "twin_id": "twin-aegis",
-  "memory_type": "RAGSource",
-  "risk_level": "Medium",
-  "metadata": {
-    "source": "transcript_summary",
-    "session_id": "session-12345"
-  }
-}' localhost:50052 memory.MemoryService/CommitMemory
-```
-
-**5. Incident Response Action (Episodic)**
-
-```bash
-grpcurl -plaintext -d '{
-  "content": "Incident Response Action: Malware analysis completed on suspicious binary. Hash: abc123def456. Verdict: Trojan variant. Remediation: File quarantined and system isolated.",
-  "namespace": "incident_response",
-  "twin_id": "twin-sentinel",
-  "memory_type": "Episodic",
-  "risk_level": "Critical",
-  "metadata": {
-    "action_type": "malware_analysis",
-    "file_hash": "abc123def456",
-    "verdict": "trojan"
-  }
-}' localhost:50052 memory.MemoryService/CommitMemory
-```
-
-#### Memory Query Examples
-
-**Query Threat Intelligence:**
-
-```bash
-grpcurl -plaintext -d '{
-  "query": "recent C2 beaconing activity",
-  "namespace": "threat_intel",
-  "twin_id": "twin-sentinel",
-  "top_k": 10
-}' localhost:50052 memory.MemoryService/QueryMemory
-```
-
-**Query Corporate Context:**
-
-```bash
-grpcurl -plaintext -d '{
-  "query": "CEO IT background and leadership",
-  "namespace": "corporate_context",
-  "twin_id": "twin-aegis",
   "top_k": 5
 }' localhost:50052 memory.MemoryService/QueryMemory
 ```
 
-#### Memory Types
+### Rust Tools Service (Port 50054 - gRPC)
 
-- **`Episodic`**: Direct user conversations/events (e.g., incident reports, user interactions)
-- **`Semantic`**: Facts/concepts derived from reflection (e.g., policies, procedures, knowledge)
-- **`RAGSource`**: External documents/knowledge sources (e.g., transcripts, documents, KBs)
-- **`Reflection`**: Output from reflection steps (e.g., analysis summaries, insights)
+**Service:** `tools.ToolExecutorService`
 
-#### Risk Levels
+| Method | Description | Request | Response |
+|--------|-------------|---------|----------|
+| `ExecuteTool` | Execute tool | `{tool_name: string, args: string[]}` | `{output: string, exit_code: int32}` |
+| `HealthCheck` | Health check | `{}` | `{status: string}` |
 
-- **`Low`**: Routine information, standard operations
-- **`Medium`**: Important but not urgent, policy updates
-- **`High`**: Security concerns, active threats
-- **`Critical`**: Immediate action required, active incidents
+### Rust Build Service (Port 50055 - gRPC)
 
-#### Namespaces
+**Service:** `build.BuildService`
 
-Namespaces organize memories by domain:
-- `threat_intel` - Threat intelligence and security indicators
-- `corporate_context` - Leadership, company history, organizational knowledge
-- `insights` - Transcript summaries, analysis outputs
-- `incident_response` - Incident tracking and remediation actions
-- `system_config` - System configuration and changes
+| Method | Description | Request | Response |
+|--------|-------------|---------|----------|
+| `CreateTool` | Compile Rust tool | `{tool_name: string, tool_code: string}` | `{stdout: string, stderr: string, exit_code: int32}` |
+| `HealthCheck` | Health check | `{}` | `{status: string}` |
 
-#### Bulk Memory Ingestion
+### Rust Telemetry Service (Port 8183)
 
-The orchestrator includes ingestion scripts for populating knowledge bases into Qdrant. All scripts are located in [`backend-rust-orchestrator/examples/`](backend-rust-orchestrator/examples/).
+Base URL: `http://localhost:8183`
 
-**Available Knowledge Base Ingestion Scripts:**
+| Method | Endpoint | Description | Response |
+|--------|----------|-------------|----------|
+| `GET` | `/v1/telemetry/stream` | SSE stream of metrics | Server-Sent Events with `{"ts_ms": number, "cpu_percent": number, "mem_total": number, "mem_used": number, "process_count": number}` |
+| `POST` | `/v1/media/upload` | Upload media files | `{"success": boolean, "filename": string, "stored_path": string}` |
 
-| KB Name | Namespace | Script | Description |
-|---------|-----------|--------|-------------|
-| **Leadership KB** | `corporate_context` | `ingest_leadership_kb.rs` | Leadership knowledge, company history, organizational values |
-| **Threat Intelligence KB** | `threat_intel` | `ingest_threat_intel_kb.rs` | Security indicators, IOCs, threat analysis frameworks |
-| **Incident Response KB** | `incident_response` | `ingest_incident_response_kb.rs` | Incident response playbooks and procedures |
-| **System Configuration KB** | `system_config` | `ingest_system_config_kb.rs` | Platform architecture, service configuration, environment variables |
+### Qdrant (Ports 6333/6334)
 
-**Quick Start - Ingest All Knowledge Bases:**
+**REST API (6333):**
+- Collections: `GET http://localhost:6333/collections`
+- Health: `GET http://localhost:6333/health`
+- TBD: Verify full API (see Qdrant documentation)
 
-```bash
-cd backend-rust-orchestrator
+**gRPC API (6334):**
+- Used internally by Memory Service
+- TBD: Verify gRPC methods (check `backend-rust-memory/src/main.rs`)
 
-# Ingest Leadership KB (corporate context)
-cargo run --example ingest_leadership_kb
+### Additional Endpoints
 
-# Ingest Threat Intelligence KB
-cargo run --example ingest_threat_intel_kb
-
-# Ingest Incident Response KB
-cargo run --example ingest_incident_response_kb
-
-# Ingest System Configuration KB
-cargo run --example ingest_system_config_kb
-```
-
-**With Custom Memory Service URL:**
-
-```bash
-MEMORY_GRPC_URL=http://127.0.0.1:50052 cargo run --example ingest_leadership_kb
-```
-
-**What the Scripts Do:**
-
-Each ingestion script:
-- Connects to the Memory Service via gRPC
-- Creates/ensures the target namespace (collection) exists in Qdrant
-- Chunks knowledge into semantic pieces
-- Commits memory blocks with appropriate metadata
-- Handles errors and tracks ingestion progress
-
-**Documentation:**
-
-- **Master Guide**: [`backend-rust-orchestrator/examples/README_KB_INGESTION.md`](backend-rust-orchestrator/examples/README_KB_INGESTION.md) - Overview of all KB ingestion scripts
-- **Leadership KB**: [`backend-rust-orchestrator/examples/README_LEADERSHIP_KB.md`](backend-rust-orchestrator/examples/README_LEADERSHIP_KB.md)
-- **Threat Intelligence KB**: [`backend-rust-orchestrator/examples/README_THREAT_INTEL_KB.md`](backend-rust-orchestrator/examples/README_THREAT_INTEL_KB.md)
-- **Incident Response KB**: [`backend-rust-orchestrator/examples/README_INCIDENT_RESPONSE_KB.md`](backend-rust-orchestrator/examples/README_INCIDENT_RESPONSE_KB.md)
-- **System Configuration KB**: [`backend-rust-orchestrator/examples/README_SYSTEM_CONFIG_KB.md`](backend-rust-orchestrator/examples/README_SYSTEM_CONFIG_KB.md)
-
-**Prerequisites:**
-
-1. **Memory Service Running**: `backend-rust-memory` must be running
-   - Default gRPC endpoint: `http://127.0.0.1:50052`
-   - Override via `MEMORY_GRPC_URL` environment variable
-
-2. **Qdrant Running** (if using Qdrant backend):
-   - Default: `http://127.0.0.1:6334`
-   - Override via `QDRANT_URL` environment variable
-
-**Verification:**
-
-After ingestion, verify each KB is accessible by querying The Blue Flame orchestrator:
-
-- **Leadership KB**: "Who in leadership would best understand a technical resource request?"
-- **Threat Intelligence KB**: "What are the indicators of C2 beaconing activity?"
-- **Incident Response KB**: "What are the steps for responding to a ransomware incident?"
-- **System Configuration KB**: "What ports does the Gateway service use?"
-
-See the individual README files for detailed usage instructions and troubleshooting.
+TBD: Verify all endpoints in `backend-rust-orchestrator/src/api/phoenix_routes.rs`:
+- Phoenix API endpoints (consensus, memory exchange, fleet)
+- Agent management endpoints
+- Playbook endpoints
+- Scheduled tasks endpoints
+- Tool proposal endpoints
+- Peer review endpoints
+- Retrospective endpoints
 
 ---
 
-## Development Guide
+## Contributing
 
-### Project Structure
+### Development Setup
 
-```
-pagi-chat-desktop/
-├── pagi-chat-desktop-backend/   # NEW: Rust API wrapper (HTTP/WebSocket) for the companion core
-├── backend-go-agent-planner/   # Agent Planner (primary HTTP entrypoint)
-├── backend-go-bff/             # Go BFF service (bare-metal demo)
-├── backend-go-model-gateway/   # Go gRPC model gateway
-├── backend-go-notification-service/
-├── backend-python-agent/       # Python agent service (bare-metal demo)
-├── backend-python-memory/      # Memory Service (HTTP + gRPC)
-├── backend-rust-sandbox/       # Rust sandbox service
-├── docs/
-├── knowledge_bases/
-├── observability/
-├── scripts/                    # Utility scripts (includes bare-metal dev harness)
-├── docker-compose.yml          # Docker orchestration
-├── Makefile                    # Convenience commands
-└── README.md                   # This file
-```
-
-### Environment Variables
-
-#### Backend Services
-
-Create a `.env` file (optional; defaults exist). See [`ENV_SETUP.md`](ENV_SETUP.md) or [`docs/CONFIGURATION.md`](docs/CONFIGURATION.md) for detailed configuration instructions.
-
-```bash
-# Service Ports (bare-metal harness)
-PY_AGENT_PORT=8000
-RUST_SANDBOX_PORT=8001
-GO_BFF_PORT=8002
-MEMORY_MOCK_PORT=8003
-MODEL_GATEWAY_GRPC_PORT=50051
-
-# Service URLs (for bare metal)
-PY_AGENT_URL=http://localhost:8000
-RUST_SANDBOX_URL=http://localhost:8001
-GO_BFF_URL=http://localhost:8002
-MEMORY_URL=http://localhost:8003
-MODEL_GATEWAY_GRPC_HOST=localhost
-
-# Timeouts
-REQUEST_TIMEOUT_SECONDS=2
-MODEL_GATEWAY_GRPC_TIMEOUT_SECONDS=5
-
-# Logging
-LOG_LEVEL=info
-
-# LLM Provider (orchestrator planning)
-# Options: "mock" (default, no API key needed) or "openrouter" (requires OPENROUTER_API_KEY)
-LLM_PROVIDER=mock
-
-# OpenRouter (for Orchestrator LLM planning - only required if LLM_PROVIDER=openrouter)
-OPENROUTER_API_KEY=YOUR_OPENROUTER_API_KEY_HERE
-OPENROUTER_MODEL=google/gemini-2.0-flash-exp
-OPENROUTER_URL=https://openrouter.ai/api/v1/chat/completions
-
-# SECURITY (Agent Planner)
-# If set, Agent Planner requires X-API-Key (or Authorization: Bearer)
-PAGI_API_KEY=
-```
-
-#### Frontend Application
-
-Create `frontend-digital-twin/.env.local` for frontend-specific configuration:
-
-```bash
-# OpenRouter API Key (for image generation via DALL-E 3)
-VITE_OPENROUTER_API_KEY=YOUR_OPENROUTER_API_KEY_HERE
-
-# Replicate API Key (for video generation - free tier available)
-# Get free API key from: https://replicate.com/account/api-tokens
-VITE_REPLICATE_API_KEY=YOUR_REPLICATE_API_KEY_HERE
-
-# Gemini API Key (optional fallback for image generation)
-GEMINI_API_KEY=YOUR_GEMINI_API_KEY_HERE
-
-# WebSocket and Telemetry URLs
-VITE_WS_URL=ws://127.0.0.1:8181/ws/chat
-VITE_SSE_URL=http://127.0.0.1:8181/v1/telemetry/stream
-```
-
-**Note:** Frontend environment variables are optional. The application will work without them, but generative features (image/video generation) require the respective API keys.
-
-See [`frontend-digital-twin/ENV_SETUP.md`](frontend-digital-twin/ENV_SETUP.md) for detailed frontend configuration.
-
-### mTLS for internal gRPC (research/testing)
-
-The Go **Agent Planner** ↔ Go **Model Gateway** gRPC connection supports **mutual TLS (mTLS)**.
-
-For Docker Compose, mTLS is **disabled by default** so first-time setup is frictionless.
-
-To enable it:
-
-1) Generate test certs into `./tls_certs` via [`scripts/gen_certs.sh`](scripts/gen_certs.sh:1)
-2) Add the `TLS_*` environment variables for `model-gateway` and `agent-planner` (see [`.env.example`](.env.example:1))
-3) Mount `./tls_certs:/app/tls_certs:ro` into both services (compose override recommended)
-
-Generate test certs (self-signed) with [`scripts/gen_certs.sh`](scripts/gen_certs.sh:1):
-
-```bash
-# NOTE: run in a bash-compatible shell (Linux/macOS, WSL, or Git Bash)
-bash scripts/gen_certs.sh
-```
-
-Environment variables used:
-
-- **Model Gateway (server-side)**
-  - `TLS_SERVER_CERT_PATH=/app/tls_certs/server.crt`
-  - `TLS_SERVER_KEY_PATH=/app/tls_certs/server.key`
-  - `TLS_CA_CERT_PATH=/app/tls_certs/ca.crt`
-
-- **Agent Planner (client-side)**
-  - `TLS_CLIENT_CERT_PATH=/app/tls_certs/client.crt`
-  - `TLS_CLIENT_KEY_PATH=/app/tls_certs/client.key`
-  - `TLS_CA_CERT_PATH=/app/tls_certs/ca.crt`
-
-Bare-metal runs will stay **insecure by default** unless the `TLS_*` variables are set.
-
-### Adding a New Service
-
-1. **Create service directory:**
+1. **Fork and clone:**
    ```bash
-   mkdir backend-new-service
-   cd backend-new-service
+   git clone <your-fork-url>
+   cd pagi-digital-twin
    ```
 
-2. **Add to docker-compose.yml:**
-   ```yaml
-   pagi-new-service:
-     container_name: pagi-new-service
-     build:
-       context: ./backend-new-service
-     environment:
-       - NEW_SERVICE_PORT=8004
-     ports:
-       - "8004:8004"
-   ```
+2. **Install prerequisites:**
+   - Rust toolchain: `rustup install stable`
+   - Node.js 18+: `npm --version`
+   - Python 3.10+: `python --version`
+   - Go 1.21+: `go version`
 
-3. **Add to scripts/run_all_dev.py:**
-   ```python
-   {
-       "name": "New Service",
-       "dir": "backend-new-service",
-       "cmd": ["go", "run", "."],
-       "port": "8004",
-       "health_url": "http://localhost:8004/health",
-   }
-   ```
-
-### Debugging Tips
-
-1. **Check service logs:**
-    ```bash
-    # Docker Compose
-    docker compose logs -f agent-planner
-    docker compose logs -f model-gateway
-    docker compose logs -f memory-service
-    
-    # Bare metal - logs are printed to stdout
-    ```
-
-2. **Test individual services:**
+3. **Set up development environment:**
    ```bash
-   # Health checks
-   curl http://localhost:8000/health
-   curl http://localhost:8001/health
-   curl http://localhost:8002/health
+   # Create .env file
+   cp .env.example .env
+   # Edit with your API keys
    ```
 
-3. **Verify gRPC connection:**
+4. **Run development services:**
    ```bash
-   # Install grpcurl
-   go install github.com/fullstorydev/grpcurl/cmd/grpcurl@latest
-   
-   # Test gRPC endpoint
-   grpcurl -plaintext localhost:50051 list
+   make run-dev  # Starts core services
    ```
 
----
+### Code Structure
 
-## 🔧 Troubleshooting
+- **Rust services**: Follow Rust conventions, use `cargo fmt` and `cargo clippy`
+- **Frontend**: TypeScript/React, use `npm run` scripts
+- **Go services**: Follow Go conventions, use `go fmt` and `go vet`
+- **Python services**: Follow PEP 8, use `black` formatter
 
-### Common Issues
-
-#### 1. Port Already in Use
-
-**Problem:** Service fails to start because port is already in use.
-
-**Solution:**
-```bash
-# Find process using port (Windows)
-netstat -ano | findstr :8000
-
-# Kill process (Windows)
-taskkill /PID <pid> /F
-
-# Or change port in .env file
-PY_AGENT_PORT=8005
-```
-
-#### 2. gRPC Stubs Missing (Bare Metal)
-
-**Problem:** `go run .` fails with "missing gRPC stubs" error.
-
-**Solution:**
-```bash
-# Generate gRPC stubs
-make docker-generate
-
-# Or manually:
-cd backend-go-model-gateway
-go generate ./...
-```
-
-#### 3. Service Not Responding
-
-**Problem:** Service starts but health check fails.
-
-**Solution:**
-1. Check service logs for errors
-2. Verify environment variables are set correctly
-3. Ensure all dependencies are installed
-4. Check firewall settings
-
-#### 4. Docker Networking Issues
-
-**Problem:** Services can't communicate in Docker.
-
-**Solution:**
-- Services in Docker Compose use service names (e.g., `model-gateway:50051`, `memory-service:50052`)
-- Ensure service names match in `docker-compose.yml`
-- Check `depends_on` and `healthcheck` configurations
-
-#### 5. Python Virtual Environment Issues
-
-**Problem:** Python packages not found.
-
-**Solution:**
-```bash
-# Recreate virtual environment
-rm -rf .venv
-python -m venv .venv
-source .venv/bin/activate  # or .venv\Scripts\activate on Windows
-pip install -r backend-python-agent/requirements.txt
-```
-
----
-
-## 📚 Learning Resources
-
-### For Junior Developers
-
-**Understanding Microservices:**
-- [Microservices.io Patterns](https://microservices.io/patterns/index.html)
-- [Martin Fowler on Microservices](https://martinfowler.com/articles/microservices.html)
-
-**Go:**
-- [Go by Example](https://gobyexample.com/)
-- [Effective Go](https://go.dev/doc/effective_go)
-
-**Python:**
-- [FastAPI Documentation](https://fastapi.tiangolo.com/)
-- [Python Async/Await](https://docs.python.org/3/library/asyncio.html)
+### Linting and Testing
 
 **Rust:**
-- [The Rust Book](https://doc.rust-lang.org/book/)
-- [Axum Documentation](https://docs.rs/axum/)
+```bash
+cd backend-rust-orchestrator
+cargo fmt
+cargo clippy
+cargo test
+```
 
-**gRPC:**
-- [gRPC Documentation](https://grpc.io/docs/)
-- [Protocol Buffers Guide](https://developers.google.com/protocol-buffers)
+**Frontend:**
+```bash
+cd frontend-digital-twin
+npm run lint  # TBD: Verify if lint script exists
+npm test      # TBD: Verify if tests exist
+```
+
+**Go:**
+```bash
+cd backend-go-model-gateway
+go fmt ./...
+go vet ./...
+go test ./...
+```
+
+### Pull Request Process
+
+1. Create feature branch from `main`
+2. Make changes with clear commits
+3. Ensure all linting/tests pass
+4. Update documentation if needed
+5. Submit PR with description of changes
+6. Address review feedback
+
+### Documentation
+
+- Update README.md for user-facing changes
+- Add code comments for complex logic
+- Update API documentation if endpoints change
+- Add examples for new features
 
 ---
 
-## 🤝 Contributing
-
-1. Create a feature branch
-2. Make your changes
-3. Test thoroughly
-4. Submit a pull request
-
----
-
-## 📝 License
+## License
 
 [Add your license information here]
 
----
-
-## 🎓 Key Concepts Explained
-
-### What is a BFF (Backend for Frontend)?
-
-A **BFF** is a service that sits between the frontend and multiple backend services. It:
-- Aggregates data from multiple sources
-- Reduces frontend complexity
-- Optimizes data transfer
-- Provides a single API for the frontend
-
-### Why Polyglot Architecture?
-
-Different languages excel at different tasks:
-- **Go:** High performance, concurrency
-- **Python:** AI/ML, rapid development
-- **Rust:** Security, performance, memory safety
-
-### What is gRPC?
-
-**gRPC** is a high-performance RPC (Remote Procedure Call) framework:
-- Uses Protocol Buffers (binary format)
-- Faster than JSON-based REST APIs
-- Supports streaming
-- Strongly typed
-
-### What are Knowledge Bases (KBs)?
-
-PAGI is designed around a flexible, multi-KB memory architecture. The key idea is that the KB structure (Domain, Body, Soul, Heart, Mind) acts like a **template** that you populate differently for each **Use Case / Agent Persona**.
-
-#### Stubbing a new Use Case (how to “plug in” a new persona)
-
-At a high level, a “use case” in this backend is just:
-
-1) **A persona + constraints** (Soul-KB)
-
-2) **Some domain documents** (Domain-KB)
-
-3) **A tool/environment contract** (Body-KB)
-
-4) A **session_id** to keep episodic history isolated (Heart-KB)
-
-5) Optionally, accumulated playbooks (Mind-KB)
-
-Today, the Agent Planner stack expects the KBs to live in Chroma collections named `Domain-KB`, `Body-KB`, and `Soul-KB` (see `RAG_KNOWLEDGE_BASES` in [`backend-python-memory/memory_service.py`](backend-python-memory/memory_service.py:22)). The quickest way to stub a brand-new use case is:
-
-**Step A — Write your KB content as files (recommended source-of-truth)**
-
-- Put persona text under [`knowledge_bases/Soul-KB/`](knowledge_bases/Soul-KB/:1)
-- Put domain docs under [`knowledge_bases/Domain-KB/`](knowledge_bases/Domain-KB/:1)
-- Put tool specs / environment docs under [`knowledge_bases/Body-KB/`](knowledge_bases/Body-KB/:1)
-
-**Step B — Ingest those documents into Chroma**
-
-The memory service does **not** automatically ingest files yet; it only seeds each collection with a placeholder record at startup (see [`seed_rag_collections()`](backend-python-memory/memory_service.py:148)). For now, ingest via a small one-off script (run it anywhere you can reach Chroma):
-
-```python
-import os
-from pathlib import Path
-
-import chromadb
-from sentence_transformers import SentenceTransformer
-
-CHROMA_HOST = os.environ.get("CHROMA_HOST", "localhost")
-CHROMA_PORT = int(os.environ.get("CHROMA_PORT", "8000"))
-
-client = chromadb.HttpClient(host=CHROMA_HOST, port=CHROMA_PORT)
-embed_model = SentenceTransformer(os.environ.get("EMBEDDING_MODEL_NAME", "all-MiniLM-L6-v2"))
-
-def embed(texts):
-    return embed_model.encode(texts, convert_to_numpy=True).tolist()
-
-def ingest_dir(collection_name: str, dir_path: str):
-    col = client.get_or_create_collection(name=collection_name)
-    docs = []
-    ids = []
-    for p in sorted(Path(dir_path).glob("**/*")):
-        if p.is_file():
-            docs.append(p.read_text(encoding="utf-8"))
-            ids.append(f"{collection_name}:{p.as_posix()}")
-    if not docs:
-        return
-    col.upsert(ids=ids, documents=docs, embeddings=embed(docs))
-
-ingest_dir("Soul-KB", "knowledge_bases/Soul-KB")
-ingest_dir("Domain-KB", "knowledge_bases/Domain-KB")
-ingest_dir("Body-KB", "knowledge_bases/Body-KB")
-print("Ingest complete")
-```
-
-**Step C — Add/extend tools (optional, but common)**
-
-- Add the tool schema so the planner can call it: update `availableTools` in [`backend-go-model-gateway/main.go`](backend-go-model-gateway/main.go:97)
-- Implement the tool in the Rust sandbox dispatcher: [`execute_internal_tool()`](backend-rust-sandbox/src/tool_executor.rs:123) (and add a module like [`backend-rust-sandbox/src/tool_web_search.rs`](backend-rust-sandbox/src/tool_web_search.rs:1))
-
-**Step D — Run the use case**
-
-Call the Agent Planner with a new `session_id` for that persona:
-
-```bash
-curl -X POST http://localhost:8585/plan -H "Content-Type: application/json" -d "{\"prompt\":\"<your use case prompt>\",\"session_id\":\"usecase-1\",\"resources\":[] }"
-```
-
-> Note: The current RAG retrieval does not yet “namespace” KBs by use case. If you want multiple personas simultaneously, the simplest approach today is to run separate Chroma instances/volumes per use case (or extend the memory service to maintain per-use-case collections).
-
-#### 🧠 Knowledge Base Template for PAGI Use Cases
-
-The template for creating a full Knowledge Base set relies on defining the agent's **Role** (its purpose), **Memory** (what it knows), and **Personality** (how it interacts).
-
-| KB Name | Type of Information | Purpose in the Agent Loop | Template Content Direction |
-| --- | --- | --- | --- |
-| **1. Soul-KB** | **Identity/Core Values** (Hard-Coded) | Defines the agent's personality, core safety rules, and ethical boundaries. **Never changes.** | **Persona:** Name, gender, age (optional). **Mission:** Primary goal of the agent (e.g., "Maintain home security," "Provide marketing insights"). **Constraint:** Rules to prevent unsafe or out-of-scope actions (e.g., "Do not control physical devices," "Do not share customer data"). |
-| **2. Domain-KB** | **Expertise** (RAG/Vector) | Comprehensive, technical knowledge specific to the use case. | **Technical Manuals:** APIs, SDK documentation, protocols (e.g., Zigbee, Wi-Fi 6). **Industry Data:** Market trends, legal compliance, specific company policies. |
-| **3. Body-KB** | **Tool/Environment State** (RAG/Vector) | Information about the agent's current environment and tool capabilities. | **Tool Specs:** Detailed documentation for every available tool (e.g., `web_search`, `code_sandbox`, `control_device`). **System Status:** Sensor readings, device inventory, network topology. |
-| **4. Heart-KB** | **Episodic Memory** (SQLite) | **Session History.** The agent's short-term recall of the current conversation. | **(Dynamically Populated):** Stores the conversation history (`user`, `assistant`, `tool-plan`, `tool-output`) for the active session ID. |
-| **5. Mind-KB** | **Evolving Playbooks** (RAG/Vector) | **Learned Expertise.** Successful sequences for solving complex, multi-step problems. | **(Dynamically Populated):** Stores sequences of successful tool usage (e.g., "Playbook: Web search for price, then calculate tax."). |
-
-#### 🎯 Directions for Specific Use Cases
-
-Below are examples of how to populate the KBs for distinct personas.
-
-##### 1) 🐶 AI Pet Toy Dog (Companion)
-
-| KB | Content Direction |
-| --- | --- |
-| **Soul-KB** | **Persona:** "You are a cheerful, loyal Golden Retriever named Barky." **Mission:** "Provide playful interaction and emotional support." **Constraint:** "Speak only in short, enthusiastic, positive sentences." |
-| **Domain-KB** | Documents on **dog psychology**, common pet phrases, commands ("fetch," "stay"), and perhaps a local schedule for the owner (if granted access). |
-| **Body-KB** | Documentation for **voice recognition APIs**, status of the physical actuators (legs, tail), and battery level reporting. |
-| **Mind-KB** | Playbooks for successfully executing complex behaviors, e.g., "How to execute a 4-step 'fetch' command." |
-
-##### 2) 🤖 Agentic AI Desktop (Productivity/Research)
-
-| KB | Content Direction |
-| --- | --- |
-| **Soul-KB** | **Persona:** "You are a neutral, highly efficient research assistant." **Mission:** "Synthesize information and manage the user's digital environment." **Constraint:** "Always cite sources. Never access personal files unless explicitly requested." |
-| **Domain-KB** | **Research methodologies**, statistical analysis guides, specific **company coding standards** (for a developer). |
-| **Body-KB** | Full API docs for **filesystem access**, available **external tools** (e.g., `git`, `code_interpreter`), and operating system commands. |
-| **Mind-KB** | Playbooks for complex tasks, e.g., "Process: Find three news articles, summarize, and commit the summary to a file." |
-
-##### 3) 🏠 Home Security AI System
-
-| KB | Content Direction |
-| --- | --- |
-| **Soul-KB** | **Persona:** "You are the primary, objective security controller." **Mission:** "Maintain the safety and privacy of the household." **Constraint:** "Do not allow remote disabling of alarms without biometric confirmation. Prioritize safety over convenience." |
-| **Domain-KB** | **Security protocols** (e.g., lock-down procedures), **threat analysis** models, local police contact protocols. |
-| **Body-KB** | List of all **installed sensors** (cameras, door locks), their current **state**, and documentation for the alarm API. |
-| **Mind-KB** | Playbooks for complex responses, e.g., "If motion is detected at 3 AM and the owner is away, flash the lights and notify emergency contacts." |
-
-By populating the five KB types with use-case-specific details, you can change the agent's behavior, identity, and capabilities without changing the underlying Go/Rust/Python code (a **context-as-a-compiler** approach).
-
----
-
-#### KB authoring (examples)
-
-The repository contains starter KB folders under [`knowledge_bases/`](knowledge_bases/:1). If you want to keep large “prompt templates” in the README, they’re kept below in a collapsed block.
-
-<details>
-<summary><strong>KB prompt templates (examples)</strong></summary>
-
-The following are example prompts/templates for generating KB content (Soul/Domain/Body). They are **not required** to run the services.
-
-1) AI Pet Toy Dog persona
-
-2) Agentic AI Desktop persona
-
-3) Home Security persona
-
-4) Digital Twin Cybersecurity Manager persona
-
-</details>
-
-### What is a Microservice?
-
-A **microservice** is a small, independent service that:
-- Has its own database (if needed)
-- Can be deployed independently
-- Communicates via APIs
-- Focuses on a single business capability
-
----
-
-## Support
-
-For questions or issues:
-1. Check the [Troubleshooting](#troubleshooting) section
-2. Review service logs
-3. Open an issue on the repository
-
----
-
-## 📋 Quick Reference: Pages & Links
-
-### Frontend Pages
-
-| Page/View | Access Method | Primary Use Case |
-|-----------|---------------|------------------|
-| **Orchestrator Hub** | Left sidebar → "Ops Center" | Global system coordination and generative tasks |
-| **Chat Area** | Left sidebar → Click any agent | One-on-one agent conversations |
-| **Settings View** | Chat header → "Configure Agent" | Agent configuration and customization |
-| **Search View** | Left sidebar → "Search Archive" | Global search across messages and logs |
-| **Job Logs View** | Right sidebar → Click any job | Detailed execution logs for jobs |
-
-### Service URLs (Docker Compose)
-
-| Service | URL | Purpose |
-|---------|-----|---------|
-| **Frontend** | http://localhost:3000 | Main web application interface |
-| **Agent Planner** | http://localhost:8585 | HTTP API for agent planning |
-| **Rust Gateway** | http://localhost:8181 | WebSocket gateway and API proxy |
-| **Rust Orchestrator** | http://localhost:8182 | Agent orchestration HTTP API |
-| **Telemetry Service** | http://localhost:8183 | System telemetry SSE stream and media upload |
-| **Memory Service (Python)** | http://localhost:8003 | Legacy memory service HTTP API |
-| **Chroma DB** | http://localhost:8000 | Vector database UI (legacy) |
-| **Qdrant DB** | http://localhost:6333 | Vector database REST API |
-| **Jaeger UI** | http://localhost:16686 | Distributed tracing UI |
-| **Prometheus** | http://localhost:9090 | Metrics and monitoring UI |
-
-### WebSocket & SSE Endpoints
-
-| Endpoint | URL | Purpose |
-|----------|-----|---------|
-| **Chat WebSocket** | `ws://localhost:8181/ws/chat/:user_id` | Real-time chat communication |
-| **Signaling WebSocket** | `ws://localhost:8181/ws/signaling/:room_id` | Real-time media signaling coordination |
-| **Telemetry SSE** | `http://localhost:8181/v1/telemetry/stream` | Real-time system metrics stream |
-| **Media Upload** | `http://localhost:8181/api/media/upload` | Upload media files (proxied to telemetry service) |
-
-### Common Workflows
-
-**Creating a New Agent:**
-1. Click "+ Create Twin" in left sidebar
-2. Fill in agent details (name, role, description)
-3. Upload avatar (optional)
-4. Click "Create" → Automatically opens chat interface
-5. Click "Configure Agent" to customize settings
-
-**Searching Across System:**
-1. Click "Search Archive" in left sidebar
-2. Type search query (minimum 2 characters)
-3. Review results in "Intel Stream" and "Execution Logs" sections
-4. Click any result to navigate to source
-
-**Monitoring System Health:**
-1. Check right sidebar "Body" tab for telemetry
-2. View "Mission Pipeline" for active jobs
-3. Click jobs to view detailed logs
-4. Access Jaeger UI for distributed tracing
-
-**Configuring Agent:**
-1. Open agent chat interface
-2. Click "Configure Agent" in header
-3. Modify Directive Logic, Neural Core, or Policy Matrix
-4. Click "Commit Manifest" to save changes
-
----
-
-## Appendix: Production Build & Deployment
-
-This section provides comprehensive instructions for building production-ready binaries and deployable packages for mass distribution.
-
-### Overview
-
-The PAGI Digital Twin system consists of multiple services across different languages. This guide covers building standalone binaries for each component and creating distributable packages.
-
-**Components to Build:**
-- **Rust Services:** Gateway, Orchestrator, Memory, Tools, Telemetry, Sandbox
-- **Go Services:** Agent Planner, BFF, Model Gateway, Notification Service
-- **Python Services:** Agent, Memory Service
-- **Frontend:** React/TypeScript web application
-
----
-
-### Prerequisites for Production Builds
-
-Before building production binaries, ensure you have:
-
-```bash
-# Rust (latest stable)
-rustup update stable
-rustup target add <target-triple>  # e.g., x86_64-pc-windows-msvc, x86_64-unknown-linux-gnu
-
-# Go (1.22+)
-go version
-
-# Python (3.8+)
-python --version
-
-# Node.js (18+) for frontend
-node --version
-npm --version
-
-# Optional: Cross-compilation tools
-# Windows: Install MinGW or use WSL
-# Linux: Install cross-compilation toolchains
-# macOS: Install via Homebrew
-```
-
----
-
-### Building Rust Services
-
-All Rust services can be built as standalone binaries with no runtime dependencies.
-
-#### Single Platform Build
-
-```bash
-# Build all Rust services in release mode
-cd backend-rust-gateway && cargo build --release
-cd ../backend-rust-orchestrator && cargo build --release
-cd ../backend-rust-memory && cargo build --release
-cd ../backend-rust-tools && cargo build --release
-cd ../backend-rust-telemetry && cargo build --release
-cd ../backend-rust-sandbox && cargo build --release
-
-# Binaries will be in: target/release/<service-name>
-# Windows: target/release/<service-name>.exe
-# Linux/macOS: target/release/<service-name>
-```
-
-#### Cross-Platform Build (Multi-OS Distribution)
-
-For distributing binaries across multiple platforms:
-
-**Windows (from Linux/macOS):**
-```bash
-# Install Windows target
-rustup target add x86_64-pc-windows-msvc
-
-# Build for Windows
-cargo build --release --target x86_64-pc-windows-msvc
-```
-
-**Linux (from Windows/macOS):**
-```bash
-# Install Linux target
-rustup target add x86_64-unknown-linux-gnu
-
-# Install cross-compilation toolchain (Linux)
-# On Ubuntu/Debian:
-sudo apt-get install gcc-x86-64-linux-gnu
-
-# Build for Linux
-cargo build --release --target x86_64-unknown-linux-gnu
-```
-
-**macOS (from Linux/Windows):**
-```bash
-# Install macOS targets
-rustup target add x86_64-apple-darwin
-rustup target add aarch64-apple-darwin  # Apple Silicon
-
-# Build for macOS
-cargo build --release --target x86_64-apple-darwin
-cargo build --release --target aarch64-apple-darwin
-```
-
-#### Automated Build Script
-
-Create a build script (`scripts/build_rust_release.sh`) for all services:
-
-```bash
-#!/bin/bash
-set -e
-
-SERVICES=(
-    "backend-rust-gateway"
-    "backend-rust-orchestrator"
-    "backend-rust-memory"
-    "backend-rust-tools"
-    "backend-rust-telemetry"
-    "backend-rust-sandbox"
-)
-
-TARGET=${1:-release}  # Default to release, or specify target triple
-
-for service in "${SERVICES[@]}"; do
-    echo "Building $service..."
-    cd "$service"
-    cargo build --release --target "$TARGET"
-    cd ..
-done
-
-echo "All Rust services built successfully!"
-```
-
-**Usage:**
-```bash
-chmod +x scripts/build_rust_release.sh
-./scripts/build_rust_release.sh                    # Native build
-./scripts/build_rust_release.sh x86_64-pc-windows-msvc  # Windows build
-```
-
----
-
-### Building Go Services
-
-Go services compile to single static binaries with all dependencies included.
-
-#### Single Platform Build
-
-```bash
-# Build all Go services
-cd backend-go-agent-planner
-go build -ldflags="-s -w" -o bin/agent-planner main.go
-
-cd ../backend-go-bff
-go build -ldflags="-s -w" -o bin/bff main.go
-
-cd ../backend-go-model-gateway
-go build -ldflags="-s -w" -o bin/model-gateway main.go
-
-cd ../backend-go-notification-service
-go build -ldflags="-s -w" -o bin/notification-service main.go
-
-# Flags explanation:
-# -ldflags="-s -w": Strip debug symbols and reduce binary size
-```
-
-#### Cross-Platform Build
-
-Go supports cross-compilation natively using `GOOS` and `GOARCH`:
-
-**Windows (from any OS):**
-```bash
-GOOS=windows GOARCH=amd64 go build -ldflags="-s -w" -o bin/agent-planner.exe main.go
-```
-
-**Linux (from any OS):**
-```bash
-GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o bin/agent-planner main.go
-```
-
-**macOS (from any OS):**
-```bash
-# Intel Macs
-GOOS=darwin GOARCH=amd64 go build -ldflags="-s -w" -o bin/agent-planner main.go
-
-# Apple Silicon
-GOOS=darwin GOARCH=arm64 go build -ldflags="-s -w" -o bin/agent-planner main.go
-```
-
-#### Automated Build Script
-
-Create `scripts/build_go_release.sh`:
-
-```bash
-#!/bin/bash
-set -e
-
-SERVICES=(
-    "backend-go-agent-planner:agent-planner"
-    "backend-go-bff:bff"
-    "backend-go-model-gateway:model-gateway"
-    "backend-go-notification-service:notification-service"
-)
-
-GOOS=${1:-$(go env GOOS)}
-GOARCH=${2:-$(go env GOARCH)}
-
-for service_info in "${SERVICES[@]}"; do
-    IFS=':' read -r dir name <<< "$service_info"
-    echo "Building $name for $GOOS/$GOARCH..."
-    cd "$dir"
-    GOOS=$GOOS GOARCH=$GOARCH go build -ldflags="-s -w" -o "../bin/${name}-${GOOS}-${GOARCH}" main.go
-    cd ..
-done
-
-echo "All Go services built successfully!"
-```
-
-**Usage:**
-```bash
-chmod +x scripts/build_go_release.sh
-./scripts/build_go_release.sh                    # Native build
-./scripts/build_go_release.sh windows amd64      # Windows build
-./scripts/build_go_release.sh linux amd64        # Linux build
-./scripts/build_go_release.sh darwin arm64        # macOS Apple Silicon
-```
-
----
-
-### Packaging Python Services
-
-Python services can be packaged as standalone executables using PyInstaller or similar tools.
-
-#### Using PyInstaller
-
-**Install PyInstaller:**
-```bash
-pip install pyinstaller
-```
-
-**Build Python Agent:**
-```bash
-cd backend-python-agent
-pyinstaller --onefile --name pagi-agent \
-    --add-data "proto:proto" \
-    --hidden-import=uvicorn \
-    --hidden-import=fastapi \
-    main.py
-```
-
-**Build Python Memory Service:**
-```bash
-cd backend-python-memory
-pyinstaller --onefile --name pagi-memory \
-    --add-data "proto:proto" \
-    --hidden-import=uvicorn \
-    --hidden-import=fastapi \
-    --hidden-import=chromadb \
-    main.py
-```
-
-**Alternative: Using Nuitka (Faster, Smaller Binaries)**
-
-```bash
-pip install nuitka
-
-# Build with Nuitka
-cd backend-python-agent
-python -m nuitka --onefile --standalone \
-    --include-module=uvicorn \
-    --include-module=fastapi \
-    --output-dir=dist \
-    main.py
-```
-
-#### Creating Python Virtual Environment Package
-
-For distribution without compilation:
-
-```bash
-# Create distribution package
-cd backend-python-agent
-python -m venv dist/venv
-source dist/venv/bin/activate  # or dist\venv\Scripts\activate on Windows
-pip install -r requirements.txt
-pip install --upgrade pip setuptools wheel
-
-# Create startup script
-cat > dist/start-agent.sh << 'EOF'
-#!/bin/bash
-cd "$(dirname "$0")"
-source venv/bin/activate
-python main.py
-EOF
-
-chmod +x dist/start-agent.sh
-```
-
----
-
-### Building Frontend for Production
-
-The frontend is a React/Vite application that builds to static files.
-
-#### Production Build
-
-```bash
-cd frontend-digital-twin
-
-# Install dependencies
-npm install
-
-# Build for production
-npm run build
-
-# Output will be in: dist/
-# Contains: index.html, assets/, and all static files
-```
-
-#### Environment Configuration
-
-Create production environment file (`.env.production`):
-
-```bash
-# .env.production
-VITE_GATEWAY_URL=https://api.yourdomain.com
-VITE_WS_URL=wss://api.yourdomain.com
-VITE_TELEMETRY_URL=https://api.yourdomain.com/v1/telemetry/stream
-
-# Generative Features (optional)
-VITE_OPENROUTER_API_KEY=YOUR_OPENROUTER_API_KEY_HERE
-VITE_REPLICATE_API_KEY=YOUR_REPLICATE_API_KEY_HERE
-GEMINI_API_KEY=YOUR_GEMINI_API_KEY_HERE  # Fallback for image generation
-```
-
-#### Serving Frontend
-
-**Option 1: Static File Server (Nginx/Apache)**
-```nginx
-# nginx.conf example
-server {
-    listen 80;
-    server_name yourdomain.com;
-    root /path/to/frontend-digital-twin/dist;
-    index index.html;
-
-    location / {
-        try_files $uri $uri/ /index.html;
-    }
-}
-```
-
-**Option 2: Embed in Rust Gateway**
-The Rust Gateway can serve static files. Update gateway to serve the `dist/` directory.
-
-**Option 3: Docker Container**
-```bash
-# Build frontend Docker image
-cd frontend-digital-twin
-docker build -t pagi-frontend:latest .
-```
-
----
-
-### Creating Distribution Packages
-
-#### Windows Distribution
-
-**Create Installer Script (`scripts/create_windows_package.ps1`):**
-```powershell
-# PowerShell script to package Windows binaries
-$version = "1.0.0"
-$packageName = "pagi-digital-twin-$version-windows"
-$distDir = "dist/$packageName"
-
-# Create directory structure
-New-Item -ItemType Directory -Force -Path "$distDir/bin"
-New-Item -ItemType Directory -Force -Path "$distDir/config"
-New-Item -ItemType Directory -Force -Path "$distDir/frontend"
-
-# Copy Rust binaries
-Copy-Item "backend-rust-gateway/target/release/backend-rust-gateway.exe" "$distDir/bin/gateway.exe"
-Copy-Item "backend-rust-orchestrator/target/release/backend-rust-orchestrator.exe" "$distDir/bin/orchestrator.exe"
-# ... copy other binaries
-
-# Copy Go binaries
-Copy-Item "backend-go-agent-planner/bin/agent-planner.exe" "$distDir/bin/"
-# ... copy other binaries
-
-# Copy Python executables
-Copy-Item "backend-python-agent/dist/pagi-agent.exe" "$distDir/bin/"
-Copy-Item "backend-python-memory/dist/pagi-memory.exe" "$distDir/bin/"
-
-# Copy frontend
-Copy-Item -Recurse "frontend-digital-twin/dist/*" "$distDir/frontend/"
-
-# Copy configuration files
-Copy-Item ".env.example" "$distDir/config/.env.example"
-Copy-Item "README.md" "$distDir/"
-
-# Create startup script
-@"
-@echo off
-echo Starting PAGI Digital Twin...
-start bin\gateway.exe
-start bin\orchestrator.exe
-start bin\agent-planner.exe
-start bin\model-gateway.exe
-start bin\memory.exe
-echo All services started. Access frontend at http://localhost:3000
-pause
-"@ | Out-File -FilePath "$distDir/start-services.bat" -Encoding ASCII
-
-# Create ZIP archive
-Compress-Archive -Path "$distDir/*" -DestinationPath "dist/$packageName.zip"
-```
-
-#### Linux Distribution
-
-**Create Tarball (`scripts/create_linux_package.sh`):**
-```bash
-#!/bin/bash
-VERSION="1.0.0"
-PACKAGE_NAME="pagi-digital-twin-${VERSION}-linux"
-DIST_DIR="dist/${PACKAGE_NAME}"
-
-mkdir -p "$DIST_DIR"/{bin,config,frontend}
-
-# Copy binaries
-cp backend-rust-gateway/target/release/backend-rust-gateway "$DIST_DIR/bin/gateway"
-cp backend-rust-orchestrator/target/release/backend-rust-orchestrator "$DIST_DIR/bin/orchestrator"
-# ... copy all binaries
-
-# Copy frontend
-cp -r frontend-digital-twin/dist/* "$DIST_DIR/frontend/"
-
-# Copy config
-cp .env.example "$DIST_DIR/config/.env.example"
-
-# Create startup script
-cat > "$DIST_DIR/start-services.sh" << 'EOF'
-#!/bin/bash
-cd "$(dirname "$0")"
-./bin/gateway &
-./bin/orchestrator &
-./bin/agent-planner &
-./bin/model-gateway &
-./bin/memory &
-echo "All services started. Access frontend at http://localhost:3000"
-EOF
-
-chmod +x "$DIST_DIR/start-services.sh"
-
-# Create tarball
-tar -czf "dist/${PACKAGE_NAME}.tar.gz" -C dist "$PACKAGE_NAME"
-```
-
-#### macOS Distribution
-
-Similar to Linux, but create a `.dmg` file:
-
-```bash
-# Create DMG (requires hdiutil)
-hdiutil create -volname "PAGI Digital Twin" \
-    -srcfolder "$DIST_DIR" \
-    -ov -format UDZO \
-    "dist/${PACKAGE_NAME}.dmg"
-```
-
----
-
-### Docker Images for Distribution
-
-Docker provides a consistent deployment method across platforms.
-
-#### Build All Docker Images
-
-```bash
-# Build all services
-docker compose build
-
-# Or build individually
-docker build -t pagi-gateway:latest ./backend-rust-gateway
-docker build -t pagi-orchestrator:latest ./backend-rust-orchestrator
-docker build -t pagi-agent-planner:latest ./backend-go-agent-planner
-docker build -t pagi-model-gateway:latest ./backend-go-model-gateway
-docker build -t pagi-frontend:latest ./frontend-digital-twin
-# ... build all services
-```
-
-#### Save Images for Distribution
-
-```bash
-# Save all images to a single archive
-docker save \
-    pagi-gateway:latest \
-    pagi-orchestrator:latest \
-    pagi-agent-planner:latest \
-    pagi-model-gateway:latest \
-    pagi-frontend:latest \
-    -o pagi-digital-twin-images.tar
-
-# Compress
-gzip pagi-digital-twin-images.tar
-
-# On target system, load images:
-docker load -i pagi-digital-twin-images.tar.gz
-```
-
-#### Docker Compose Distribution
-
-```bash
-# Package docker-compose.yml with images
-tar -czf pagi-digital-twin-docker.tar.gz \
-    docker-compose.yml \
-    .env.example \
-    pagi-digital-twin-images.tar.gz \
-    README.md
-```
-
----
-
-### CI/CD Build Pipeline Example
-
-**GitHub Actions Workflow (`.github/workflows/build-release.yml`):**
-
-```yaml
-name: Build Release Binaries
-
-on:
-  push:
-    tags:
-      - 'v*'
-
-jobs:
-  build:
-    strategy:
-      matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
-        include:
-          - os: ubuntu-latest
-            target: x86_64-unknown-linux-gnu
-            goos: linux
-            goarch: amd64
-            ext: ""
-          - os: windows-latest
-            target: x86_64-pc-windows-msvc
-            goos: windows
-            goarch: amd64
-            ext: ".exe"
-          - os: macos-latest
-            target: x86_64-apple-darwin
-            goos: darwin
-            goarch: amd64
-            ext: ""
-
-    runs-on: ${{ matrix.os }}
-
-    steps:
-      - uses: actions/checkout@v3
-
-      - name: Setup Rust
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          target: ${{ matrix.target }}
-
-      - name: Setup Go
-        uses: actions/setup-go@v3
-        with:
-          go-version: '1.22'
-
-      - name: Build Rust Services
-        run: |
-          cd backend-rust-gateway && cargo build --release --target ${{ matrix.target }}
-          cd ../backend-rust-orchestrator && cargo build --release --target ${{ matrix.target }}
-          # ... build all Rust services
-
-      - name: Build Go Services
-        env:
-          GOOS: ${{ matrix.goos }}
-          GOARCH: ${{ matrix.goarch }}
-        run: |
-          cd backend-go-agent-planner
-          go build -ldflags="-s -w" -o ../bin/agent-planner${{ matrix.ext }} main.go
-          # ... build all Go services
-
-      - name: Build Frontend
-        run: |
-          cd frontend-digital-twin
-          npm ci
-          npm run build
-
-      - name: Create Release Archive
-        run: |
-          # Package all binaries and frontend
-          tar -czf pagi-digital-twin-${{ matrix.goos }}-${{ matrix.goarch }}.tar.gz \
-            bin/ frontend-digital-twin/dist/ config/
-
-      - name: Upload Artifacts
-        uses: actions/upload-artifact@v3
-        with:
-          name: pagi-${{ matrix.goos }}-${{ matrix.goarch }}
-          path: pagi-digital-twin-*.tar.gz
-```
-
----
-
-### Distribution Checklist
-
-Before distributing binaries:
-
-- [ ] **Code Signing (Windows/macOS):** Sign binaries for trust
-- [ ] **Version Information:** Embed version in binaries
-- [ ] **License Files:** Include LICENSE in distribution
-- [ ] **Documentation:** Include README with installation instructions
-- [ ] **Configuration Templates:** Provide `.env.example` files
-- [ ] **Startup Scripts:** Create platform-specific startup scripts
-- [ ] **Health Checks:** Verify all services start correctly
-- [ ] **Dependencies:** Document any required system dependencies
-- [ ] **Security:** Scan binaries for vulnerabilities
-- [ ] **Testing:** Test on clean systems without development tools
-
----
-
-### Version Information in Binaries
-
-**Rust (add to Cargo.toml):**
-```toml
-[package]
-version = "1.0.0"
-
-[profile.release]
-strip = true
-lto = true
-codegen-units = 1
-```
-
-**Go (build with version):**
-```bash
-go build -ldflags="-X main.Version=1.0.0 -X main.BuildTime=$(date -u +%Y-%m-%dT%H:%M:%SZ) -s -w"
-```
-
----
-
-### Quick Start for End Users
-
-Create a simple installation guide for end users:
-
-**Windows:**
-1. Download `pagi-digital-twin-1.0.0-windows.zip`
-2. Extract to `C:\Program Files\PAGI\`
-3. Copy `config\.env.example` to `config\.env` and configure
-4. Run `start-services.bat`
-5. Open browser to `http://localhost:3000`
-
-**Linux:**
-1. Download `pagi-digital-twin-1.0.0-linux.tar.gz`
-2. Extract: `tar -xzf pagi-digital-twin-1.0.0-linux.tar.gz`
-3. Configure: `cp config/.env.example config/.env` and edit
-4. Run: `./start-services.sh`
-5. Open browser to `http://localhost:3000`
-
-**macOS:**
-1. Download `pagi-digital-twin-1.0.0-macos.dmg`
-2. Mount and drag to Applications
-3. Configure environment variables
-4. Run from Applications folder
-5. Open browser to `http://localhost:3000`
-
----
-
-**Happy building.**
+For detailed architecture documentation, implementation choices, and production recommendations, see [`docs/PROJECT_DELIVERY_SUMMARY.md`](docs/PROJECT_DELIVERY_SUMMARY.md).

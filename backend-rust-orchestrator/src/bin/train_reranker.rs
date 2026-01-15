@@ -14,7 +14,7 @@ use serde::{Deserialize, Serialize};
 use tracing::{info, warn};
 use anyhow::{Result, Context};
 use rusqlite;
-use chrono::Utc;
+use chrono::{DateTime, Utc};
 
 // Import feedback storage - binaries can access parent crate modules
 // We'll need to make sure the module is accessible
@@ -24,9 +24,6 @@ use std::sync::Arc;
 use std::sync::Mutex;
 use rusqlite::Connection;
 use rusqlite::Result as SqliteResult;
-use std::collections::HashMap;
-use chrono::{DateTime, Utc};
-use serde::{Deserialize, Serialize};
 
 // Re-implement FeedbackStorage for the binary (or we could make it a library)
 // For simplicity, we'll access the database directly

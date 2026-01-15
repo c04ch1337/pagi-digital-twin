@@ -20,7 +20,6 @@ use crate::handshake_proto::{
     HandshakeRequest,
 };
 use crate::network::handshake::NodeIdentity;
-use std::sync::Arc;
 use tonic::transport::Channel;
 
 /// Service name for Blue Flame discovery
